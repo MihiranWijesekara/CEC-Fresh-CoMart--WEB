@@ -137,4 +137,44 @@
     </div>
 
 </body>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Product Page</title>
+    <link rel="stylesheet" href="../assets/css/style.css" />
+  </head>
+  <body>
+    <!-- Navbar will load here -->
+    <div id="navbar"></div>
+
+    <script>
+      fetch("nav.html")
+        .then((response) => response.text())
+        .then((data) => {
+          document.getElementById("navbar").innerHTML = data;
+
+          // Reinitialize dropdown functionality after loading nav.html
+          const toggleDropdown = () => {
+            const menu = document.getElementById("categoryMenu");
+            const arrow = document.getElementById("arrowIcon");
+
+            menu.classList.toggle("show");
+            arrow.classList.toggle("rotate");
+          };
+
+          document
+            .querySelector(".dropbtn")
+            .addEventListener("click", toggleDropdown);
+
+          document.querySelectorAll("#categoryMenu a").forEach((item) => {
+            item.addEventListener("click", function () {
+              document.getElementById("categoryMenu").classList.remove("show");
+              document.getElementById("arrowIcon").classList.remove("rotate");
+            });
+          });
+        });
+    </script>
+  </body>
 </html>
