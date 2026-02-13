@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shopping Cart</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css"
+    />
+    <style>
+      body {
+        background-color: #f8f9fa;
+        padding: 20px;
+      }
+      .cart-container {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        margin-top: 20px;
+      }
+      .cart-header {
+        font-size: 24px;
+        font-weight: 600;
+        margin-bottom: 20px;
+      }
+      .product-table th {
+        background-color: #d9d9d9;
+        padding: 12px;
+        font-weight: 600;
+        text-align: center;
+      }
+      .product-table td {
+        padding: 15px;
+        vertical-align: middle;
+        text-align: center;
+      }
+      .product-img {
+        width: 60px;
+        height: auto;
+      }
+      .product-name {
+        text-align: left;
+      }
+      .qty-control {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+      }
+      .qty-btn {
+        width: 30px;
+        height: 30px;
+        border: 1px solid #ddd;
+        background: white;
+        cursor: pointer;
+        font-weight: bold;
+      }
+      .qty-input {
+        width: 50px;
+        text-align: center;
+        border: none;
+        font-weight: 600;
+      }
+      .remove-btn {
+        background: none;
+        border: none;
+        font-size: 20px;
+        cursor: pointer;
+      }
+      .discount-text {
+        color: #28a745;
+        font-weight: 600;
+      }
+      .summary-box {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-top: 20px;
+      }
+      .summary-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #dee2e6;
+      }
+      .summary-row:last-child {
+        border-bottom: none;
+      }
+      .bag-charge {
+        color: #28a745;
+      }
+      .info-icon {
+        color: #28a745;
+        font-size: 14px;
+      }
+      .total-box {
+        background-color: #28a745;
+        color: white;
+        padding: 15px 20px;
+        border-radius: 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 18px;
+        font-weight: 600;
+        margin-top: 15px;
+      }
+      .cart-name-input {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        margin-top: 15px;
+      }
+      .save-btn {
+        background-color: #e9ecef;
+        border: 1px solid #ddd;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-top: 10px;
+      }
+      .checkout-btn {
+        width: 100%;
+        background-color: #495057;
+        color: white;
+        padding: 15px;
+        border: none;
+        border-radius: 4px;
+        font-size: 16px;
+        font-weight: 600;
+        margin-top: 15px;
+        cursor: pointer;
+      }
+      .checkout-btn:hover {
+        background-color: #343a40;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="navbar" class="navbar-container"></div>
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8">
+          <div class="cart-container">
+            <h2 class="cart-header">Cart (1 items)</h2>
+            <table class="table product-table">
+              <thead>
+                <tr>
+                  <th>Product Name</th>
+                  <th>Price</th>
+                  <th>Qty</th>
+                  <th>Discount</th>
+                  <th>Total</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="product-name">
+                    <div class="d-flex align-items-center">
+                      <img
+                        src="https://essstr.blob.core.windows.net/essimg/ItemAsset/Pic116138.jpg"
+                        alt="Product"
+                        class="product-img me-3"
+                      />
+                      <span>Eh Ginger Beer Pet 1.5L</span>
+                    </div>
+                  </td>
+                  <td>Rs. 420.00</td>
+                  <td>
+                    <div class="qty-control">
+                      <button class="qty-btn" onclick="decreaseQty()">−</button>
+                      <input
+                        type="text"
+                        class="qty-input"
+                        value="1"
+                        id="qtyInput"
+                        readonly
+                      />
+                      <button class="qty-btn" onclick="increaseQty()">+</button>
+                    </div>
+                  </td>
+                  <td class="discount-text">Rs. 0.00</td>
+                  <td id="itemTotal">Rs. 420.00</td>
+                  <td>
+                    <button class="remove-btn" onclick="removeItem()">✕</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="col-lg-4">
+          <div class="cart-container">
+            <div class="summary-box">
+              <div class="summary-row">
+                <span>Subtotal</span>
+                <span id="subtotal">Rs. 420.00</span>
+              </div>
+              <div class="summary-row">
+                <span>Delivery Charges</span>
+                <span>Rs. 0.00</span>
+              </div>
+              <div class="summary-row bag-charge">
+                <span
+                  >Polythene Bag Charge
+                  <i class="bi bi-info-circle info-icon"></i
+                ></span>
+                <span>Rs. 10.00</span>
+              </div>
+              <div class="summary-row">
+                <span>Total Discounts</span>
+                <span>Rs. 0.00</span>
+              </div>
+            </div>
+
+            <div class="total-box">
+              <span>Total</span>
+              <span id="grandTotal">Rs. 480.00</span>
+            </div>
+
+            <button class="checkout-btn">Proceed to Checkout</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      const pricePerItem = 420;
+      const bagCharge = 60;
+
+      function updateTotal() {
+        const qty = parseInt(document.getElementById("qtyInput").value);
+        const itemTotal = pricePerItem * qty;
+        const grandTotal = itemTotal + bagCharge;
+
+        document.getElementById("itemTotal").textContent =
+          "Rs. " + itemTotal.toFixed(2);
+        document.getElementById("subtotal").textContent =
+          "Rs. " + itemTotal.toFixed(2);
+        document.getElementById("grandTotal").textContent =
+          "Rs. " + grandTotal.toFixed(2);
+      }
+
+      function increaseQty() {
+        const input = document.getElementById("qtyInput");
+        input.value = parseInt(input.value) + 1;
+        updateTotal();
+      }
+
+      function decreaseQty() {
+        const input = document.getElementById("qtyInput");
+        if (parseInt(input.value) > 1) {
+          input.value = parseInt(input.value) - 1;
+          updateTotal();
+        }
+      }
+
+      function removeItem() {
+        if (confirm("Are you sure you want to remove this item?")) {
+          alert("Item removed from cart");
+        }
+      }
+
+      fetch("nav.html")
+        .then((response) => response.text())
+        .then((data) => {
+          document.getElementById("navbar").innerHTML = data;
+
+          // Reinitialize dropdown functionality after loading nav.html
+          const toggleDropdown = () => {
+            const menu = document.getElementById("categoryMenu");
+            const arrow = document.getElementById("arrowIcon");
+
+            menu.classList.toggle("show");
+            arrow.classList.toggle("rotate");
+          };
+
+          document
+            .querySelector(".dropbtn")
+            .addEventListener("click", toggleDropdown);
+
+          document.querySelectorAll("#categoryMenu a").forEach((item) => {
+            item.addEventListener("click", function () {
+              document.getElementById("categoryMenu").classList.remove("show");
+              document.getElementById("arrowIcon").classList.remove("rotate");
+            });
+          });
+        });
+    </script>
+  </body>
+</html>
