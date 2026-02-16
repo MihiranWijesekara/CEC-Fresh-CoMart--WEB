@@ -5,11 +5,16 @@
     <title>Product Page</title>
     <link rel="stylesheet" href="../assets/css/style.css" />
     <style>
+      /* * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      } */
       body {
         background-color: #f0f2f5;
         font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-        margin: 0;
-        padding: 0;
+        /* margin: 0;
+        padding: 0; */
         min-height: 100vh;
       }
 
@@ -17,7 +22,7 @@
         width: 100%;
         position: fixed;
         top: 0;
-        z-index: 1000;
+        /* z-index: 1000; */
       }
 
       .main-content {
@@ -157,26 +162,10 @@
         .then((response) => response.text())
         .then((data) => {
           document.getElementById("navbar").innerHTML = data;
-
-          // Reinitialize dropdown functionality after loading nav.html
-          const toggleDropdown = () => {
-            const menu = document.getElementById("categoryMenu");
-            const arrow = document.getElementById("arrowIcon");
-
-            menu.classList.toggle("show");
-            arrow.classList.toggle("rotate");
-          };
-
-          document
-            .querySelector(".dropbtn")
-            .addEventListener("click", toggleDropdown);
-
-          document.querySelectorAll("#categoryMenu a").forEach((item) => {
-            item.addEventListener("click", function () {
-              document.getElementById("categoryMenu").classList.remove("show");
-              document.getElementById("arrowIcon").classList.remove("rotate");
-            });
-          });
+          // Dynamically load navBar.js after navbar is injected
+          const script = document.createElement("script");
+          script.src = "navBar.js";
+          document.body.appendChild(script);
         });
     </script>
   </body>
