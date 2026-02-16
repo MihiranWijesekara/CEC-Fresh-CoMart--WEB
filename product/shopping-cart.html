@@ -226,10 +226,9 @@
               <span id="grandTotal">Rs. 480.00</span>
             </div>
 
-            <a href="../proceed.html" style="text-decoration: none;">
-                   <button class="checkout-btn">Proceed to Checkout</button>
-               </a>
-
+            <a href="../proceed.html" style="text-decoration: none">
+              <button class="checkout-btn">Proceed to Checkout</button>
+            </a>
           </div>
         </div>
       </div>
@@ -277,26 +276,10 @@
         .then((response) => response.text())
         .then((data) => {
           document.getElementById("navbar").innerHTML = data;
-
-          // Reinitialize dropdown functionality after loading nav.html
-          const toggleDropdown = () => {
-            const menu = document.getElementById("categoryMenu");
-            const arrow = document.getElementById("arrowIcon");
-
-            menu.classList.toggle("show");
-            arrow.classList.toggle("rotate");
-          };
-
-          document
-            .querySelector(".dropbtn")
-            .addEventListener("click", toggleDropdown);
-
-          document.querySelectorAll("#categoryMenu a").forEach((item) => {
-            item.addEventListener("click", function () {
-              document.getElementById("categoryMenu").classList.remove("show");
-              document.getElementById("arrowIcon").classList.remove("rotate");
-            });
-          });
+          // Dynamically load navBar.js after navbar is injected
+          const script = document.createElement("script");
+          script.src = "navBar.js";
+          document.body.appendChild(script);
         });
     </script>
   </body>

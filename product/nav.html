@@ -2,6 +2,7 @@
 <html>
   <head>
     <title>Navbar Design</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <!-- Font Awesome -->
     <link
@@ -10,11 +11,16 @@
     />
 
     <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
       body {
         margin: 0;
         font-family: Arial, sans-serif;
       }
-
+      /* Desktop Navbar */
       .navbar {
         display: flex;
         align-items: center;
@@ -156,10 +162,318 @@
         color: rgb(254, 254, 254);
         transition: transform 0.3s ease;
       }
+
+      /* Mobile menu toggle button */
+      .mobile-menu-toggle {
+        display: none;
+        background: none;
+        border: none;
+        color: white;
+        font-size: 24px;
+        cursor: pointer;
+        padding: 8px;
+      }
+
+      /* Mobile Sidebar Menu */
+      .mobile-sidebar {
+        position: fixed;
+        top: 0;
+        right: -100%;
+        width: 280px;
+        height: 100vh;
+        background-color: #1a1a1a;
+        box-shadow: -2px 0 10px rgba(0, 0, 0, 0.3);
+        z-index: 9999;
+        transition: right 0.3s ease;
+        overflow-y: auto;
+      }
+
+      .mobile-sidebar.open {
+        right: 0;
+      }
+
+      .mobile-sidebar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px;
+        background-color: #27b62e;
+      }
+
+      .mobile-sidebar-header h3 {
+        color: white;
+        font-size: 18px;
+      }
+
+      .close-sidebar {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 24px;
+        cursor: pointer;
+      }
+
+      .mobile-menu {
+        padding: 20px;
+      }
+
+      .mobile-menu-item {
+        margin-bottom: 15px;
+      }
+
+      .mobile-menu-item a,
+      .mobile-menu-item button {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        padding: 12px 15px;
+        background: #2a2a2a;
+        color: white;
+        text-decoration: none;
+        border: none;
+        border-radius: 8px;
+        font-size: 15px;
+        cursor: pointer;
+        transition: background 0.3s;
+      }
+
+      .mobile-menu-item a:hover,
+      .mobile-menu-item button:hover {
+        background: #27b62e;
+      }
+
+      .mobile-category-list {
+        display: none;
+        margin-top: 10px;
+        padding-left: 15px;
+      }
+
+      .mobile-category-list.show {
+        display: block;
+      }
+
+      .mobile-category-list a {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 15px;
+        color: #ccc;
+        text-decoration: none;
+        font-size: 14px;
+        border-left: 2px solid #27b62e;
+        margin-bottom: 5px;
+        transition: all 0.3s;
+      }
+
+      .mobile-category-list a:hover {
+        color: white;
+        background: #2a2a2a;
+      }
+
+      /* Overlay */
+      .overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 9998;
+      }
+
+      .overlay.show {
+        display: block;
+      }
+
+      /* Category icon colors */
+      .veg {
+        color: #4caf50;
+      }
+      .fruit {
+        color: #ff5252;
+      }
+      .snack {
+        color: #ff9800;
+      }
+      .biscuit {
+        color: #a1887f;
+      }
+      .coffee {
+        color: #6d4c41;
+      }
+      .egg {
+        color: #fbc02d;
+      }
+      .water {
+        color: #2196f3;
+      }
+      .tea {
+        color: #8bc34a;
+      }
+      .cheese {
+        color: #ffca28;
+      }
+      .yoghurt {
+        color: #ba68c8;
+      }
+      .dessert {
+        color: #e91e63;
+      }
+
+      /* Mobile Responsive */
+      @media screen and (max-width: 968px) {
+        .navbar {
+          padding: 12px 20px;
+        }
+
+        /* Hide desktop elements */
+        .dropdown,
+        .search-bar,
+        .login-btn,
+        .signup-btn {
+          display: none;
+        }
+
+        /* Show mobile menu toggle */
+        .mobile-menu-toggle {
+          display: block;
+        }
+
+        .logo {
+          height: 40px;
+        }
+
+        .nav-left {
+          gap: 0;
+        }
+
+        .nav-right {
+          display: flex;
+          align-items: center;
+          gap: 15px;
+        }
+
+        .cart-btn {
+          font-size: 22px;
+        }
+
+        /* Mobile search in sidebar */
+        .mobile-search {
+          margin-bottom: 20px;
+        }
+
+        .mobile-search input {
+          width: 100%;
+          padding: 12px;
+          border: none;
+          border-radius: 8px;
+          outline: none;
+          background: #2a2a2a;
+          color: white;
+          font-size: 14px;
+        }
+
+        .mobile-search input::placeholder {
+          color: #999;
+        }
+
+        .mobile-search button {
+          display: none;
+        }
+      }
+
+      @media screen and (max-width: 480px) {
+        .mobile-sidebar {
+          width: 100%;
+          right: -100%;
+        }
+
+        .navbar {
+          padding: 10px 15px;
+        }
+      }
     </style>
   </head>
 
   <body>
+    <!-- Overlay -->
+    <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+
+    <!-- Mobile Sidebar -->
+    <div class="mobile-sidebar" id="mobileSidebar">
+      <div class="mobile-sidebar-header">
+        <h3>Menu</h3>
+        <button class="close-sidebar" onclick="closeSidebar()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <div class="mobile-menu">
+        <!-- Mobile Search -->
+        <div class="mobile-search">
+          <input type="text" placeholder="Search products..." />
+        </div>
+
+        <!-- Category Dropdown -->
+        <div class="mobile-menu-item">
+          <button onclick="toggleMobileCategories()">
+            <i class="fas fa-th-large"></i>
+            <span>Categories</span>
+            <i
+              class="fas fa-angle-down"
+              id="mobileCategoryArrow"
+              style="margin-left: auto"
+            ></i>
+          </button>
+          <div class="mobile-category-list" id="mobileCategoryList">
+            <a href="#"><i class="fa-solid fa-carrot veg"></i> Vegetables</a>
+            <a href="#"><i class="fa-solid fa-apple-whole fruit"></i> Fruits</a>
+            <a href="#"><i class="fa-solid fa-cookie-bite snack"></i> Snacks</a>
+            <a href="#"
+              ><i class="fa-solid fa-bread-slice biscuit"></i> Biscuits</a
+            >
+            <a href="#"><i class="fa-solid fa-mug-hot coffee"></i> Coffee</a>
+            <a href="#"><i class="fa-solid fa-egg egg"></i> Eggs</a>
+            <a href="#"><i class="fa-solid fa-bottle-water water"></i> Water</a>
+            <a href="#"><i class="fa-solid fa-mug-saucer tea"></i> Tea</a>
+            <a href="#"><i class="fa-solid fa-cheese cheese"></i> Cheese</a>
+            <a href="#"
+              ><i class="fa-solid fa-ice-cream yoghurt"></i> Yoghurts & Curd</a
+            >
+            <a href="#"
+              ><i class="fa-solid fa-cake-candles dessert"></i> Desserts</a
+            >
+          </div>
+        </div>
+
+        <!-- Login -->
+        <div class="mobile-menu-item">
+          <a href="../login/sign.html">
+            <i class="fas fa-user"></i>
+            <span>Login</span>
+          </a>
+        </div>
+
+        <!-- Sign Up -->
+        <div class="mobile-menu-item">
+          <a href="../login/register.html">
+            <i class="fas fa-user-plus"></i>
+            <span>Sign Up</span>
+          </a>
+        </div>
+
+        <!-- Cart -->
+        <div class="mobile-menu-item">
+          <a href="../product/shopping-cart.html">
+            <i class="fas fa-shopping-cart"></i>
+            <span>Shopping Cart</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
     <div class="navbar">
       <!-- Left Side -->
       <div class="nav-left">
@@ -248,26 +562,15 @@
         <a href="../product/shopping-cart.html" class="cart-btn">
           <i class="fa-solid fa-cart-shopping"></i>
         </a>
+
+        <!-- Mobile Menu Toggle -->
+        <button class="mobile-menu-toggle" onclick="openSidebar()">
+          <i class="fas fa-bars"></i>
+        </button>
       </div>
     </div>
 
     <!-- JavaScript -->
-    <script>
-      function toggleDropdown() {
-        const menu = document.getElementById("categoryMenu");
-        const arrow = document.getElementById("arrowIcon");
-
-        menu.classList.toggle("show");
-        arrow.classList.toggle("rotate");
-      }
-
-      // Close when category selected
-      document.querySelectorAll("#categoryMenu a").forEach((item) => {
-        item.addEventListener("click", function () {
-          document.getElementById("categoryMenu").classList.remove("show");
-          document.getElementById("arrowIcon").classList.remove("rotate");
-        });
-      });
-    </script>
+    <script src="navBar.js"></script>
   </body>
 </html>
