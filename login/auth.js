@@ -1,19 +1,11 @@
 
 function signup() {
-    console.log("auth.js file worked");
-
     var fName = document.getElementById("firstName").value;
-    console.log(fName);
     var lName = document.getElementById("lastName").value;
-    console.log(lName);
     var email = document.getElementById("email").value;
-    console.log(email);
     var phoneNumber = document.getElementById("phone").value;
-    console.log(phoneNumber);
     var password = document.getElementById("password").value;
-    console.log(password);
     var confirmPassword = document.getElementById("confirmPassword").value;
-    console.log(confirmPassword); 
 
     var f = new FormData();
     f.append("firstName",fName);
