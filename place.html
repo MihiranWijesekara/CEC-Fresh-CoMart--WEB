@@ -1,152 +1,148 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
+  <head>
+    <meta charset="UTF-8" />
     <title>Order Confirmed</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <!-- Google Font -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap"
+      rel="stylesheet"
+    />
 
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Poppins', sans-serif;
-        }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: "Poppins", sans-serif;
+      }
 
-        body {
-            background: #f5f7fb;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
+      body {
+        background: #f5f7fb;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+      }
 
+      .container {
+        background: #ffffff;
+        padding: 40px;
+        width: 90%;
+        max-width: 500px;
+        text-align: center;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+      }
+
+      .icon-circle {
+        width: 90px;
+        height: 90px;
+        background: #e6f9ed;
+        border-radius: 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: 0 auto 20px;
+      }
+
+      .checkmark {
+        font-size: 40px;
+        color: #16a34a;
+      }
+
+      h1 {
+        font-size: 28px;
+        margin-bottom: 15px;
+        color: #111827;
+      }
+
+      .description {
+        color: #6b7280;
+        font-size: 15px;
+        margin-bottom: 30px;
+        line-height: 1.6;
+      }
+
+      .order-box {
+        background: #f9fafb;
+        padding: 20px;
+        border-radius: 12px;
+        text-align: left;
+        margin-bottom: 30px;
+      }
+
+      .order-box p {
+        margin: 10px 0;
+        font-size: 14px;
+        color: #374151;
+      }
+
+      .order-box span {
+        float: right;
+        font-weight: 600;
+      }
+
+      .status {
+        color: #2563eb;
+      }
+
+      .btn {
+        display: inline-block;
+        padding: 14px 30px;
+        background: linear-gradient(135deg, #5b5fe8, #7c3aed);
+        color: #fff;
+        border-radius: 30px;
+        text-decoration: none;
+        font-weight: 500;
+        transition: 0.3s;
+      }
+
+      .btn:hover {
+        opacity: 0.9;
+      }
+
+      @media (max-width: 480px) {
         .container {
-            background: #ffffff;
-            padding: 40px;
-            width: 90%;
-            max-width: 500px;
-            text-align: center;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+          padding: 25px;
         }
-
-        .icon-circle {
-            width: 90px;
-            height: 90px;
-            background: #e6f9ed;
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin: 0 auto 20px;
-        }
-
-        .checkmark {
-            font-size: 40px;
-            color: #16a34a;
-        }
-
-        h1 {
-            font-size: 28px;
-            margin-bottom: 15px;
-            color: #111827;
-        }
-
-        .description {
-            color: #6b7280;
-            font-size: 15px;
-            margin-bottom: 30px;
-            line-height: 1.6;
-        }
-
-        .order-box {
-            background: #f9fafb;
-            padding: 20px;
-            border-radius: 12px;
-            text-align: left;
-            margin-bottom: 30px;
-        }
-
-        .order-box p {
-            margin: 10px 0;
-            font-size: 14px;
-            color: #374151;
-        }
-
-        .order-box span {
-            float: right;
-            font-weight: 600;
-        }
-
-        .status {
-            color: #2563eb;
-        }
-
-        .btn {
-            display: inline-block;
-            padding: 14px 30px;
-            background: linear-gradient(135deg, #5b5fe8, #7c3aed);
-            color: #fff;
-            border-radius: 30px;
-            text-decoration: none;
-            font-weight: 500;
-            transition: 0.3s;
-        }
-
-        .btn:hover {
-            opacity: 0.9;
-        }
-
-        @media(max-width:480px){
-            .container{
-                padding:25px;
-            }
-        }
+      }
     </style>
-</head>
-<body>
-
-<div class="container">
-
-    <div class="icon-circle">
+  </head>
+  <body>
+    <div class="container">
+      <div class="icon-circle">
         <div class="checkmark">✓</div>
-    </div>
+      </div>
 
-    <h1>Order Confirmed!</h1>
+      <h1>Order Confirmed!</h1>
 
-    <p class="description">
+      <p class="description">
         Thank you for your purchase. We've sent a confirmation email to you.
         Your luxury goods are being prepared for dispatch.
-    </p>
+      </p>
 
-    <div class="order-box">
+      <div class="order-box">
         <p>Order Number: <span>#LM-98231</span></p>
         <p>Status: <span class="status">Processing</span></p>
         <p>Delivery Estimate: <span>2-3 Business Days</span></p>
-    </div>
+      </div>
 
-
-
-  <div class="container mt-4">
-    <div class="row">
-        <div class="col-12 col-md-6 mx-auto">
-            <button type="button"
-                    onclick="window.location.href='index.html'"
-                    class="btn btn-success w-100">
-                Return to Marketplace
+      <div class="container mt-4">
+        <div class="row">
+          <div class="col-12 col-md-6 mx-auto">
+            <button
+              type="button"
+              onclick="window.location.href = 'index.php'"
+              class="btn btn-success w-100"
+            >
+              Return to Marketplace
             </button>
+          </div>
         </div>
+      </div>
     </div>
-</div>
-
-
-   
-
-</div>
-
-</body>
+  </body>
 </html>

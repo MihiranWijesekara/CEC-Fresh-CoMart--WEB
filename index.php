@@ -112,7 +112,7 @@
                                         <ul class="nav">
                                             <li class="login-register-wrap d-none d-xl-flex">
                                                 <span><a href="login/sign.html">Login</a></span>
-                                                <span><a href="login/register.html">Register</a></span>
+                                                <span><a href="login/register.php">Register</a></span>
                                             </li>
                                            
                                             <li class="mobile-menu-btn d-lg-none">
