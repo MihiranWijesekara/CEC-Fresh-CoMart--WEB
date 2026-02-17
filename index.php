@@ -100,7 +100,7 @@
 
                                             </li>
                                             <li>
-                                                <a href="contact-us.html">
+                                                <a href="contact-us.php">
                                                     <span class="menu-text">Contact</span>
                                                 </a>
                                             </li>
@@ -111,7 +111,7 @@
                                     <div class="header-right-area main-nav">
                                         <ul class="nav">
                                             <li class="login-register-wrap d-none d-xl-flex">
-                                                <span><a href="login/sign.html">Login</a></span>
+                                                <span><a href="login/sign.php">Login</a></span>
                                                 <span><a href="login/register.php">Register</a></span>
                                             </li>
                                            
@@ -203,7 +203,7 @@
 
                                           
                                             <li>
-                                                <a href="contact-us.html">
+                                                <a href="contact-us.php">
                                                     <span class="menu-text">Contact</span>
                                                 </a>
                                             </li>
@@ -214,8 +214,8 @@
                                     <div class="header-right-area main-nav">
                                         <ul class="nav">
                                             <li class="login-register-wrap d-none d-xl-flex">
-                                                <span><a href="login/sign.html">Login</a></span>
-                                                <span><a href="login/register.html">Register</a></span>
+                                                <span><a href="login/sign.php">Login</a></span>
+                                                <span><a href="login/register.php">Register</a></span>
                                             </li>
                                           
                                         </ul>
@@ -257,7 +257,7 @@
                                     
                                 
                                     <li><a href="product/product.html">Product</a></li>
-                                    <li><a href="contact-us.html">Contact</a></li>
+                                    <li><a href="contact-us.php">Contact</a></li>
                                 </ul>
                             </nav>
                             <!-- mobile menu navigation end -->
@@ -269,8 +269,8 @@
                               <ul class="mobile-menu">
                                     <li class="menu-item-has-children"><a href="#">My Account</a>
                                         <ul class="dropdown">
-                                            <li><a href="login/sign.html">Login</a></li>
-                                            <li><a href="login/register.html">Register</a></li>
+                                            <li><a href="login/sign.php">Login</a></li>
+                                            <li><a href="login/register.php">Register</a></li>
                                         </ul>
                                     </li>
                                     
@@ -544,7 +544,7 @@
                         <div class="banner-flash-content d-flex flex-column align-items-center justify-content-center h-100">
                             <h2 class="deal-head text-uppercase">We are offering flash deals</h2>
                             <h3 class="deal-title text-uppercase">Call Now</h3>
-                            <a href="contact-us.html" class="obrien-button primary-btn"> +94 77 877 8731</a>
+                            <a href="contact-us.php" class="obrien-button primary-btn"> +94 77 877 8731</a>
                             
                         </div>
                     </div>
@@ -825,8 +825,8 @@
                                 <p class="desc-content">Call our sales person for more information</p>
                             </div>
                             <div class="support-button d-flex align-items-center">
-                                <a class="obrien-button primary-btn" href="contact-us.html">+94 77 877 8731 </a>
-                                <!--<a class="obrien-button primary-btn" href="contact-us.html">+94 77 877 8731 </a>-->
+                                <a class="obrien-button primary-btn" href="contact-us.php">+94 77 877 8731 </a>
+                                
                             </div>
                         </div>
                     </div>
@@ -883,7 +883,7 @@
                                 <h2 class="widget-title">Information</h2>
                                 <ul class="widget-list">
                                     <li><a href="about-us.html">Our Company</a></li>
-                                    <li><a href="contact-us.html">Contact Us</a></li>
+                                    <li><a href="contact-us.php">Contact Us</a></li>
                                     <li><a href="about-us.html">Our Services</a></li>
                                     <li><a href="about-us.html">Why We?</a></li>
                                     <li><a href="about-us.html">Careers</a></li>
@@ -898,7 +898,7 @@
                                     <li><a href="#">Blog</a></li>
                                     <li><a href="#">Shop</a></li>
                                     <li><a href="#">Cart</a></li>
-                                    <li><a href="contact-us.html">Contact</a></li>
+                                    <li><a href="contact-us.php">Contact</a></li>
                                 </ul>
                             </div>
                         </div>

@@ -397,8 +397,9 @@
                                         </div>
                                     </div>
                                     <div class="col-12 col-custom mt-40">
-                                        <button type="submit" id="submit" name="submit" class="btn obrien-button primary-btn rounded-0 mb-0">Send A Message</button>
+                                        <button type="button" onclick="contactUs()" name="submit" class="btn obrien-button primary-btn rounded-0 mb-0">Send A Message</button>
                                     </div>
+                                    <div id="msgdiv" style="display:none; margin-top: 18px; margin-bottom: 10px;"></div>
                                     <p class="col-12 col-custom form-message mb-0"></p>
                                 </div>
                             </div>
@@ -619,6 +620,9 @@
 
     <!-- Main JS -->
     <script src="assets/js/main.js"></script>
+
+    <!-- Custom JS -->
+    <script src="script.js"></script>
 
 </body>
 

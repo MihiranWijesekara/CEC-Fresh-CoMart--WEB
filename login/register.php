@@ -114,11 +114,11 @@
     <div class="register-box">
       <!-- Small centered logo -->
       <div style="text-align: center; margin-bottom: 20px">
-        <a href="../index.html">
+        <a href="../index.php">
           <img
             src="../assets/images/logo/logo-freshco.png"
             alt="Fresh Co Market Logo"
-            style="width: 100px; height: auto"
+            style="width: 135px; height: auto"
           />
         </a>
 

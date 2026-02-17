@@ -33,7 +33,7 @@ if (empty($fn)) {
 } else if (!preg_match('/^(?:0|\+94|94)?[1-9][0-9]{8}$/', $phoneNumber)) {
     echo ("Please enter a valid Sri Lankan phone number.");
     exit();
-} else if (empty($password)) {
+} else if (empty($password)) { 
     echo ("Please Enter Your Password.");
     exit();
 } else if (strlen($password) < 8 || !preg_match('/[A-Z]/', $password) || !preg_match('/[a-z]/', $password) || !preg_match('/[0-9]/', $password)) {
