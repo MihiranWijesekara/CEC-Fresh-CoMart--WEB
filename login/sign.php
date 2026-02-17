@@ -102,8 +102,12 @@
 <body>
 
     <div class="login-box">
-    <a href="../index.html">
-    <img class="img-full" src="../assets/images/logo/logo-freshco.png" alt="Header Logo">
+    <a href="../index.php">
+     <img
+            src="../assets/images/logo/logo-freshco.png"
+            alt="Fresh Co Market Logo"
+            style="width: 135px; height: auto"
+          />
 </a>
 
        

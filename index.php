@@ -111,7 +111,7 @@
                                     <div class="header-right-area main-nav">
                                         <ul class="nav">
                                             <li class="login-register-wrap d-none d-xl-flex">
-                                                <span><a href="login/sign.html">Login</a></span>
+                                                <span><a href="login/sign.php">Login</a></span>
                                                 <span><a href="login/register.php">Register</a></span>
                                             </li>
                                            
@@ -214,8 +214,8 @@
                                     <div class="header-right-area main-nav">
                                         <ul class="nav">
                                             <li class="login-register-wrap d-none d-xl-flex">
-                                                <span><a href="login/sign.html">Login</a></span>
-                                                <span><a href="login/register.html">Register</a></span>
+                                                <span><a href="login/sign.php">Login</a></span>
+                                                <span><a href="login/register.php">Register</a></span>
                                             </li>
                                           
                                         </ul>
@@ -269,8 +269,8 @@
                               <ul class="mobile-menu">
                                     <li class="menu-item-has-children"><a href="#">My Account</a>
                                         <ul class="dropdown">
-                                            <li><a href="login/sign.html">Login</a></li>
-                                            <li><a href="login/register.html">Register</a></li>
+                                            <li><a href="login/sign.php">Login</a></li>
+                                            <li><a href="login/register.php">Register</a></li>
                                         </ul>
                                     </li>
                                     
