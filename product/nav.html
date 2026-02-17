@@ -99,6 +99,7 @@
       .search-bar {
         display: flex;
         align-items: center;
+       
       }
 
       .search-bar input {
@@ -445,6 +446,7 @@
             <a href="#"
               ><i class="fa-solid fa-cake-candles dessert"></i> Desserts</a
             >
+            
           </div>
         </div>
 
@@ -471,8 +473,84 @@
             <span>Shopping Cart</span>
           </a>
         </div>
+        
       </div>
     </div>
+
+<style> /* Mobile Menu Full Width */
+
+.mobile-menu {
+  padding: 15px;
+}
+
+/* Search Box */
+.mobile-search input {
+  width: 90%;
+  height: 45px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid #dbd5d5;
+  font-size: 15px;
+  box-sizing: border-box;
+  margin-bottom: 10px;
+}
+
+/* Menu Items (Buttons + Links) */
+.mobile-menu-item button,
+.mobile-menu-item a {
+  width: 90%;
+  height: 45px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: none;
+  background-color: #f0ecec;
+  text-decoration: none;
+  color: #333;
+  font-size: 15px;
+  box-sizing: border-box;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+/* Hover Effect */
+/*.mobile-menu-item button:hover,
+.mobile-menu-item a:hover {
+  background-color: #c78888;
+}*/
+
+/* Category List Links */
+.mobile-category-list a {
+  width: 70%;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 20px;
+  text-decoration: none;
+  color: #a71313;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+/* Arrow Rotate Animation */
+.rotate {
+  transform: rotate(180deg);
+  transition: 0.3s;
+}
+
+/* Show/Hide Category */
+.mobile-category-list {
+  display: none;
+}
+
+.mobile-category-list.show {
+  display: block;
+}
+</style>
+
 
     <div class="navbar">
       <!-- Left Side -->
@@ -502,10 +580,10 @@
             <a href="#"
               ><i class="fa-solid fa-cake-candles dessert"></i> Desserts</a
             >
-          </div>
+      </div>
 
-          <style>
-            /* Align items */
+   <style>  /* Align items */
+
             .dropdown-content a {
               display: flex;
               align-items: center;
@@ -546,8 +624,8 @@
             .dessert {
               color: #e91e63;
             } /* Pink */
-          </style>
-        </div>
+   </style>          
+             </div>
 
         <div class="search-bar">
           <input type="text" placeholder="Search products..." />
@@ -568,7 +646,7 @@
           <i class="fas fa-bars"></i>
         </button>
       </div>
-    </div>
+        </div>
 
     <!-- JavaScript -->
     <script src="navBar.js"></script>
