@@ -70,7 +70,7 @@
                             <div class="row align-items-center">
                                 <div class="col-lg-2 col-xl-2 col-sm-6 col-6 col-custom">
                                     <div class="header-logo d-flex align-items-center">
-                                        <a href="index.html">
+                                        <a href="index.php">
                                             <img class="img-full" src="assets/images/logo/logo-freshco.png" alt="Header Logo">
                                         </a>
                                     </div>
@@ -79,7 +79,7 @@
                                     <nav class="main-nav d-flex justify-content-center">
                                         <ul class="nav">
                                             <li>
-                                                <a class="active" href="index.html">
+                                                <a class="active" href="index.php">
                                                     <span class="menu-text"> Home</span>
                                                  
                                                 </a>
@@ -112,7 +112,7 @@
                                         <ul class="nav">
                                             <li class="login-register-wrap d-none d-xl-flex">
                                                 <span><a href="login/sign.html">Login</a></span>
-                                                <span><a href="login/register.html">Register</a></span>
+                                                <span><a href="login/register.php">Register</a></span>
                                             </li>
                                            
                                             <li class="mobile-menu-btn d-lg-none">
@@ -136,7 +136,7 @@
                             <div class="row align-items-center">
                                 <div class="col-lg-2 col-xl-2 col-sm-6 col-6 col-custom">
                                     <div class="header-logo">
-                                        <a href="index.html">
+                                        <a href="index.php">
                                             <img class="img-full" src="assets/images/logo/logo-freshco.png" alt="Header Logo">
                                         </a>
                                     </div>
@@ -145,7 +145,7 @@
                                     <nav class="main-nav d-flex justify-content-center">
                                         <ul class="nav">
                                             <li>
-                                                <a class="active" href="index.html">
+                                                <a class="active" href="index.php">
                                                     <span class="menu-text"> Home</span>
                                                     
                                                 </a>
@@ -248,7 +248,7 @@
                             <!-- mobile menu navigation start -->
                             <nav>
                                 <ul class="mobile-menu">
-                                    <li class="menu-item-has-children"><a href="index.html">Home</a>
+                                    <li class="menu-item-has-children"><a href="index.php">Home</a>
                                        
                                     </li>
                                     <li class="menu-item-has-children"><a href="about-us.html">About Us</a>
@@ -842,7 +842,7 @@
                         <div class="col-12 col-sm-12 col-md-12 col-lg-3 col-custom">
                             <div class="single-footer-widget m-0">
                                 <div class="footer-logo">
-                                    <a href="index.html">
+                                    <a href="index.php">
                                         <img src="assets/images/logo/logo-freshco.png" alt="Logo Image">
                                     </a>
                                 </div>
