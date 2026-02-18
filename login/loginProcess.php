@@ -30,8 +30,3 @@ if ($q->num_rows == 1) {
 }
 
 ?>
-<script>
-  <?php if (isset($_SESSION["users"])): ?>
-    console.log(<?php echo json_encode($_SESSION["users"]); ?>);
-  <?php endif; ?>
-</script>
