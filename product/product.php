@@ -12,6 +12,8 @@
       rel="stylesheet"
     />
 
+    <?php session_start(); $isLoggedIn = isset($_SESSION["users"]); ?>
+
     <style>
       body {
         background-color: #f0f2f5;
@@ -226,7 +228,7 @@
               <span>Rs. 135.00</span>
               <small>(Inclusive of all taxes)</small>
             </p>
-            <button class="btn-add" onclick="openPopup()">ADD</button>
+            <button class="btn-add" onclick="checkLogin()">ADD</button>
           </div>
         </div>
       </div>
@@ -254,15 +256,24 @@
     </div>
 
     <script>
-      // Function to show popup
-      function openPopup() {
-        document.getElementById("popupOverlay").style.display = "flex";
-      }
+       var isLoggedIn = <?php echo $isLoggedIn ? 'true' : 'false'; ?>;
 
-      // Function to hide popup
-      function closePopup() {
-        document.getElementById("popupOverlay").style.display = "none";
-      }
+  function checkLogin() {
+    if (isLoggedIn) {
+      alert("Product added to cart!");
+      // Here you can redirect to cart or add item
+    } else {
+      openPopup();
+    }
+  }
+
+  function openPopup() {
+    document.getElementById("popupOverlay").style.display = "flex";
+  }
+
+  function closePopup() {
+    document.getElementById("popupOverlay").style.display = "none";
+  }
 
       // Navbar Loading logic
       fetch("nav.html")

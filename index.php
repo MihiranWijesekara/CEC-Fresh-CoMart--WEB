@@ -94,7 +94,7 @@
 
 
                                             <li class="menu-item-has-children">
-                                                <a href="product/product.html">
+                                                <a href="product/product.php">
                                                     <span class="menu-text"> Products</span>
                                                 </a>
 
@@ -160,7 +160,7 @@
                                             </li>
 
                                                <li class="menu-item-has-children">
-                                                <a href="product/product.html">
+                                                <a href="product/product.php">
                                                     <span class="menu-text"> Products</span>
                                                 </a>
 
@@ -256,7 +256,7 @@
                                     </li>
                                     
                                 
-                                    <li><a href="product/product.html">Product</a></li>
+                                    <li><a href="product/product.php">Product</a></li>
                                     <li><a href="contact-us.php">Contact</a></li>
                                 </ul>
                             </nav>
@@ -332,7 +332,7 @@
                         <h4 class="slider-small-title">Best fruit</h4>
                         <h2 class="slider-large-title">Fresh vegetables and foods for everyday use</h2>
                         <div class="slider-btn">
-                            <a class="obrien-button black-btn" href="product/product.html">Shop Now</a>
+                            <a class="obrien-button black-btn" href="product/product.php">Shop Now</a>
                             
                         </div>
                     </div>
@@ -342,7 +342,7 @@
                         <h4 class="slider-small-title">Best Vegetables & Fruits</h4>
                        <h2 class="slider-large-title">Natural Organic</h2>
                         <div class="slider-btn">
-                           <a class="obrien-button black-btn" href="product/product.html">Shop Now</a>
+                           <a class="obrien-button black-btn" href="product/product.php">Shop Now</a>
                         </div>
                     </div>
                 </div>
