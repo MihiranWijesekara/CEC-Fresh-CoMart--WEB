@@ -96,7 +96,7 @@
         background-color: #ce3333;
         color: #fff;
         border: none;
-        padding: 2px 25px;
+        padding: 10px 45px;
         border-radius: 25px;
         cursor: pointer;
         font-size: 15px;
@@ -150,7 +150,14 @@
               <span>Rs. 135.00</span>
               <small>(Inclusive of all taxes)</small>
             </p>
-            <button class="btn-add">ADD</button>
+            <button class="btn-add" onclick="goToNotification()">ADD</button>
+
+<script>
+function goToNotification() {
+    window.location.href = "snotification.html";
+}
+</script>
+
           </div>
         </div>
         <!-- Add more product cards here as needed -->

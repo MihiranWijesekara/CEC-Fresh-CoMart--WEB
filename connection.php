@@ -6,7 +6,7 @@
 
         public static function setUpConnection(){
             if(!isset(Database::$connection)){
-                Database::$connection= new mysqli("localhost","root","Ab2#*De#","cec-comart-web","3306");
+                Database::$connection= new mysqli("localhost","root","","cec-comart-web","3306");
             }
         }
 

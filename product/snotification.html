@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Product Page</title>
+
+<link rel="stylesheet" href="../assets/css/style.css" />
+
+<style>
+body {
+  background-color: #f0f2f5;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  min-height: 100vh;
+}
+
+/* Navbar */
+.navbar-container {
+  width: 100%;
+  position: fixed;
+  top: 0;
+}
+
+/* Main Content */
+.main-content {
+  padding: 100px 20px 40px;
+  display: flex;
+  justify-content: center;
+}
+
+.card-container {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 25px;
+  max-width: 1200px;
+}
+
+.product-card {
+  background-color: #fff;
+  border-radius: 16px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+  width: 220px;
+  overflow: hidden;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.product-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+}
+
+.product-card img {
+  width: 80%;
+  height: 150px;
+  object-fit: cover;
+  border-radius: 12px;
+  margin: 15px auto 10px auto;
+  display: block;
+  border: 1px solid #eee;
+}
+
+.card-body {
+  padding: 15px 20px;
+  text-align: center;
+}
+
+.card-title {
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin: 10px 0 5px 0;
+}
+
+.card-text {
+  font-size: 0.95rem;
+  color: #555;
+  margin: 0 0 15px 0;
+}
+
+.btn-add {
+  background-color: #ce3333;
+  color: #fff;
+  border: none;
+  padding: 6px 25px;
+  border-radius: 25px;
+  cursor: pointer;
+  font-size: 15px;
+  transition: all 0.3s ease;
+}
+
+.btn-add:hover {
+  background-color: #ff6347;
+  transform: scale(1.05);
+}
+
+/* ================= POPUP ================= */
+
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.popup {
+  width: 600px;
+  background: #e9efe8;
+  border-radius: 20px;
+  box-shadow: 0 8px 20px rgba(235, 232, 232, 0.2);
+  overflow: hidden;
+}
+
+.popup-header1{
+  background: #278510;
+  padding: 15px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: rgb(226, 222, 222);
+}
+
+.close-btn {
+  background: #d30909;
+  color: white;
+  border: none;
+  width: 35px;
+  height: 35px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.popup-content {
+  padding: 35px 40px;
+}
+
+.button-group {
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+
+/* .login-btn1{
+  background: #fffefe;   
+  
+} */
+.login-btn1 {
+  background: #fcfcfc;   
+  color: rgb(6, 78, 6);
+  padding: 15px 25px;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.signup-btn1 {
+  background: #45ff2d;   
+  color: rgb(9, 82, 48);
+  padding: 15px 25px;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.login-btn1:hover{
+  background: #0c7e08;
+  transform: scale(1.05);
+  color: rgb(255, 255, 255);
+}
+.signup-btn1:hover {
+  background: #0c7e08;
+  transform: scale(1.05);
+  color: rgb(255, 255, 255);
+}
+
+
+</style>
+</head>
+
+<body>
+
+<div id="navbar" class="navbar-container"></div>
+
+<div class="main-content">
+  <div class="card-container">
+    
+    <div class="product-card">
+      <img src="../assets/images/cart/or.jpg" alt="Big Onion" />
+      <div class="card-body">
+        <h5 class="card-title">Big Onion</h5>
+        <p class="card-text">
+          500 g <br>
+          Rs. 135.00 <br>
+          <small>(Inclusive of all taxes)</small>
+        </p>
+        <button class="btn-add" onclick="openPopup()">ADD</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- POPUP -->
+<div class="overlay" id="popupOverlay">
+  <div class="popup">
+    
+    <div class="popup-header1">
+      <h3> Guest Login</h3>
+      <button class="close-btn" onclick="closePopup()">X</button>
+    </div>
+
+    <div class="popup-content">
+      <p>
+        Thank you for choosing to shop at  Fresh-CoMart Online.!<br>
+        Please Login or Sign Up to proceed.
+      </p>
+
+      <div class="button-group">
+        <a href="../login/sign.html">
+  <button class="login-btn1">Login</button>
+</a>
+
+<a href="../login/register.php">
+  <button class="signup-btn1">Sign Up</button>
+</a>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function openPopup(){
+  document.getElementById("popupOverlay").style.display = "flex";
+}
+
+function closePopup(){
+  document.getElementById("popupOverlay").style.display = "none";
+}
+
+/* Navbar Load */
+fetch("nav.html")
+  .then(response => response.text())
+  .then(data => {
+    document.getElementById("navbar").innerHTML = data;
+    const script = document.createElement("script");
+    script.src = "navBar.js";
+    document.body.appendChild(script);
+  });
+</script>
+
+</body>
+</html>
