@@ -36,7 +36,7 @@ if (empty($fn)) {
 } else if (empty($password)) { 
     echo ("Please Enter Your Password.");
     exit();
-} else if (strlen($password) < 8 || !preg_match('/[A-Z]/', $password) || !preg_match('/[a-z]/', $password) || !preg_match('/[0-9]/', $password)) {
+} else if (strlen($password) < 8 ) {
      echo ("Password must be at least 8 characters and include uppercase, lowercase, and a number.");
      exit();
 } else if (empty($confirmPassword)) {
@@ -49,7 +49,8 @@ if($un > 0){
     exit();
 }else{
     if($password == $confirmPassword){
-        Database::iud("INSERT INTO `users` (`first_name`,`last_name`,`email`,`phone_number`,`password`,`created_at`) VALUES ('" . $fn . "','" . $ln . "','" . $email . "','" . $phoneNumber . "','" . $password . "','" . $d . "')");
+        $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+        Database::iud("INSERT INTO `users` (`first_name`,`last_name`,`email`,`phone_number`,`password`,`created_at`) VALUES ('" . $fn . "','" . $ln . "','" . $email . "','" . $phoneNumber . "','" . $hashedPassword . "','" . $d . "')");
         echo "success";
     }else{
         echo "Password and confirm password do not match.";

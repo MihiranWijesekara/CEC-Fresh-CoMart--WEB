@@ -5,23 +5,33 @@ require("../connection.php");
 $email = $_POST["email"];
 $password = $_POST["password"];
 
-$q = Database::search("SELECT * FROM `users` WHERE email = '" . $email . "' AND password = '" . $password . "'");
-$un = $q->num_rows;
-
-if (empty($email)) {
-    echo ("Please Enter Your Email Address.");
-    exit();
-} else if (empty($password)) {
-    echo ("Please Enter Your Password.");   
+if (empty($email) || empty($password)) {
+    echo "Email and Password required";
     exit();
 }
 
-if ($un == "1") {
-    $wdata = $q->fetch_assoc();
-    $_SESSION["users"] = $wdata;
-    echo "success";
+$q = Database::search("SELECT * FROM users WHERE email = '".$email."'");
+
+if ($q->num_rows == 1) {
+
+    $user = $q->fetch_assoc();
+
+    if (password_verify($password, $user["password"])) {
+        $_SESSION["users"] = $user;
+        $_SESSION["user_id"] = $user["id"];
+        $_SESSION["user_email"] = $user["email"];
+        echo "success";
+    } else {
+        echo "Invalid email or password";
+    }
+
 } else {
     echo "Invalid email or password";
 }
 
 ?>
+<script>
+  <?php if (isset($_SESSION["users"])): ?>
+    console.log(<?php echo json_encode($_SESSION["users"]); ?>);
+  <?php endif; ?>
+</script>
