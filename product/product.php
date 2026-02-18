@@ -1,20 +1,23 @@
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Product Page</title>
     <link rel="stylesheet" href="../assets/css/style.css" />
+    <link rel="stylesheet" href="assets/css/vendor/bootstrap.min.css" />
+    <!-- Bootstrap 5 CSS -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+
+    <?php session_start(); $isLoggedIn = isset($_SESSION["users"]); ?>
+
     <style>
-      /* * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      } */
       body {
         background-color: #f0f2f5;
         font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-        /* margin: 0;
-        padding: 0; */
         min-height: 100vh;
       }
 
@@ -22,11 +25,11 @@
         width: 100%;
         position: fixed;
         top: 0;
-        /* z-index: 1000; */
+        z-index: 1000;
       }
 
       .main-content {
-        padding: 100px 20px 40px; /* Adjusted padding to account for fixed navbar */
+        padding: 100px 20px 40px;
         display: flex;
         justify-content: center;
       }
@@ -88,10 +91,6 @@
         margin: 3px 0;
       }
 
-      .card-text small {
-        color: #888;
-      }
-
       .btn-add {
         background-color: #ce3333;
         color: #fff;
@@ -126,17 +125,96 @@
         display: inline-block;
       }
 
-      h2 {
+      /* ================= POPUP STYLES ================= */
+      .overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
         width: 100%;
-        text-align: center;
-        margin-bottom: 40px;
-        color: #333;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: none; /* Hidden by default */
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
       }
-      
+
+      .popup {
+        width: 90%;
+        max-width: 500px;
+        background: #e9efe8;
+        border-radius: 20px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+        overflow: hidden;
+      }
+
+      .popup-header1 {
+        background: #278510;
+        padding: 15px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: white;
+      }
+
+      .popup-header1 h3 {
+        margin: 0;
+        font-size: 1.2rem;
+      }
+
+      .close-btn {
+        background: #d30909;
+        color: white;
+        border: none;
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: bold;
+      }
+
+      .popup-content {
+        padding: 30px;
+      }
+
+      .button-group {
+        display: flex;
+        justify-content: flex-end;
+        gap: 15px;
+        margin-top: 20px;
+      }
+
+      .login-btn1,
+      .signup-btn1 {
+        padding: 12px 25px;
+        border: none;
+        border-radius: 20px;
+        cursor: pointer;
+        transition: 0.3s;
+        font-weight: bold;
+        text-decoration: none;
+        display: inline-block;
+      }
+
+      .login-btn1 {
+        background: #fcfcfc;
+        color: #064e06;
+      }
+
+      .signup-btn1 {
+        background: #45ff2d;
+        color: #095230;
+      }
+
+      .login-btn1:hover,
+      .signup-btn1:hover {
+        background: #0c7e08;
+        transform: scale(1.05);
+        color: #fff;
+      }
     </style>
   </head>
   <body>
-    <!-- Navbar will load here -->
     <div id="navbar" class="navbar-container"></div>
 
     <div class="main-content">
@@ -150,26 +228,58 @@
               <span>Rs. 135.00</span>
               <small>(Inclusive of all taxes)</small>
             </p>
-            <button class="btn-add" onclick="goToNotification()">ADD</button>
-
-<script>
-function goToNotification() {
-    window.location.href = "snotification.html";
-}
-</script>
-
+            <button class="btn-add" onclick="checkLogin()">ADD</button>
           </div>
         </div>
-        <!-- Add more product cards here as needed -->
+      </div>
+    </div>
+
+    <div class="overlay" id="popupOverlay">
+      <div class="popup">
+        <div class="popup-header1">
+          <h3 class="text-white">Guest Login</h3>
+          <button class="close-btn" onclick="closePopup()">X</button>
+        </div>
+
+        <div class="popup-content">
+          <p>
+            Thank you for choosing to shop at Fresh-CoMart Online!<br />
+            Please Login or Sign Up to proceed.
+          </p>
+
+          <div class="button-group">
+            <a href="../login/sign.php" class="login-btn1">Login</a>
+            <a href="../login/register.php" class="signup-btn1">Sign Up</a>
+          </div>
+        </div>
       </div>
     </div>
 
     <script>
+       var isLoggedIn = <?php echo $isLoggedIn ? 'true' : 'false'; ?>;
+
+  function checkLogin() {
+    if (isLoggedIn) {
+      alert("Product added to cart!");
+      // Here you can redirect to cart or add item
+    } else {
+      openPopup();
+    }
+  }
+
+  function openPopup() {
+    document.getElementById("popupOverlay").style.display = "flex";
+  }
+
+  function closePopup() {
+    document.getElementById("popupOverlay").style.display = "none";
+  }
+
+      // Navbar Loading logic
       fetch("nav.html")
         .then((response) => response.text())
         .then((data) => {
           document.getElementById("navbar").innerHTML = data;
-          // Dynamically load navBar.js after navbar is injected
           const script = document.createElement("script");
           script.src = "navBar.js";
           document.body.appendChild(script);
