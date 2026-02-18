@@ -8,7 +8,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <!-- Favicon -->
     <link rel="shortcut icon" type="image/x-icon" href="../assets/images/logo/logo-freshco.png">
-
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- Favicon -->
     <style>
     
     body {
@@ -115,31 +119,15 @@
         <form id="loginForm">
             <input type="email" id="email" placeholder="Enter your email" required>
             <input type="password" id="password" placeholder="Enter your password" required>
-            <button type="submit">Sign In</button>
+            <button type="button" onclick="signIn()">Sign In</button>
         </form>
 
-        <p id="message"></p>
-
         <p class="signup">Don't have an account? <a href="register.html">Sign Up</a></p>
+
+        <div id="msgdiv" style="display: none; margin-bottom: 10px;"></div>
+      <p id="message"></p>
     </div>
 
-    <script>
-        document.getElementById("loginForm").addEventListener("submit", function(e) {
-            e.preventDefault();
-
-            var email = document.getElementById("email").value;
-            var password = document.getElementById("password").value;
-            var message = document.getElementById("message");
-
-            if (email === "admin@gmail.com" && password === "1234") {
-                message.style.color = "green";
-                message.innerHTML = "Login Successful!";
-            } else {
-                message.style.color = "red";
-                message.innerHTML = "Invalid Email or Password!";
-            }
-        });
-    </script>
-
+<script src="../login/auth.js"></script>
 </body>
 </html>

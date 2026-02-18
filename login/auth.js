@@ -37,3 +37,38 @@ function signup() {
     r.open("POST", "../login/registerProcess.php", true);
     r.send(f);
 }
+
+
+function signIn(){
+
+    var email = document.getElementById("email").value;
+    console.log(email);
+    var password = document.getElementById("password").value;
+    console.log(password);
+
+    var f = new FormData();
+    f.append("email",email);
+    f.append("password",password);
+
+    var r = new XMLHttpRequest();
+    r.onreadystatechange = function () {
+        if (r.readyState == 4 && r.status == 200) {
+            var t = r.responseText;
+            var msgDiv = document.getElementById("msgdiv");
+            msgDiv.style.display = "block";
+            if (t == "success") {
+                // Clear all input fields
+                document.getElementById("loginForm").reset();
+                // Show beautiful success message
+                msgDiv.className = "alert alert-success";
+                msgDiv.innerHTML = '<i class="bi bi-check-circle pe-3"></i>' + "Login Successful!";
+          
+            } else {
+                msgDiv.className = "alert alert-danger";
+                msgDiv.innerHTML = '<i class="bi bi-exclamation-circle pe-3"></i>' + t;
+            }
+        }
+    }
+    r.open("POST", "../login/loginProcess.php", true);
+    r.send(f);
+}
