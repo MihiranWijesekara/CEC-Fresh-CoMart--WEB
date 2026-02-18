@@ -34,8 +34,8 @@
 
       .register-box {
         background: white;
-        padding: 40px 30px;
-        width: 500px;
+        padding: 70px 50px;
+        width: 800px;
         border-radius: 15px;
         box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
       }
