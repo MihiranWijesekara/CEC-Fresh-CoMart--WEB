@@ -255,7 +255,6 @@
         });
       });
 
-      // Navbar Loading logic (match product.php)
       fetch("product/nav.html")
         .then((response) => response.text())
         .then((data) => {
