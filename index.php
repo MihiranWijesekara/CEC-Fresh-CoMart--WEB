@@ -81,11 +81,8 @@
                                             <li>
                                                 <a class="active" href="index.php">
                                                     <span class="menu-text"> Home</span>
-                                                 
                                                 </a>
-                                                
                                             </li>
-
                                             <li>
                                                 <a href="about-us.html">
                                                     <span class="menu-text"> About</span>
@@ -103,10 +100,14 @@
                                                 <a href="contact-us.html">
                                                     <span class="menu-text">Contact</span>
                                                 </a>
-                                            </li>
+                                            </li><!-- MT Logo HTML -->
                                         </ul>
-                                    </nav>
+
+                                <div class="mt-logo">
+                                                   Fc
+                                      <div class="mt-status-dot" id="mtStatusDot"></div>
                                 </div>
+
                                <div class="col-lg-2 col-xl-3 col-sm-6 col-6 col-custom">
                                     <div class="header-right-area main-nav">
                                         <ul class="nav">
@@ -121,13 +122,18 @@
                                                 </a>
                                             </li>
                                         </ul>
-                                    </div>
+                                  </div>
                             </div>
+       </nav>
+                                </div>
                         </div>
                     </div>
                 </div>
             </div>
             <!-- Main Header Area End -->
+
+
+            
             <!-- Sticky Header Start Here-->
             <div class="main-header header-sticky">
                 <div class="container container-default custom-area">
@@ -199,17 +205,74 @@
     display: block;
    }
 
-</style>                                            
-
-                                          
+</style>                                           
                                             <li>
                                                 <a href="contact-us.html">
                                                     <span class="menu-text">Contact</span>
                                                 </a>
                                             </li>
                                         </ul>
+
+<!-- Divider Section -->
+
+
+
+<style>
+                                        /* MT Logo CSS */
+ .nav{
+    display:flex;
+    align-items:center;
+    gap:30px;
+    list-style:none;
+}
+
+.nav li{
+    display:flex;
+    align-items:center;
+}
+
+/* MT Wrapper spacing control */
+.nav{
+    display:flex;
+    align-items:center;
+    margin-left:90px;
+    margin-right:35px;
+}
+
+/* MT Logo */
+.fc-wrapper{
+    margin-left:15px;
+    display:flex;
+    align-items:center;
+}
+
+.mt-logo{
+    width:40px;
+    height:40px;
+    background:#007bff;
+    border-radius:60%;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    position:relative;
+    color:white;
+    font-size:16px;
+    font-weight:bold;
+}
+
+.mt-status-dot{
+    width:8px;
+    height:8px;
+    border-radius:50%;
+    position:absolute;
+    top:3px;        
+    right:4px;      
+    background:orange;
+}
+</style>
                                     </nav>
                                 </div>
+                                
                               <div class="col-lg-2 col-xl-3 col-sm-6 col-6 col-custom">
                                     <div class="header-right-area main-nav">
                                         <ul class="nav">
@@ -217,10 +280,11 @@
                                                 <span><a href="login/sign.html">Login</a></span>
                                                 <span><a href="login/register.html">Register</a></span>
                                             </li>
-                                          
                                         </ul>
                                     </div>
                                 </div>
+
+                             </nav>
                             </div>
                         </div>
                     </div>
