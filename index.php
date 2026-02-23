@@ -45,23 +45,7 @@
     <div class="home-wrapper home-1">
         <!-- Header Area Start Here -->
         <header class="main-header-area">
-            <!-- Header Top Area Start Here -->
-           <!-- <div class="header-top-area">
-                <div class="container container-default-2 custom-area">
-                    <div class="row">
-                        <div class="col-12 col-custom header-top-wrapper text-center">
-                            <div class="short-desc text-white">
-                                <p>Get 35% off for new product </p>
-                            </div>
-                            <div class="header-top-button">
-                                <a href="shop-fullwidth.html">Shop Now</a>
-                            </div>
-                            <span class="top-close-button">X</span>
-                        </div>
-                    </div>
-                </div>
-            </div>-->
-            <!-- Header Top Area End Here -->
+
             <!-- Main Header Area Start -->
             <div class="main-header">
                 <div class="container container-default custom-area">
@@ -102,14 +86,15 @@
                                                 </a>
                                             </li><!-- MT Logo HTML -->
                                         </ul>
-
-                                <div class="mt-logo">
-                                                   Fc
-                                      <div class="mt-status-dot" id="mtStatusDot"></div>
-                                </div>
+</div>   
+                               
 
                                <div class="col-lg-2 col-xl-3 col-sm-6 col-6 col-custom">
                                     <div class="header-right-area main-nav">
+                                        <div class="mt-logo">
+    FC
+    <div class="mt-status-dot" id="mtStatusDot"></div>
+</div>
                                         <ul class="nav">
                                             <li class="login-register-wrap d-none d-xl-flex">
                                                 <span><a href="login/sign.php">Login</a></span>
@@ -241,14 +226,15 @@
 
 /* MT Logo */
 .fc-wrapper{
-    margin-left:15px;
     display:flex;
     align-items:center;
 }
 
 .mt-logo{
-    width:40px;
-    height:40px;
+    margin-top: 20px;
+    margin-left:-110px;
+    width:43px;
+    height:43px;
     background:#007bff;
     border-radius:60%;
     display:flex;
@@ -261,13 +247,28 @@
 }
 
 .mt-status-dot{
-    width:8px;
-    height:8px;
+    width:9px;
+    height:9px;
     border-radius:50%;
     position:absolute;
-    top:3px;        
+    top: 0.05em;        
     right:4px;      
     background:orange;
+}
+@media (max-width: 600px) {
+    .mt-logo {
+        width: 32px;
+        height: 32px;
+        font-size: 12px;
+        top: 0.5em;
+       
+    }
+    .mt-status-dot {
+        width: 6px;
+        height: 6px;
+        right: 2px;
+        top: 0.1em;
+    }
 }
 </style>
                                     </nav>
@@ -275,6 +276,10 @@
                                 
                               <div class="col-lg-2 col-xl-3 col-sm-6 col-6 col-custom">
                                     <div class="header-right-area main-nav">
+                                        <div class="mt-logo">
+                                            FC
+                                            <div class="mt-status-dot" id="mtStatusDot"></div>
+                                        </div>
                                         <ul class="nav">
                                             <li class="login-register-wrap d-none d-xl-flex">
                                                 <span><a href="login/sign.php">Login</a></span>
@@ -331,6 +336,7 @@
                             <!-- mobile menu navigation start -->
                             <nav>
                               <ul class="mobile-menu">
+                                
                                     <li class="menu-item-has-children"><a href="#">My Account</a>
                                         <ul class="dropdown">
                                             <li><a href="login/sign.php">Login</a></li>
@@ -1105,6 +1111,22 @@
     <!-- Main JS -->
     <script src="assets/js/main.js"></script>
 
+<script>
+// Set status dot color based on online/offline
+function updateStatusDot() {
+    var dot = document.getElementById('mtStatusDot');
+    if (navigator.offline) {
+        dot.style.background = 'green';
+        dot.title = 'Online';
+    } else {
+        dot.style.background = 'orange';
+        dot.title = 'Offline';
+    }
+}
+window.addEventListener('online', updateStatusDot);
+window.addEventListener('offline', updateStatusDot);
+window.addEventListener('DOMContentLoaded', updateStatusDot);
+</script>
 </body>
 
 </html>
