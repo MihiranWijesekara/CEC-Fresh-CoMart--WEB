@@ -38,6 +38,55 @@
     <!-- Main Style CSS (Please use minify version for better website load performance) -->
     <link rel="stylesheet" href="assets/css/style.css">
     <!-- <link rel="stylesheet" href="assets/css/style.min.css"> -->
+
+    <style>
+        /* MT Logo */
+.fc-wrapper{
+    display:flex;
+    align-items:center;
+}
+
+.mt-logo{
+    margin-top: 20px;
+    margin-right: 110px;
+    width:43px;
+    height:43px;
+    background:#007bff;
+    border-radius:60%;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    position:relative;
+    color:white;
+    font-size:16px;
+    font-weight:bold;
+}
+
+.mt-status-dot{
+    width:9px;
+    height:9px;
+    border-radius:50%;
+    position:absolute;
+    top: 0.05em;        
+    right:4px;      
+    background:orange;
+}
+@media (max-width: 600px) {
+    .mt-logo {
+        width: 32px;
+        height: 32px;
+        font-size: 12px;
+        top: 0.5em;
+       
+    }
+    .mt-status-dot {
+        width: 6px;
+        height: 6px;
+        right: 2px;
+        top: 0.1em;
+    }
+}
+    </style>
 </head>
 
 <body>
@@ -114,6 +163,10 @@
                                 </div>
                                 <div class="col-lg-2 col-xl-3 col-sm-6 col-6 col-custom">
                                     <div class="header-right-area main-nav">
+                                        <div class="mt-logo">
+                                            FC
+                                            <div class="mt-status-dot" id="mtStatusDot"></div>
+                                        </div>
                                         <ul class="nav">
                                             <li class="login-register-wrap d-none d-xl-flex">
                                                 <span><a href="login/sign.html">Login</a></span>
@@ -219,12 +272,20 @@
                                 </div>
                            <div class="col-lg-2 col-xl-3 col-sm-6 col-6 col-custom">
                                     <div class="header-right-area main-nav">
+                                        <div class="mt-logo">
+                                            FC
+                                            <div class="mt-status-dot" id="mtStatusDot"></div>
+                                        </div>
                                         <ul class="nav">
                                             <li class="login-register-wrap d-none d-xl-flex">
                                                 <span><a href="login/sign.html">Login</a></span>
                                                 <span><a href="login/register.html">Register</a></span>
                                             </li>
-                                          
+                                          <li class="mobile-menu-btn d-lg-none">
+                                                <a class="off-canvas-btn" href="#">
+                                                    <i class="fa fa-bars"></i>
+                                                </a>
+                                            </li>
                                         </ul>
                                     </div>
                                 </div>

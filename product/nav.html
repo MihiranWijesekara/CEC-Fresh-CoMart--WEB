@@ -20,6 +20,53 @@
         margin: 0;
         font-family: Arial, sans-serif;
       }
+
+      /* MT Logo */
+      .fc-wrapper {
+        display: flex;
+        align-items: center;
+      }
+
+      .mt-logo {
+        /* margin-top: 20px; */
+        margin-right: 50px;
+        width: 43px;
+        height: 43px;
+        background: #007bff;
+        border-radius: 60%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+        color: white;
+        font-size: 16px;
+        font-weight: bold;
+      }
+
+      .mt-status-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        position: absolute;
+        top: 0.05em;
+        right: 4px;
+        background: orange;
+      }
+      @media (max-width: 600px) {
+        .mt-logo {
+          width: 32px;
+          height: 32px;
+          font-size: 12px;
+          top: 0.5em;
+        }
+        .mt-status-dot {
+          width: 6px;
+          height: 6px;
+          right: 2px;
+          top: 0.1em;
+        }
+      }
+
       /* Desktop Navbar */
       .navbar {
         display: flex;
@@ -633,6 +680,10 @@
 
       <!-- Right Side -->
       <div class="nav-right">
+        <div class="mt-logo">
+          FC
+          <div class="mt-status-dot" id="mtStatusDot"></div>
+        </div>
         <a href="../login/sign.php" class="login-btn">Login</a>
         <a href="../login/register.php" class="signup-btn">Sign Up</a>
         <a href="../product/shopping-cart.html" class="cart-btn">

@@ -38,6 +38,55 @@
     <!-- Main Style CSS (Please use minify version for better website load performance) -->
     <link rel="stylesheet" href="assets/css/style.css">
     <!-- <link rel="stylesheet" href="assets/css/style.min.css"> -->
+
+      <style>
+        /* MT Logo */
+.fc-wrapper{
+    display:flex;
+    align-items:center;
+}
+
+.mt-logo{
+    margin-top: 20px;
+    margin-right: 110px;
+    width:43px;
+    height:43px;
+    background:#007bff;
+    border-radius:60%;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    position:relative;
+    color:white;
+    font-size:16px;
+    font-weight:bold;
+}
+
+.mt-status-dot{
+    width:9px;
+    height:9px;
+    border-radius:50%;
+    position:absolute;
+    top: 0.05em;        
+    right:4px;      
+    background:orange;
+}
+@media (max-width: 600px) {
+    .mt-logo {
+        width: 32px;
+        height: 32px;
+        font-size: 12px;
+        top: 0.5em;
+       
+    }
+    .mt-status-dot {
+        width: 6px;
+        height: 6px;
+        right: 2px;
+        top: 0.1em;
+    }
+}
+    </style>
 </head>
 
 <body>
@@ -75,7 +124,7 @@
 
                                            
                                              <li class="menu-item-has-children">
-                                                <a href="product/product.html">
+                                                <a href="product/product.php">
                                                     <span class="menu-text"> Products</span>
                                                 </a>
 
@@ -86,7 +135,7 @@
                                             </li>
                                            
                                             <li>
-                                                <a class="active" href="contact-us.html">
+                                                <a class="active" href="contact-us.php">
                                                     <span class="menu-text">Contact</span>
                                                 </a>
                                             </li>
@@ -95,10 +144,14 @@
                                 </div>
                                 <div class="col-lg-2 col-xl-3 col-sm-6 col-6 col-custom">
                                    <div class="header-right-area main-nav">
+                                        <div class="mt-logo">
+                                            FC
+                                            <div class="mt-status-dot" id="mtStatusDot"></div>
+                                        </div>
                                         <ul class="nav">
                                             <li class="login-register-wrap d-none d-xl-flex">
-                                                <span><a href="login/sign.html">Login</a></span>
-                                                <span><a href="login/sign.html">Register</a></span>
+                                                <span><a href="login/sign.php">Login</a></span>
+                                                <span><a href="login/register.php">Register</a></span>
                                             </li>
                                          
                                             <li class="mobile-menu-btn d-lg-none">
@@ -191,7 +244,7 @@
                                            
                                          
                                             <li>
-                                                <a class="active" href="contact-us.html">
+                                                <a class="active" href="contact-us.php">
                                                     <span class="menu-text">Contact</span>
                                                 </a>
                                             </li>
@@ -200,13 +253,20 @@
                                 </div>
                                 <div class="col-lg-2 col-xl-3 col-sm-6 col-6 col-custom">
                                     <div class="header-right-area main-nav">
+                                        <div class="mt-logo">
+                                            FC
+                                            <div class="mt-status-dot" id="mtStatusDot"></div>
+                                        </div>
                                         <ul class="nav">
                                             <li class="login-register-wrap d-none d-xl-flex">
-                                                <span><a href="login/sign.html">Login</a></span>
-                                                <span><a href="login/register.html
-                                                    ">Register</a></span>
+                                                <span><a href="login/sign.php">Login</a></span>
+                                                <span><a href="login/register.php">Register</a></span>
                                             </li>
-                                  
+                                            <li class="mobile-menu-btn d-lg-none">
+                                                <a class="off-canvas-btn" href="#">
+                                                    <i class="fa fa-bars"></i>
+                                                </a>
+                                            </li>
                                           
                                         </ul>
                                     </div>
@@ -260,7 +320,7 @@
                                         </ul>
                                     </li>
                                   
-                                    <li><a href="contact-us.html">Contact</a></li>
+                                    <li><a href="contact-us.php">Contact</a></li>
                                 </ul>
                             </nav>
                             <!-- mobile menu navigation end -->
@@ -429,7 +489,7 @@
                                 <p class="desc-content">Call our sales person for more information</p>
                             </div>
                             <div class="support-button d-flex align-items-center">
-                                <a class="obrien-button primary-btn" href="contact-us.html">+94 77 877 8731 </a>
+                                <a class="obrien-button primary-btn" href="contact-us.php">+94 77 877 8731 </a>
                                 <!--<a class="obrien-button primary-btn" href="contact-us.html">+94 77 877 8731 </a>-->
                             </div>
                         </div>
@@ -487,7 +547,7 @@
                                 <h2 class="widget-title">Information</h2>
                                 <ul class="widget-list">
                                     <li><a href="about-us.html">Our Company</a></li>
-                                    <li><a href="contact-us.html">Contact Us</a></li>
+                                    <li><a href="contact-us.php">Contact Us</a></li>
                                     <li><a href="about-us.html">Our Services</a></li>
                                     <li><a href="about-us.html">Why We?</a></li>
                                     <li><a href="about-us.html">Careers</a></li>
@@ -502,7 +562,7 @@
                                     <li><a href="#">Blog</a></li>
                                     <li><a href="#">Shop</a></li>
                                     <li><a href="#">Cart</a></li>
-                                    <li><a href="contact-us.html">Contact</a></li>
+                                    <li><a href="contact-us.php">Contact</a></li>
                                 </ul>
                             </div>
                         </div>
