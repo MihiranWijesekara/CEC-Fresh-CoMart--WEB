@@ -1,2 +1,18 @@
 email = achintha@gmail.com
 password = 12345678
+
+
+
+----category-----
+
+1 = Vegetables
+2 = Fruits
+3 = Snacks
+4 = Biscuits
+5 = Coffee
+6 = Eggs
+7 = Water
+8 = Tea
+9 = Cheese
+10 = Yoghurts & Curd
+11 = Desserts 
