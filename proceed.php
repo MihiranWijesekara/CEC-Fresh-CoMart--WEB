@@ -255,7 +255,7 @@
         });
       });
 
-      fetch("product/nav.html")
+      fetch("product/nav.php")
         .then((response) => response.text())
         .then((data) => {
           let fixedData = data

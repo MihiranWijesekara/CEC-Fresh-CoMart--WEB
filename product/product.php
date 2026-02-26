@@ -1,3 +1,7 @@
+<?php
+ require '../connection.php';
+?>
+
 <!doctype html>
 <html lang="en">
   <head>
@@ -215,22 +219,42 @@
     </style>
   </head>
   <body>
+    <?php 
+$category = isset($_GET['category']) ? intval($_GET['category']) : 0;
+
+if ($category > 0) {
+ 
+    $ItemRs = Database::search("SELECT * FROM `items` WHERE `status` = 'active' AND `category_id` = $category");
+} else {
+    $ItemRs = Database::search("SELECT * FROM `items` WHERE `status` = 'active'");
+}
+?>
+    
     <div id="navbar" class="navbar-container"></div>
 
     <div class="main-content">
       <div class="card-container">
+        <?php
+        while ($row = $ItemRs->fetch_assoc()) {
+          $img = htmlspecialchars($row['image_path']);
+          $name = htmlspecialchars($row['name']);
+          $unit = htmlspecialchars($row['unit']);
+          $price = htmlspecialchars($row['price']);
+          $status = htmlspecialchars($row['status']);
+        ?>
         <div class="product-card">
-          <img src="../assets/images/cart/or.jpg" alt="Big Onion" />
+          <img src="../<?php echo $img; ?>" alt="<?php echo $name; ?>" />
           <div class="card-body">
-            <h5 class="card-title"><span class="highlight">Big Onion</span></h5>
+            <h5 class="card-title"><span class="highlight"><?php echo $name; ?></span></h5>
             <p class="card-text">
-              <span class="label">500 g</span>
-              <span>Rs. 135.00</span>
-              <small>(Inclusive of all taxes)</small>
+              <span class="label"><?php echo $unit; ?></span>
+              <span>Rs. <?php echo $price; ?></span>
+              <small>(<?php echo $status; ?>)</small>
             </p>
             <button class="btn-add" onclick="checkLogin()">ADD</button>
           </div>
         </div>
+        <?php } ?>
       </div>
     </div>
 
@@ -275,16 +299,29 @@
   function closePopup() {
     document.getElementById("popupOverlay").style.display = "none";
   }
-
       // Navbar Loading logic
-      fetch("nav.html")
+      fetch("nav.php")
         .then((response) => response.text())
         .then((data) => {
           document.getElementById("navbar").innerHTML = data;
           const script = document.createElement("script");
           script.src = "navBar.js";
           document.body.appendChild(script);
+
+          // Add category click listeners
+          setTimeout(() => {
+          const categoryLinks = document.querySelectorAll('.dropdown-content a , .mobile-category-list a');
+
+          categoryLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+            e.preventDefault();
+
+            const id = this.getAttribute("data-id");
+            filterCategory(id);
+          });
         });
+      }, 500);
+      });
     </script>
   </body>
 </html>
