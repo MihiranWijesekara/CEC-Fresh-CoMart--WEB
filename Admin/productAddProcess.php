@@ -38,7 +38,7 @@ if(isset($_FILES["pi"])){
     $img = $_FILES["pi"];
     $imgex = $img["type"];
 
-    $allow_extensions = array("image/jpg", "image/jpeg", "image/png", "image/svg+xml");
+    $allow_extensions = array("image/jpg", "image/jpeg", "image/png", "image/svg+xml","image/webp","image/avif");
 
     if(!in_array($imgex, $allow_extensions)){
         echo "Invalid image type.";
