@@ -530,7 +530,7 @@
 
         <!-- Cart -->
         <div class="mobile-menu-item">
-          <a href="../product/shopping-cart.html">
+          <a href="../product/shopping-cart.php">
             <i class="fas fa-shopping-cart"></i>
             <span>Shopping Cart</span>
           </a>
@@ -723,7 +723,7 @@
         </div>
         <a href="../login/sign.php" class="login-btn">Login</a>
         <a href="../login/register.php" class="signup-btn">Sign Up</a>
-        <a href="../product/shopping-cart.html" class="cart-btn">
+        <a href="../product/shopping-cart.php" class="cart-btn">
           <i class="fa-solid fa-cart-shopping"></i>
         </a>
 
