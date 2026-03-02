@@ -1,5 +1,3 @@
-
-
 function contactUs() { 
     var contactName = document.getElementById("con_name").value;
     console.log(contactName);
@@ -40,4 +38,54 @@ var r = new XMLHttpRequest();
     r.open("POST", "contact-usProcess.php", true);
     r.send(f);
 
+}
+
+var selectedProduct = null;
+var selectedPrice = 0;
+var itemQty = 1;
+
+function checkLogin(productId, price) {
+  if (isLoggedIn) {
+    selectedProduct = productId;
+    selectedPrice = parseFloat(price);
+    itemQty = 1;
+    document.getElementById('itemQty').innerText = itemQty;
+    document.getElementById('addMoreModal').style.display = 'flex';
+  } else {
+    openPopup();
+  }
+}
+
+function changeQty(delta) {
+  itemQty += delta;
+  if (itemQty < 1) itemQty = 1;
+  document.getElementById('itemQty').innerText = itemQty;
+}
+
+function confirmAddToCart() {
+  var totalPrice = itemQty * selectedPrice;
+  var formData = new FormData();
+  formData.append('item_id', selectedProduct);
+  console.log('Selected Product ID:', selectedProduct);
+  formData.append('quantity', itemQty);
+  console.log('Item Quantity:', itemQty);
+  formData.append('price', totalPrice);
+  console.log('Total Price:', totalPrice);
+
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', 'productProcess.php', true);
+  xhr.onreadystatechange = function() {
+    if (xhr.readyState === 4) {
+      if (xhr.status === 200) {
+        alert('Added ' + itemQty + ' item(s) to cart!\nProduct ID: ' + selectedProduct +
+          '\nQuantity: ' + itemQty +
+          '\nTotal price: ' + totalPrice +
+          '\nServer response: ' + xhr.responseText);
+      } else {
+        alert('Error adding to cart.');
+      }
+      closeAddMoreModal();
+    }
+  };
+  xhr.send(formData);
 }

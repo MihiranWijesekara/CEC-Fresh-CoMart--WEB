@@ -285,7 +285,13 @@
                                                 <span><a href="login/sign.php">Login</a></span>
                                                 <span><a href="login/register.php">Register</a></span>
                                             </li>
+                                            <li class="mobile-menu-btn d-lg-none">
+                                                <a class="off-canvas-btn" href="#">
+                                                    <i class="fa fa-bars"></i>
+                                                </a>
+                                            </li>
                                         </ul>
+                                        
                                     </div>
                                 </div>
 

@@ -224,9 +224,9 @@ $category = isset($_GET['category']) ? intval($_GET['category']) : 0;
 
 if ($category > 0) {
  
-    $ItemRs = Database::search("SELECT * FROM `items` WHERE `status` = 'active' AND `category_id` = $category");
+    $ItemRs = Database::search("SELECT * FROM `items` WHERE  `category_id` = $category");
 } else {
-    $ItemRs = Database::search("SELECT * FROM `items` WHERE `status` = 'active'");
+    $ItemRs = Database::search("SELECT * FROM `items` ");
 }
 ?>
     
@@ -241,6 +241,8 @@ if ($category > 0) {
           $unit = htmlspecialchars($row['unit']);
           $price = htmlspecialchars($row['price']);
           $status = htmlspecialchars($row['status']);
+          $id = htmlspecialchars($row['id']);
+          $isActive = ($status === 'active');
         ?>
         <div class="product-card">
           <img src="../<?php echo $img; ?>" alt="<?php echo $name; ?>" />
@@ -249,9 +251,13 @@ if ($category > 0) {
             <p class="card-text">
               <span class="label"><?php echo $unit; ?></span>
               <span>Rs. <?php echo $price; ?></span>
-              <small>(<?php echo $status; ?>)</small>
+              <?php if ($isActive) { ?>
+                <small>(In Stock)</small>
+              <?php } else { ?>
+                <small style="color:red;font-weight:bold;">(Out of Stock)</small>
+              <?php } ?>
             </p>
-            <button class="btn-add" onclick="checkLogin()">ADD</button>
+            <button class="btn-add" onclick="checkLogin('<?php echo $id; ?>', '<?php echo $price; ?>')" <?php if (!$isActive) echo 'disabled style="background:#ccc;cursor:not-allowed;opacity:0.7;"'; ?>>ADD</button>
           </div>
         </div>
         <?php } ?>
@@ -280,25 +286,60 @@ if ($category > 0) {
       </div>
     </div>
 
+
+    <!-- Add More Items Modal -->
+    <div class="overlay" id="addMoreModal" style="display:none;">
+      <div class="popup" style="max-width:350px;">
+        <div class="popup-header1">
+          <h3 class="text-white">Add More?</h3>
+          <button class="close-btn" onclick="closeAddMoreModal()">X</button>
+        </div>
+        <div class="popup-content" style="text-align:center;">
+          <p>How many of this item would you like to add?</p>
+          <div style="display:flex;justify-content:center;align-items:center;gap:15px;margin:20px 0;">
+            <button onclick="changeQty(-1)" style="width:32px;height:32px;font-size:20px;">-</button>
+            <span id="itemQty" style="font-size:1.3rem;min-width:30px;display:inline-block;">1</span>
+            <button onclick="changeQty(1)" style="width:32px;height:32px;font-size:20px;">+</button>
+          </div>
+          <div class="button-group" style="justify-content:center;">
+            <button class="login-btn1" onclick="confirmAddToCart()">Add to Cart</button>
+            <button class="signup-btn1" onclick="closeAddMoreModal()">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
     <script>
-       var isLoggedIn = <?php echo $isLoggedIn ? 'true' : 'false'; ?>;
+      var isLoggedIn = <?php echo $isLoggedIn ? 'true' : 'false'; ?>;
+      var selectedProduct = null;
+      var itemQty = 1;
 
-  function checkLogin() {
-    if (isLoggedIn) {
-      alert("Product added to cart!");
-      // Here you can redirect to cart or add item
-    } else {
-      openPopup();
-    }
-  }
+      function checkLogin(productId, price) {
+        if (isLoggedIn) {
+        selectedProduct = productId;
+        itemQty = 1;
+        document.getElementById('itemQty').innerText = itemQty;
+        document.getElementById('addMoreModal').style.display = 'flex';
+        } else {
+          openPopup();
+        }
+      }
 
-  function openPopup() {
-    document.getElementById("popupOverlay").style.display = "flex";
-  }
+      
 
-  function closePopup() {
-    document.getElementById("popupOverlay").style.display = "none";
-  }
+      function closeAddMoreModal() {
+        document.getElementById('addMoreModal').style.display = 'none';
+      }
+
+      function openPopup() {
+        document.getElementById("popupOverlay").style.display = "flex";
+      }
+
+      function closePopup() {
+        document.getElementById("popupOverlay").style.display = "none";
+      }
+      
       // Navbar Loading logic
       fetch("nav.php")
         .then((response) => response.text())
@@ -323,5 +364,8 @@ if ($category > 0) {
       }, 500);
       });
     </script>
+    
+    <script src="../script.js"></script>
+
   </body>
 </html>
