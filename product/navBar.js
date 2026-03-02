@@ -52,3 +52,27 @@ document.addEventListener("keydown", function (e) {
 	}
 	
 });
+
+
+function filterCategory(id) {
+    var form = new FormData();
+    form.append("cid", id);
+	console.log(id);
+
+    var r = new XMLHttpRequest();
+    r.onreadystatechange = function () {
+        if (r.readyState == 4 && r.status == 200) {
+            var response = r.responseText;
+            if (response == "success") {
+                // If validation passes, move to the products page
+                window.location = "product.php?category=" + id;
+            } else {
+                // If something is wrong (invalid ID), show the error
+                alert(response);
+            }
+        }
+    };
+
+    r.open("POST", "categoryProcess.php", true);
+    r.send(form);
+}

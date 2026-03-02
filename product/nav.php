@@ -475,21 +475,38 @@
             ></i>
           </button>
           <div class="mobile-category-list" id="mobileCategoryList">
-            <a href="#"><i class="fa-solid fa-carrot veg"></i> Vegetables</a>
-            <a href="#"><i class="fa-solid fa-apple-whole fruit"></i> Fruits</a>
-            <a href="#"><i class="fa-solid fa-cookie-bite snack"></i> Snacks</a>
-            <a href="#"
+            <a href="#" data-category="All" data-id="0"><i class="fa-solid fa-list"></i> All Items</a>
+            <a href="#" data-category="Vegetables" data-id="1"
+              ><i class="fa-solid fa-carrot veg"></i> Vegetables</a
+            >
+            <a href="#" data-category="Fruits" data-id="2"
+              ><i class="fa-solid fa-apple-whole fruit"></i> Fruits</a
+            >
+            <a href="#" data-category="Snacks" data-id="3"
+              ><i class="fa-solid fa-cookie-bite snack"></i> Snacks</a
+            >
+            <a href="#" data-category="Biscuits" data-id="4"
               ><i class="fa-solid fa-bread-slice biscuit"></i> Biscuits</a
             >
-            <a href="#"><i class="fa-solid fa-mug-hot coffee"></i> Coffee</a>
-            <a href="#"><i class="fa-solid fa-egg egg"></i> Eggs</a>
-            <a href="#"><i class="fa-solid fa-bottle-water water"></i> Water</a>
-            <a href="#"><i class="fa-solid fa-mug-saucer tea"></i> Tea</a>
-            <a href="#"><i class="fa-solid fa-cheese cheese"></i> Cheese</a>
-            <a href="#"
+            <a href="#" data-category="Coffee" data-id="5"
+              ><i class="fa-solid fa-mug-hot coffee"></i> Coffee</a
+            >
+            <a href="#" data-category="Eggs" data-id="6"
+              ><i class="fa-solid fa-egg egg"></i> Eggs</a
+            >
+            <a href="#" data-category="Water" data-id="7"
+              ><i class="fa-solid fa-bottle-water water"></i> Water</a
+            >
+            <a href="#" data-category="Tea" data-id="8"
+              ><i class="fa-solid fa-mug-saucer tea"></i> Tea</a
+            >
+            <a href="#" data-category="Cheese" data-id="9"
+              ><i class="fa-solid fa-cheese cheese"></i> Cheese</a
+            >
+            <a href="#" data-category="Yoghurts & Curd" data-id="10"
               ><i class="fa-solid fa-ice-cream yoghurt"></i> Yoghurts & Curd</a
             >
-            <a href="#"
+            <a href="#" data-category="Desserts" data-id="11"
               ><i class="fa-solid fa-cake-candles dessert"></i> Desserts</a
             >
           </div>
@@ -607,21 +624,41 @@
             Category <i class="fa fa-angle-down" id="arrowIcon"></i>
           </button>
           <div class="dropdown-content" id="categoryMenu">
-            <a href="#"><i class="fa-solid fa-carrot veg"></i> Vegetables</a>
-            <a href="#"><i class="fa-solid fa-apple-whole fruit"></i> Fruits</a>
-            <a href="#"><i class="fa-solid fa-cookie-bite snack"></i> Snacks</a>
-            <a href="#"
+            <a href="#" data-category="All" data-id="0"><i class="fa-solid fa-list"></i> All Items</a>
+             <a href="#" data-category="" data-id="0"
+              ><i class="fa-solid fa-carrot veg"></i> All</a
+            >
+            <a href="#" data-category="Vegetables" data-id="1"
+              ><i class="fa-solid fa-carrot veg"></i> Vegetables</a
+            >
+            <a href="#" data-category="Fruits" data-id="2"
+              ><i class="fa-solid fa-apple-whole fruit"></i> Fruits</a
+            >
+            <a href="#" data-category="Snacks" data-id="3"
+              ><i class="fa-solid fa-cookie-bite snack"></i> Snacks</a
+            >
+            <a href="#" data-category="Biscuits" data-id="4"
               ><i class="fa-solid fa-bread-slice biscuit"></i> Biscuits</a
             >
-            <a href="#"><i class="fa-solid fa-mug-hot coffee"></i> Coffee</a>
-            <a href="#"><i class="fa-solid fa-egg egg"></i> Eggs</a>
-            <a href="#"><i class="fa-solid fa-bottle-water water"></i> Water</a>
-            <a href="#"><i class="fa-solid fa-mug-saucer tea"></i> Tea</a>
-            <a href="#"><i class="fa-solid fa-cheese cheese"></i> Cheese</a>
-            <a href="#"
+            <a href="#" data-category="Coffee" data-id="5"
+              ><i class="fa-solid fa-mug-hot coffee"></i> Coffee</a
+            >
+            <a href="#" data-category="Eggs" data-id="6"
+              ><i class="fa-solid fa-egg egg"></i> Eggs</a
+            >
+            <a href="#" data-category="Water" data-id="7"
+              ><i class="fa-solid fa-bottle-water water"></i> Water</a
+            >
+            <a href="#" data-category="Tea" data-id="8"
+              ><i class="fa-solid fa-mug-saucer tea"></i> Tea</a
+            >
+            <a href="#" data-category="Cheese" data-id="9"
+              ><i class="fa-solid fa-cheese cheese"></i> Cheese</a
+            >
+            <a href="#" data-category="Yoghurts & Curd" data-id="10"
               ><i class="fa-solid fa-ice-cream yoghurt"></i> Yoghurts & Curd</a
             >
-            <a href="#"
+            <a href="#" data-category="Desserts" data-id="11"
               ><i class="fa-solid fa-cake-candles dessert"></i> Desserts</a
             >
           </div>
