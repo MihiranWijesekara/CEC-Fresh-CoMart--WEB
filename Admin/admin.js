@@ -40,6 +40,6 @@ function productAdd() {
             }
         }
     };
-    r.open("POST", "productAddProcess.php", true);
+    r.open("POST", "ItemAddProcess.php", true);
     r.send(f);
 }
