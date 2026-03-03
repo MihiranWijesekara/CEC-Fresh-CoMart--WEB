@@ -73,16 +73,22 @@ function confirmAddToCart() {
   console.log('Total Price:', totalPrice);
 
   var xhr = new XMLHttpRequest();
-  xhr.open('POST', 'productProcess.php', true);
+  xhr.open('POST', './productProcess.php', true);
   xhr.onreadystatechange = function() {
     if (xhr.readyState === 4) {
       if (xhr.status === 200) {
+        var userIdMsg = '';
+        if (typeof sessionUserId !== 'undefined' && sessionUserId) {
+          userIdMsg = '\nSession User ID: ' + sessionUserId;
+        }
         alert('Added ' + itemQty + ' item(s) to cart!\nProduct ID: ' + selectedProduct +
           '\nQuantity: ' + itemQty +
           '\nTotal price: ' + totalPrice +
+          userIdMsg +
           '\nServer response: ' + xhr.responseText);
       } else {
         alert('Error adding to cart.');
+        console.error('Error adding to cart:', xhr.statusText);
       }
       closeAddMoreModal();
     }

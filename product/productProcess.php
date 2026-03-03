@@ -1,7 +1,13 @@
-
 <?php
 require("../connection.php");
+session_start();
 
+if (!isset($_SESSION['user_id'])) {
+    echo "User not logged in";
+    exit();
+}
+
+$user_id = $_SESSION['user_id'];
 $itemID  = $_POST['item_id'];
 $quantity  = $_POST['quantity'];
 $price  = $_POST['price'];
@@ -11,23 +17,24 @@ $tz = new DateTimeZone("Asia/Colombo");
 $date->setTimezone($tz);
 $d = $date->format("Y-m-d H:i:s");
 
-$urs = Database::search("SELECT * FROM `carts` WHERE `status`='" Active "'");
-$un = $urs->num_rows;
+// 🔎 Check if user already has active cart
+$cart_rs = Database::search("SELECT * FROM carts WHERE user_id='$user_id' AND status='Active'");
 
-// // Receive AJAX POST data
-// if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-// 	$item_id = isset($_POST['item_id']) ? $_POST['item_id'] : null;
-// 	$quantity = isset($_POST['quantity']) ? $_POST['quantity'] : null;
-// 	$price = isset($_POST['price']) ? $_POST['price'] : null;
+if ($cart_rs->num_rows == 0) {
 
-// 	// Here you would add logic to add to cart, update DB, etc.
-// 	// For now, just return a success message with the received data
-// 	if ($item_id && $quantity && $price) {
-// 		echo "success: item_id=$item_id, quantity=$quantity, price=$price";
-// 	} else {
-// 		echo "error: missing data";
-// 	}
-// 	exit;
-// }
+    // 🆕 Create new cart
+    Database::iud("INSERT INTO carts (user_id, status, created_at) 
+                   VALUES ('$user_id', 'Active', '$d')");
 
+    $cart_rs = Database::search("SELECT * FROM carts WHERE user_id='$user_id' AND status='Active'");
+}
+
+$cart_data = $cart_rs->fetch_assoc();
+$cart_id = $cart_data['id'];
+
+// 🛒 Insert item into cart_items table
+Database::iud("INSERT INTO cart_items (cart_id, item_id, quantity, price, created_at)
+               VALUES ('$cart_id', '$itemID', '$quantity', '$price', '$d')");
+
+echo "Item added successfully!";
 ?>
