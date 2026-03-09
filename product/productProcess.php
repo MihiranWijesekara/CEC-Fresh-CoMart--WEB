@@ -31,10 +31,14 @@ if ($cart_rs->num_rows == 0) {
 
 $cart_data = $cart_rs->fetch_assoc();
 $cart_id = $cart_data['id'];
+             
 
+ 
 // 🛒 Insert item into cart_items table
 Database::iud("INSERT INTO cart_items (cart_id, item_id, quantity, price, created_at)
                VALUES ('$cart_id', '$itemID', '$quantity', '$price', '$d')");
 
 echo "Item added successfully!";
+
+
 ?>

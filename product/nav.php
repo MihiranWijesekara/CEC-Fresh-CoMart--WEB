@@ -1,3 +1,24 @@
+<?php
+  require '../connection.php';
+  session_start();
+
+  $cart_count = 0;
+  $can_access_cart = false;
+  $cart_disabled_reason = 'Login required';
+
+  if (isset($_SESSION['user_id'])) {
+    $user_id = $_SESSION['user_id'];
+    $cart_rs = Database::search("SELECT * FROM carts WHERE user_id='$user_id' AND status='Active'");
+    $cart_count = $cart_rs->num_rows;
+
+    if ($cart_count > 0) {
+      $can_access_cart = true;
+      $cart_disabled_reason = '';
+    } else {
+      $cart_disabled_reason = 'Your cart is empty';
+    }
+  }
+?>
 <!doctype html>
 <html>
   <head>
@@ -530,10 +551,18 @@
 
         <!-- Cart -->
         <div class="mobile-menu-item">
-          <a href="../product/shopping-cart.php">
-            <i class="fas fa-shopping-cart"></i>
-            <span>Shopping Cart</span>
-          </a>
+          <?php if ($can_access_cart): ?>
+            <a href="../product/shopping-cart.php">
+              <i class="fas fa-shopping-cart"></i>
+              <span>Shopping Cart</span>
+              <span class="cart-count"><?php echo $cart_count; ?></span>
+            </a>
+          <?php else: ?>
+            <button type="button" disabled title="<?php echo $cart_disabled_reason; ?>">
+              <i class="fas fa-shopping-cart"></i>
+              <span>Shopping Cart</span>
+            </button>
+          <?php endif; ?>
         </div>
       </div>
     </div>
@@ -723,9 +752,15 @@
         </div>
         <a href="../login/sign.php" class="login-btn">Login</a>
         <a href="../login/register.php" class="signup-btn">Sign Up</a>
-        <a href="../product/shopping-cart.php" class="cart-btn">
-          <i class="fa-solid fa-cart-shopping"></i>
-        </a>
+        <?php if ($can_access_cart): ?>
+          <a href="../product/shopping-cart.php" class="cart-btn">
+            <i class="fa-solid fa-cart-shopping"></i>
+          </a>
+        <?php else: ?>
+          <span class="cart-btn" aria-disabled="true" title="<?php echo $cart_disabled_reason; ?>">
+            <i class="fa-solid fa-cart-shopping"></i>
+          </span>
+        <?php endif; ?>
 
         <!-- Mobile Menu Toggle -->
         <button class="mobile-menu-toggle" onclick="openSidebar()">

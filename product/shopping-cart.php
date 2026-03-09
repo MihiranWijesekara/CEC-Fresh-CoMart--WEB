@@ -1,3 +1,13 @@
+<?php
+ require '../connection.php';
+ session_start();
+//  if (!isset($_SESSION['user_id'])) {
+//     echo "User not logged in";
+//     exit();
+// }
+?>
+
+
 <!doctype html>
 <html lang="en">
   <head>
@@ -143,12 +153,38 @@
     </style>
   </head>
   <body>
+    <?php 
+        $subTotal = 0;
+        $itemCount = 0;
+        $bagCharge = 10;
+        $grandTotal = 0;
+
+        $user_id = $_SESSION['user_id'];
+        $cart_rs = Database::search("SELECT * FROM carts WHERE user_id='$user_id' AND status='Active'");
+        if ($cart_rs && $cart_rs->num_rows > 0) {
+          $cart_data = $cart_rs->fetch_assoc();
+          $cart_id = $cart_data['id'];
+          $ItemRs = Database::search("SELECT * FROM cart_items WHERE cart_id='$cart_id'");
+
+          $total_rs = Database::search("SELECT COALESCE(SUM(price), 0) AS total_price, COUNT(id) AS total_items FROM cart_items WHERE cart_id='$cart_id'");
+          $total_data = $total_rs->fetch_assoc();
+          $subTotal = (float)$total_data['total_price'];
+          $itemCount = (int)$total_data['total_items'];
+          $grandTotal = $subTotal + $bagCharge;
+        } else {
+          $ItemRs = false;
+          $grandTotal = $bagCharge;
+        }
+    ?>
+   
+
     <div id="navbar" class="navbar-container"></div>
     <div class="container">
       <div class="row">
         <div class="col-lg-8">
           <div class="cart-container">
-            <h2 class="cart-header">Cart (1 items)</h2>
+            <?php if ($ItemRs && $ItemRs->num_rows > 0) { ?>
+            <h2 class="cart-header">Cart (<?php echo $itemCount; ?>)</h2>
             <table class="table product-table">
               <thead>
                 <tr>
@@ -161,49 +197,68 @@
                 </tr>
               </thead>
               <tbody>
+                <?php
+                $ItemRs->data_seek(0);
+                while ($row = $ItemRs->fetch_assoc()) {
+                  $cartItemId = (int)$row['id'];
+                    $item_id = $row['item_id'];
+                    $item_rs = Database::search("SELECT name, image_path, price FROM items WHERE id='$item_id'");
+                    $item_data = $item_rs->fetch_assoc();
+
+                    $img = htmlspecialchars($item_data['image_path']);
+                    $name = htmlspecialchars($item_data['name']);
+                    $onePrice = htmlspecialchars($item_data['price']);
+                    $quantity = htmlspecialchars($row['quantity']);
+                    $lineTotalPrice = htmlspecialchars($row['price']);
+                ?>
                 <tr>
                   <td class="product-name">
                     <div class="d-flex align-items-center">
                       <img
-                        src="https://essstr.blob.core.windows.net/essimg/ItemAsset/Pic116138.jpg"
+                        src="../<?php echo $img; ?>"
                         alt="Product"
                         class="product-img me-3"
                       />
-                      <span>Eh Ginger Beer Pet 1.5L</span>
+                      <span><?php echo $name; ?></span>
                     </div>
                   </td>
-                  <td>Rs. 420.00</td>
+                  <td>Rs. <?php echo $onePrice; ?></td>
                   <td>
                     <div class="qty-control">
-                      <button class="qty-btn" onclick="decreaseQty()">−</button>
+                      <button class="qty-btn" onclick="decreaseQty(<?php echo $cartItemId; ?>, <?php echo (int)$item_id; ?>, <?php echo (int)$cart_id; ?>, <?php echo (int)$user_id; ?>)">-</button>
                       <input
                         type="text"
                         class="qty-input"
-                        value="1"
-                        id="qtyInput"
+                        value=<?php echo $quantity; ?>
+                        id="qtyInput-<?php echo $cartItemId; ?>"
+                        data-unit-price="<?php echo (float)$item_data['price']; ?>"
                         readonly
                       />
-                      <button class="qty-btn" onclick="increaseQty()">+</button>
+                      <button class="qty-btn" onclick="increaseQty(<?php echo $cartItemId; ?>, <?php echo (int)$item_id; ?>, <?php echo (int)$cart_id; ?>, <?php echo (int)$user_id; ?>)">+</button>
                     </div>
                   </td>
                   <td class="discount-text">Rs. 0.00</td>
-                  <td id="itemTotal">Rs. 420.00</td>
+                  <td id="itemTotal-<?php echo $cartItemId; ?>">Rs. <?php echo number_format((float)$lineTotalPrice, 2); ?></td>
                   <td>
                     <button class="remove-btn" onclick="removeItem()">✕</button>
                   </td>
                 </tr>
+                <?php } ?>
               </tbody>
             </table>
+            <?php } else { ?>
+            <h2 class="cart-header">Your cart is empty.</h2>
+            <?php } ?>
           </div>
         </div>
 
         <div class="col-lg-4">
-          <div class="cart-container">
-            <div class="summary-box">
-              <div class="summary-row">
-                <span>Subtotal</span>
-                <span id="subtotal">Rs. 420.00</span>
-              </div>
+          <div class="cart-container"> 
+            <div class="summary-box"> 
+              <div class="summary-row">  
+                <span>Subtotal</span> 
+                <span id="subtotal">Rs. <?php echo number_format($subTotal, 2); ?></span>       
+              </div>    
               <div class="summary-row">
                 <span>Delivery Charges</span>
                 <span>Rs. 0.00</span>
@@ -223,7 +278,7 @@
 
             <div class="total-box">
               <span>Total</span>
-              <span id="grandTotal">Rs. 480.00</span>
+              <span id="grandTotal">Rs. <?php echo number_format($grandTotal, 2); ?></span>
             </div>
 
             <a href="../proceed.php" style="text-decoration: none">
@@ -236,34 +291,64 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-      const pricePerItem = 420;
-      const bagCharge = 60;
+      const bagCharge = 10;
 
-      function updateTotal() {
-        const qty = parseInt(document.getElementById("qtyInput").value);
-        const itemTotal = pricePerItem * qty;
-        const grandTotal = itemTotal + bagCharge;
-
-        document.getElementById("itemTotal").textContent =
-          "Rs. " + itemTotal.toFixed(2);
-        document.getElementById("subtotal").textContent =
-          "Rs. " + itemTotal.toFixed(2);
-        document.getElementById("grandTotal").textContent =
-          "Rs. " + grandTotal.toFixed(2);
+      function formatMoney(value) {
+        return Number(value).toFixed(2);
       }
 
-      function increaseQty() {
-        const input = document.getElementById("qtyInput");
-        input.value = parseInt(input.value) + 1;
-        updateTotal();
+      function sendQtyUpdate(cartItemId, itemId, cartId, userId, quantity) {
+        const f = new FormData();
+        f.append("cart_item_id", cartItemId);
+        f.append("item_id", itemId);
+        f.append("cart_id", cartId);
+        f.append("user_id", userId);
+        f.append("quantity", quantity);
+
+        var r = new XMLHttpRequest();
+        r.onreadystatechange = function () {
+          if (r.readyState == 4 && r.status == 200) {
+            try {
+              const data = JSON.parse(r.responseText);
+              if (!data.success) {
+                alert(data.message || "Failed to update cart quantity");
+                return;
+              }
+
+              const input = document.getElementById("qtyInput-" + cartItemId);
+              if (input) {
+                input.value = data.quantity;
+              }
+
+              const itemTotalEl = document.getElementById("itemTotal-" + cartItemId);
+              if (itemTotalEl) {
+                itemTotalEl.textContent = "Rs. " + formatMoney(data.item_total);
+              }
+
+              document.getElementById("subtotal").textContent = "Rs. " + formatMoney(data.subtotal);
+              document.getElementById("grandTotal").textContent = "Rs. " + formatMoney(data.grand_total);
+            } catch (e) {
+              console.log(r.responseText);
+            }
+          }
+        };
+        r.open("POST", "updateProductProcess.php", true);
+        r.send(f);
       }
 
-      function decreaseQty() {
-        const input = document.getElementById("qtyInput");
-        if (parseInt(input.value) > 1) {
-          input.value = parseInt(input.value) - 1;
-          updateTotal();
+      function increaseQty(cartItemId, itemId, cartId, userId) {
+        const input = document.getElementById("qtyInput-" + cartItemId);
+        const nextQty = (parseInt(input.value, 10) || 0) + 1;
+        sendQtyUpdate(cartItemId, itemId, cartId, userId, nextQty);
+      }
+
+      function decreaseQty(cartItemId, itemId, cartId, userId) {
+        const input = document.getElementById("qtyInput-" + cartItemId);
+        const currentQty = parseInt(input.value, 10) || 1;
+        if (currentQty <= 1) {
+          return;
         }
+        sendQtyUpdate(cartItemId, itemId, cartId, userId, currentQty - 1);
       }
 
       function removeItem() {
