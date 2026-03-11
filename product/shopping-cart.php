@@ -1,13 +1,46 @@
 <?php
  require '../connection.php';
  session_start();
-//  if (!isset($_SESSION['user_id'])) {
-//     echo "User not logged in";
-//     exit();
-// }
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_item_id'])) {
+    header('Content-Type: application/json');
+
+    if (!isset($_SESSION['user_id'])) {
+      echo json_encode(["success" => false, "message" => "User not logged in"]);
+      exit();
+    }
+
+    $session_user_id = (int)$_SESSION['user_id'];
+    $cart_item_id = (int)$_POST['cart_item_id'];
+
+    $cart_rs = Database::search("SELECT ci.id, ci.cart_id FROM cart_items ci INNER JOIN carts c ON c.id = ci.cart_id WHERE ci.id='$cart_item_id' AND c.user_id='$session_user_id' AND c.status='Active'");
+
+    if (!$cart_rs || $cart_rs->num_rows === 0) {
+      echo json_encode(["success" => false, "message" => "Cart item not found"]);
+      exit();
+    }
+
+    $cart_data = $cart_rs->fetch_assoc();
+    $cart_id = (int)$cart_data['cart_id'];
+
+    Database::iud("DELETE FROM cart_items WHERE id='$cart_item_id'");
+
+    $total_rs = Database::search("SELECT COALESCE(SUM(price), 0) AS subtotal, COUNT(id) AS total_items FROM cart_items WHERE cart_id='$cart_id'");
+    $total_data = $total_rs->fetch_assoc();
+    $subtotal = (float)$total_data['subtotal'];
+    $itemCount = (int)$total_data['total_items'];
+    $bagCharge = 10;
+    $grandTotal = $itemCount > 0 ? $subtotal + $bagCharge : 0;
+
+    echo json_encode([
+      "success" => true,
+      "subtotal" => $subtotal,
+      "grand_total" => $grandTotal,
+      "item_count" => $itemCount
+    ]);
+    exit();
+}
 ?>
-
-
 <!doctype html>
 <html lang="en">
   <head>
@@ -240,7 +273,7 @@
                   <td class="discount-text">Rs. 0.00</td>
                   <td id="itemTotal-<?php echo $cartItemId; ?>">Rs. <?php echo number_format((float)$lineTotalPrice, 2); ?></td>
                   <td>
-                    <button class="remove-btn" onclick="removeItem()">✕</button>
+                    <button class="remove-btn" onclick="removeItem(<?php echo $cartItemId; ?>)">✕</button>
                   </td>
                 </tr>
                 <?php } ?>
@@ -351,10 +384,30 @@
         sendQtyUpdate(cartItemId, itemId, cartId, userId, currentQty - 1);
       }
 
-      function removeItem() {
-        if (confirm("Are you sure you want to remove this item?")) {
-          alert("Item removed from cart");
+      function removeItem(cartItemId) {
+        if (!confirm("Are you sure you want to remove Item ID " + cartItemId + "?")) {
+          return;
         }
+        const f = new FormData();
+        f.append("cart_item_id", cartItemId);
+        
+        var r = new XMLHttpRequest();
+        r.onreadystatechange = function () {
+          if (r.readyState == 4 && r.status == 200) {
+            try {
+              const data = JSON.parse(r.responseText);
+              if (!data.success) {
+                alert(data.message || "Failed to remove item from cart");
+                return;
+              }
+              location.reload();
+            } catch (e) {
+              console.log(r.responseText);
+            }
+          }
+        };
+        r.open("POST", "shopping-cart.php", true);
+        r.send(f);
       }
 
       fetch("nav.php")
