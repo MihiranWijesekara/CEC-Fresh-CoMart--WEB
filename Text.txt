@@ -24,7 +24,7 @@ sub total display correct price (Done)
 Total display correct price (Done)
 Action button develop (Done)
 Quantity Add reduce button develop (Done)
-and cart item correctly not work(add new item but its already has in cart increase quntity)
+and cart item correctly not work(add new item but its already has in cart increase quntity) (Done)
 Totl Card component display correct all item total prrice (Done)
 
  

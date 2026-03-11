@@ -31,14 +31,25 @@ if ($cart_rs->num_rows == 0) {
 
 $cart_data = $cart_rs->fetch_assoc();
 $cart_id = $cart_data['id'];
-             
+          
 
+$existing_item_rs = Database::search("SELECT id, quantity, price FROM cart_items WHERE cart_id='$cart_id' AND item_id='$itemID' LIMIT 1");
  
-// 🛒 Insert item into cart_items table
-Database::iud("INSERT INTO cart_items (cart_id, item_id, quantity, price, created_at)
-               VALUES ('$cart_id', '$itemID', '$quantity', '$price', '$d')");
+if ($existing_item_rs && $existing_item_rs->num_rows > 0) {
+    $existing_item_data = $existing_item_rs->fetch_assoc();
+    $existing_qty = (int)$existing_item_data['quantity'];
+    $existing_price = (float)$existing_item_data['price'];
+    $new_qty = $existing_qty + $quantity;
+    $new_price = $existing_price + $price;
+    $cart_item_id = (int)$existing_item_data['id'];
 
-echo "Item added successfully!";
+    Database::iud("UPDATE cart_items SET quantity='$new_qty', price='$new_price', updated_at='$d' WHERE id='$cart_item_id'");
+    echo "Item quantity updated successfully!";
+} else {
+    Database::iud("INSERT INTO cart_items (cart_id, item_id, quantity, price, created_at)
+                   VALUES ('$cart_id', '$itemID', '$quantity', '$price', '$d')");
+    echo "Item added successfully!";
+}
 
 
 ?>
