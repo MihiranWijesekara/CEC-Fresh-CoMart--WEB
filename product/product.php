@@ -220,15 +220,15 @@
   </head>
   <body>
     <?php 
-$category = isset($_GET['category']) ? intval($_GET['category']) : 0;
+        $category = isset($_GET['category']) ? intval($_GET['category']) : 0;
 
-if ($category > 0) {
+        if ($category > 0) {
  
-    $ItemRs = Database::search("SELECT * FROM `items` WHERE  `category_id` = $category");
-} else {
-    $ItemRs = Database::search("SELECT * FROM `items` ");
-}
-?>
+            $ItemRs = Database::search("SELECT * FROM `items` WHERE  `category_id` = $category");
+        } else {
+            $ItemRs = Database::search("SELECT * FROM `items` ");
+      }
+    ?>
     
     <div id="navbar" class="navbar-container"></div>
 
