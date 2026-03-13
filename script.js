@@ -95,3 +95,4 @@ function confirmAddToCart() {
   };
   xhr.send(formData);
 }
+

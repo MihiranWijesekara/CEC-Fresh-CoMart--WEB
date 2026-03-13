@@ -1,3 +1,8 @@
+<?php
+require 'connection.php';
+session_start();
+?>
+
 <!doctype html>
 <html lang="en">
   <head>
@@ -37,7 +42,7 @@
       }
       .breadcrumbs-area .breadcrumb-content h3.title-3 {
         font-size: 48px;
-        color: white;
+        color: #ffffff;
         font-weight: bold;
       }
 
@@ -88,7 +93,7 @@
     <div
       class="breadcrumbs-area"
       style="
-        background-image: url(&quot;assets/images/brand-logo/su.jpg&quot;);
+        background-image: url(&quot;assets/images/brand-logo/proceedPage1.jpeg&quot;);
         background-size: cover;
         background-position: center;
         padding: 120px 0;
@@ -100,7 +105,31 @@
         </div>
       </div>
     </div>
+    <?php
+    $user_id = (int)$_SESSION['user_id'];
+    $user_rs = Database::search("SELECT * FROM users WHERE id='$user_id'");
+    $user_data = $user_rs->fetch_assoc();
 
+    $delivery_charge = 450;
+    $subtotal = 0;
+    $total = 0;
+    $order_items = [];
+
+    $cart_rs = Database::search("SELECT id FROM carts WHERE user_id='$user_id' AND status='Active' LIMIT 1");
+    if ($cart_rs && $cart_rs->num_rows > 0) {
+      $cart_data = $cart_rs->fetch_assoc();
+      $cart_id = (int)$cart_data['id'];
+
+      $order_item_rs = Database::search("SELECT ci.quantity, ci.price AS line_price, i.name FROM cart_items ci INNER JOIN items i ON ci.item_id = i.id WHERE ci.cart_id='$cart_id'");
+
+      while ($order_item = $order_item_rs->fetch_assoc()) {
+        $order_items[] = $order_item;
+        $subtotal += (float)$order_item['line_price'];
+      }
+    }
+
+    $total = $subtotal + $delivery_charge;
+    ?>
     <!-- Checkout -->
     <div class="checkout-area">
       <div class="container">
@@ -113,11 +142,12 @@
               <div class="row g-3">
                 <div class="col-md-6">
                   <label>First Name</label>
-                  <input type="text" class="form-control" required />
+                  <input type="text" class="form-control" value="<?php echo $user_data['first_name']; ?>" readonly required />
                 </div>
                 <div class="col-md-6">
                   <label>Last Name</label>
-                  <input type="text" class="form-control" required />
+                  <input type="text" class="form-control" value = "<?php echo $user_data['last_name'] ?>"  readonly required/>
+                  
                 </div>
               </div>
 
@@ -126,16 +156,18 @@
                 <input
                   type="text"
                   class="form-control"
+                  id = "streetAddress1"
                   placeholder="House number and street name"
                   required
                 />
               </div>
 
               <div class="mb-3">
-                <label>Address</label>
+                <label>Street Address</label>
                 <input
                   type="text"
                   class="form-control"
+                  id = "streetAddress2"
                   placeholder="Apartment, suite, unit etc. (optional)"
                 />
               </div>
@@ -145,22 +177,22 @@
                 <input
                   type="text"
                   class="form-control"
-                  value="Colombo 1"
+                  id = "town"
                   required
                 />
               </div>
 
               <div class="mb-3">
                 <label>Phone</label>
-                <input type="tel" class="form-control" required />
+                <input type="tel" class="form-control" value = "<?php  echo $user_data['phone_number'] ?>" readonly required/>
               </div>
 
               <div class="mb-3">
                 <label>Email</label>
-                <input type="email" class="form-control" required />
+                <input type="email" class="form-control" value = "<?php  echo $user_data['email'] ?>" readonly required/>
               </div>
 
-              <div class="mb-3 form-check">
+              <!-- <div class="mb-3 form-check">
                 <input
                   type="checkbox"
                   class="form-check-input"
@@ -170,7 +202,7 @@
                 <label class="form-check-label" for="shipDifferent"
                   >Ship to a different address?</label
                 >
-              </div>
+              </div> -->
 
               <div id="shippingAddress" style="display: none">
                 <div class="mb-3">
@@ -195,21 +227,30 @@
             <div class="card p-4">
               <h4>Your Order</h4>
               <table class="table">
+                <?php if (!empty($order_items)) { ?>
+                <?php foreach ($order_items as $order_item) { ?>
                 <tr>
-                  <td>Anchovy (Halmessa) 1kg × 1</td>
-                  <td class="text-end">Rs.1,000.00</td>
+                  <td><?php echo htmlspecialchars($order_item['name']); ?> × <?php echo (int)$order_item['quantity']; ?></td>
+                  <td class="text-end">Rs.<?php echo number_format((float)$order_item['line_price'], 2); ?></td>
                 </tr>
+                <?php } ?>
+                <?php } else { ?>
+                <tr>
+                  <td>Your cart is empty</td>
+                  <td class="text-end">Rs.0.00</td>
+                </tr>
+                <?php } ?>
                 <tr>
                   <td>Subtotal</td>
-                  <td class="text-end">Rs.1,000.00</td>
+                  <td class="text-end">Rs.<?php echo number_format($subtotal, 2); ?></td>
                 </tr>
                 <tr>
                   <td>Delivery Charge</td>
-                  <td class="text-end">Rs.450.00</td>
+                  <td class="text-end">Rs.<?php echo number_format($delivery_charge, 2); ?></td>
                 </tr>
                 <tr class="fw-bold">
                   <td>Total</td>
-                  <td class="text-end">Rs.1,450.00</td>
+                  <td class="text-end">Rs.<?php echo number_format($total, 2); ?></td>
                 </tr>
               </table>
 
