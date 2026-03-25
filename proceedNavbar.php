@@ -587,7 +587,7 @@
     <div class="navbar">
       <!-- Left Side -->
       <div class="nav-left">
-        <a href="../index.php">
+        <a href="index.php">
           <img src="assets/images/logo/logo-freshco.png" alt="Header Logo" />
         </a>
       </div>
@@ -598,10 +598,10 @@
           FC
           <div class="mt-status-dot" id="mtStatusDot"></div>
         </div>
-        <a href="../login/sign.php" class="login-btn">Login</a>
-        <a href="../login/register.php" class="signup-btn">Sign Up</a>
+        <a href="/cecweb/login/sign.php" class="login-btn">Login</a>
+        <a href="/cecweb/login/register.php" class="signup-btn">Sign Up</a>
         <?php if ($can_access_cart): ?>
-          <a href="../product/shopping-cart.php" class="cart-btn">
+          <a href="/cecweb/product/shopping-cart.php" class="cart-btn">
             <i class="fa-solid fa-cart-shopping"></i>
           </a>
         <?php else: ?>
