@@ -6,8 +6,22 @@
   $can_access_cart = false;
   $cart_disabled_reason = 'Login required';
 
+
   // Set status dot color based on session
   $status_dot_color = isset($_SESSION['user_id']) ? 'GreenYellow' : 'red';
+
+  // Set initials for logo
+  $logo_initials = 'FC';
+  if (isset($_SESSION['user_id'])) {
+    $user_id = $_SESSION['user_id'];
+    $user_rs = Database::search("SELECT first_name, last_name FROM users WHERE id='$user_id'");
+    if ($user_rs && $user_row = $user_rs->fetch_assoc()) {
+      $first = isset($user_row['first_name']) ? strtoupper(substr($user_row['first_name'], 0, 1)) : '';
+      $last = isset($user_row['last_name']) ? strtoupper(substr($user_row['last_name'], 0, 1)) : '';
+      $logo_initials = $first . $last;
+      if ($logo_initials === '') $logo_initials = 'FC';
+    }
+  }
 
   if (isset($_SESSION['user_id'])) {
     $user_id = $_SESSION['user_id'];
@@ -751,7 +765,7 @@
       <!-- Right Side -->
       <div class="nav-right">
         <div class="mt-logo">
-          FC
+          <?php echo $logo_initials; ?>
           <div class="mt-status-dot" id="mtStatusDot" style="background: <?php echo $status_dot_color; ?>;"></div>
         </div> 
         <a href="../login/sign.php" class="login-btn">Login</a>

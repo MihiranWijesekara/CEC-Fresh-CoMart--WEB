@@ -2,7 +2,19 @@
 <?php
   require 'connection.php';
   session_start();
-$status_dot_color = isset($_SESSION['user_id']) ? 'GreenYellow' : 'red';
+  $status_dot_color = isset($_SESSION['user_id']) ? 'GreenYellow' : 'red';
+
+  $logo_initials = 'FC';
+  if (isset($_SESSION['user_id'])) {
+    $user_id = $_SESSION['user_id'];
+    $user_rs = Database::search("SELECT first_name, last_name FROM users WHERE id='$user_id'");
+    if ($user_rs && $user_row = $user_rs->fetch_assoc()) {
+      $first = isset($user_row['first_name']) ? strtoupper(substr($user_row['first_name'], 0, 1)) : '';
+      $last = isset($user_row['last_name']) ? strtoupper(substr($user_row['last_name'], 0, 1)) : '';
+      $logo_initials = $first . $last;
+      if ($logo_initials === '') $logo_initials = 'FC';
+    }
+  }
 ?>
 <html class="no-js" lang="en">
 
@@ -91,13 +103,14 @@ $status_dot_color = isset($_SESSION['user_id']) ? 'GreenYellow' : 'red';
                                                 </a>
                                             </li><!-- MT Logo HTML -->
                                         </ul>
-</div>   
+                                    </nav>    
+                                </div>   
                                
 
                                <div class="col-lg-2 col-xl-3 col-sm-6 col-6 col-custom">
                                     <div class="header-right-area main-nav">
                                         <div class="mt-logo">
-                                            FC
+                                            <?php echo $logo_initials; ?>
                                             <div class="mt-status-dot" style="background: <?php echo $status_dot_color; ?>;"></div>
                                         </div>
                                         <ul class="nav">
@@ -105,14 +118,30 @@ $status_dot_color = isset($_SESSION['user_id']) ? 'GreenYellow' : 'red';
                                                 <span><a href="login/sign.php">Login</a></span>
                                                 <span><a href="login/register.php">Register</a></span>
                                             </li>
-                                           
+                                            <?php if (isset($_SESSION['user_id'])): ?>
+                                                <?php
+                                                if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['logout'])) {
+                                                    session_unset();
+                                                    session_destroy();
+                                                    echo "<script>location.reload();</script>";
+                                                    exit();
+                                                }
+                                                ?>
+                                                <li>
+                                                    <form method="post" style="display:inline;">
+                                                        <button type="submit" name="logout" title="Logout" style="background:none;border:none;padding:0;cursor:pointer;">
+                                                            <i class="ion-log-out" style="color: black;"></i>
+                                                        </button>
+                                                    </form>
+                                                </li>
+                                            <?php endif; ?>
                                             <li class="mobile-menu-btn d-lg-none">
                                                 <a class="off-canvas-btn" href="#">
                                                     <i class="fa fa-bars"></i>
                                                 </a>
                                             </li>
                                         </ul>
-                                  </div>
+                                    </div>
                             </div>
        </nav>
                                 </div>
@@ -282,7 +311,7 @@ $status_dot_color = isset($_SESSION['user_id']) ? 'GreenYellow' : 'red';
                               <div class="col-lg-2 col-xl-3 col-sm-6 col-6 col-custom">
                                     <div class="header-right-area main-nav">
                                         <div class="mt-logo">
-                                            FC
+                                            <?php echo $logo_initials; ?>
                                              <div class="mt-status-dot" style="background: <?php echo $status_dot_color; ?>;"></div>
                                         </div>
                                         <ul class="nav">
@@ -290,11 +319,23 @@ $status_dot_color = isset($_SESSION['user_id']) ? 'GreenYellow' : 'red';
                                                 <span><a href="login/sign.php">Login</a></span>
                                                 <span><a href="login/register.php">Register</a></span>
                                             </li>
-                                            <li class="mobile-menu-btn d-lg-none">
-                                                <a class="off-canvas-btn" href="#">
-                                                    <i class="fa fa-bars"></i>
-                                                </a>
-                                            </li>
+                                            <?php if (isset($_SESSION['user_id'])): ?>
+                                                <?php
+                                                if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['logout'])) {
+                                                    session_unset();
+                                                    session_destroy();
+                                                    echo "<script>location.reload();</script>";
+                                                    exit();
+                                                }
+                                                ?>
+                                                <li>
+                                                    <form method="post" style="display:inline;">
+                                                        <button type="submit" name="logout" title="Logout" style="background:none;border:none;padding:0;cursor:pointer;">
+                                                            <i class="ion-log-out" style="color: black;"></i>
+                                                        </button>
+                                                    </form>
+                                                </li>
+                                            <?php endif; ?>
                                         </ul>
                                         
                                     </div>
