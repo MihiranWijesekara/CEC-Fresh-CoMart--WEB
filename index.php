@@ -1,4 +1,9 @@
 <!doctype html>
+<?php
+  require 'connection.php';
+  session_start();
+$status_dot_color = isset($_SESSION['user_id']) ? 'GreenYellow' : 'red';
+?>
 <html class="no-js" lang="en">
 
 <head>
@@ -92,9 +97,9 @@
                                <div class="col-lg-2 col-xl-3 col-sm-6 col-6 col-custom">
                                     <div class="header-right-area main-nav">
                                         <div class="mt-logo">
-    FC
-    <div class="mt-status-dot" id="mtStatusDot"></div>
-</div>
+                                            FC
+                                            <div class="mt-status-dot" style="background: <?php echo $status_dot_color; ?>;"></div>
+                                        </div>
                                         <ul class="nav">
                                             <li class="login-register-wrap d-none d-xl-flex">
                                                 <span><a href="login/sign.php">Login</a></span>
@@ -246,14 +251,14 @@
     font-weight:bold;
 }
 
-.mt-status-dot{
-    width:9px;
-    height:9px;
-    border-radius:50%;
-    position:absolute;
-    top: 0.05em;        
-    right:4px;      
-    background:orange;
+.mt-status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  position: absolute;
+  top: 0.05em;
+  right: 4px;
+  /* background set dynamically via inline style */
 }
 @media (max-width: 600px) {
     .mt-logo {
@@ -278,7 +283,7 @@
                                     <div class="header-right-area main-nav">
                                         <div class="mt-logo">
                                             FC
-                                            <div class="mt-status-dot" id="mtStatusDot"></div>
+                                             <div class="mt-status-dot" style="background: <?php echo $status_dot_color; ?>;"></div>
                                         </div>
                                         <ul class="nav">
                                             <li class="login-register-wrap d-none d-xl-flex">

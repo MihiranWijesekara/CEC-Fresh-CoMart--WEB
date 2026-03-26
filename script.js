@@ -89,61 +89,45 @@ function confirmAddToCart() {
   xhr.send(formData);
 }
 
+
 function placeOrder() {
+    var streetAddress1 = document.getElementById("streetAddress1").value;
+    var streetAddress2 = document.getElementById("streetAddress2").value;
+    var town = document.getElementById("town").value;
 
-  var streetAddress1 = document.getElementById("streetAddress1").value;
-  var streetAddress2 = document.getElementById("streetAddress2").value;
-  var town = document.getElementById("town").value;
+    var user_id = window.sessionUserId || null;
+    var total_amount = window.totalAmount || null;
+    var delivery_fee = window.deliveryFee || null;
+    var orderItems = window.orderItems || null;
 
-  // Get user_id, total_amount, delivery_fee, item_id, quantity, price, subtotal from PHP variables if available
-  var user_id = window.sessionUserId || null;
-  var total_amount = window.totalAmount || null;
-  var delivery_fee = window.deliveryFee || null;
-  var orderItems = window.orderItems || null;
+    var f = new FormData();
+    f.append('streetAddress1', streetAddress1);
+    f.append('streetAddress2', streetAddress2);
+    f.append('town', town);
+    f.append("user_id", user_id);
+    f.append("total_amount", total_amount);
+    f.append("delivery_fee", delivery_fee);
 
-  // If PHP variables are not exposed, try to get from DOM or set as null
-  // For demonstration, log what we have
-  console.log("streetAddress1:", streetAddress1);
-  console.log("streetAddress2:", streetAddress2);
-  console.log("town:", town);
-  console.log("user_id:", user_id);
-  console.log("total_amount:", total_amount);
-  console.log("delivery_fee:", delivery_fee);
-  if (orderItems && Array.isArray(orderItems)) {
-    orderItems.forEach(function(item, idx) {
-      console.log(`item_id[${idx}]:`, item.item_id, "quantity:", item.quantity, "subtotal:", item.subtotal, "item_price:", item.item_price);
-    });
-  } else {
-    console.log("orderItems not available in JS context");
-  }
+    // Using [] syntax so PHP treats these as arrays automatically
+    if (orderItems && Array.isArray(orderItems)) {
+        orderItems.forEach(function(item) {
+            f.append('item_id[]', item.item_id);
+            f.append('quantity[]', item.quantity);
+            f.append('subtotal[]', item.subtotal);
+            f.append('item_price[]', item.item_price);
+        });
+    }
 
-  var f = new FormData();
-  f.append('streetAddress1', streetAddress1);
-  f.append('streetAddress2', streetAddress2);
-  f.append('town', town);
-
-  f.append("user_id", user_id);
-  f.append("total_amount", total_amount);
-  f.append("delivery_fee", delivery_fee);
-  if (orderItems && Array.isArray(orderItems)) {
-    orderItems.forEach(function(item, idx) {
-      f.append(`item_id[${idx}]`, item.item_id);
-      f.append(`quantity[${idx}]`, item.quantity);
-      f.append(`subtotal[${idx}]`, item.subtotal);
-      f.append(`item_price[${idx}]`, item.item_price);
-    });
-  }
-
-  var r = new XMLHttpRequest();
+    var r = new XMLHttpRequest();
     r.onreadystatechange = function () {
         if (r.readyState == 4 && r.status == 200) {
-            var t = r.responseText;
+            var t = r.responseText.trim();
             var msgDiv = document.getElementById("msgdiv");
             msgDiv.style.display = "block";
+            
             if (t == "success") {
-                  // Show beautiful success message
-                  msgDiv.className = "alert alert-success";
-          
+                msgDiv.className = "alert alert-success";
+                msgDiv.innerHTML = "Order placed successfully!";
             } else {
                 msgDiv.className = "alert alert-danger";
                 msgDiv.innerHTML = '<i class="bi bi-exclamation-circle pe-3"></i>' + t;
@@ -152,5 +136,4 @@ function placeOrder() {
     }
     r.open("POST", "proceedProcess.php", true);
     r.send(f);
-
 }

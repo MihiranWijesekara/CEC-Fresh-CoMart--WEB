@@ -6,6 +6,9 @@
   $can_access_cart = false;
   $cart_disabled_reason = 'Login required';
 
+  // Set status dot color based on session
+  $status_dot_color = isset($_SESSION['user_id']) ? 'GreenYellow' : 'red';
+
   if (isset($_SESSION['user_id'])) {
     $user_id = $_SESSION['user_id'];
     $cart_rs = Database::search("SELECT * FROM carts WHERE user_id='$user_id' AND status='Active'");
@@ -71,7 +74,7 @@
         position: absolute;
         top: 0.05em;
         right: 4px;
-        background: orange;
+        /* background set dynamically via inline style */
       }
       @media (max-width: 600px) {
         .mt-logo {
@@ -85,6 +88,7 @@
           height: 6px;
           right: 2px;
           top: 0.1em;
+          /* background set dynamically via inline style */
         }
       }
 
@@ -748,8 +752,8 @@
       <div class="nav-right">
         <div class="mt-logo">
           FC
-          <div class="mt-status-dot" id="mtStatusDot"></div>
-        </div>
+          <div class="mt-status-dot" id="mtStatusDot" style="background: <?php echo $status_dot_color; ?>;"></div>
+        </div> 
         <a href="../login/sign.php" class="login-btn">Login</a>
         <a href="../login/register.php" class="signup-btn">Sign Up</a>
         <?php if ($can_access_cart): ?>
