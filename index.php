@@ -114,10 +114,12 @@
                                             <div class="mt-status-dot" style="background: <?php echo $status_dot_color; ?>;"></div>
                                         </div>
                                         <ul class="nav">
-                                            <li class="login-register-wrap d-none d-xl-flex">
-                                                <span><a href="login/sign.php">Login</a></span>
-                                                <span><a href="login/register.php">Register</a></span>
-                                            </li>
+                                            <?php if (!isset($_SESSION['user_id'])): ?>
+                                                <li class="login-register-wrap d-none d-xl-flex">
+                                                    <span><a href="login/sign.php">Login</a></span>
+                                                    <span><a href="login/register.php">Register</a></span>
+                                                </li>
+                                            <?php endif; ?>
                                             <?php if (isset($_SESSION['user_id'])): ?>
                                                 <?php
                                                 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['logout'])) {
@@ -315,10 +317,12 @@
                                              <div class="mt-status-dot" style="background: <?php echo $status_dot_color; ?>;"></div>
                                         </div>
                                         <ul class="nav">
-                                            <li class="login-register-wrap d-none d-xl-flex">
-                                                <span><a href="login/sign.php">Login</a></span>
-                                                <span><a href="login/register.php">Register</a></span>
-                                            </li>
+                                            <?php if (!isset($_SESSION['user_id'])): ?>
+                                                <li class="login-register-wrap d-none d-xl-flex">
+                                                    <span><a href="login/sign.php">Login</a></span>
+                                                    <span><a href="login/register.php">Register</a></span>
+                                                </li>
+                                            <?php endif; ?>
                                             <?php if (isset($_SESSION['user_id'])): ?>
                                                 <?php
                                                 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['logout'])) {
@@ -391,8 +395,16 @@
                                 
                                     <li class="menu-item-has-children"><a href="#">My Account</a>
                                         <ul class="dropdown">
-                                            <li><a href="login/sign.php">Login</a></li>
-                                            <li><a href="login/register.php">Register</a></li>
+                                            <?php if (!isset($_SESSION['user_id'])): ?>
+                                                <li><a href="login/sign.php">Login</a></li>
+                                                <li><a href="login/register.php">Register</a></li>
+                                            <?php else: ?>
+                                                <li>
+                                                    <form method="post" style="display:inline;">
+                                                        <button type="submit" name="logout" style="background:none;border:none;padding:0;cursor:pointer;color:inherit;">Logout</button>
+                                                    </form>
+                                                </li>
+                                            <?php endif; ?>
                                         </ul>
                                     </li>
                                     
