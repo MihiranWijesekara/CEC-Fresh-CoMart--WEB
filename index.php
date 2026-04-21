@@ -1,4 +1,21 @@
 <!doctype html>
+<?php
+  require 'connection.php';
+  session_start();
+  $status_dot_color = isset($_SESSION['user_id']) ? 'GreenYellow' : 'red';
+
+  $logo_initials = 'FC';
+  if (isset($_SESSION['user_id'])) {
+    $user_id = $_SESSION['user_id'];
+    $user_rs = Database::search("SELECT first_name, last_name FROM users WHERE id='$user_id'");
+    if ($user_rs && $user_row = $user_rs->fetch_assoc()) {
+      $first = isset($user_row['first_name']) ? strtoupper(substr($user_row['first_name'], 0, 1)) : '';
+      $last = isset($user_row['last_name']) ? strtoupper(substr($user_row['last_name'], 0, 1)) : '';
+      $logo_initials = $first . $last;
+      if ($logo_initials === '') $logo_initials = 'FC';
+    }
+  }
+?>
 <html class="no-js" lang="en">
 
 <head>
@@ -86,28 +103,47 @@
                                                 </a>
                                             </li><!-- MT Logo HTML -->
                                         </ul>
-</div>   
+                                    </nav>    
+                                </div>   
                                
 
                                <div class="col-lg-2 col-xl-3 col-sm-6 col-6 col-custom">
                                     <div class="header-right-area main-nav">
                                         <div class="mt-logo">
-    FC
-    <div class="mt-status-dot" id="mtStatusDot"></div>
-</div>
+                                            <?php echo $logo_initials; ?>
+                                            <div class="mt-status-dot" style="background: <?php echo $status_dot_color; ?>;"></div>
+                                        </div>
                                         <ul class="nav">
-                                            <li class="login-register-wrap d-none d-xl-flex">
-                                                <span><a href="login/sign.php">Login</a></span>
-                                                <span><a href="login/register.php">Register</a></span>
-                                            </li>
-                                           
+                                            <?php if (!isset($_SESSION['user_id'])): ?>
+                                                <li class="login-register-wrap d-none d-xl-flex">
+                                                    <span><a href="login/sign.php">Login</a></span>
+                                                    <span><a href="login/register.php">Register</a></span>
+                                                </li>
+                                            <?php endif; ?>
+                                            <?php if (isset($_SESSION['user_id'])): ?>
+                                                <?php
+                                                if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['logout'])) {
+                                                    session_unset();
+                                                    session_destroy();
+                                                    echo "<script>location.reload();</script>";
+                                                    exit();
+                                                }
+                                                ?>
+                                                <li>
+                                                    <form method="post" style="display:inline;">
+                                                        <button type="submit" name="logout" title="Logout" style="background:none;border:none;padding:0;cursor:pointer;">
+                                                            <i class="ion-log-out" style="color: black;"></i>
+                                                        </button>
+                                                    </form>
+                                                </li>
+                                            <?php endif; ?>
                                             <li class="mobile-menu-btn d-lg-none">
                                                 <a class="off-canvas-btn" href="#">
                                                     <i class="fa fa-bars"></i>
                                                 </a>
                                             </li>
                                         </ul>
-                                  </div>
+                                    </div>
                             </div>
        </nav>
                                 </div>
@@ -246,14 +282,14 @@
     font-weight:bold;
 }
 
-.mt-status-dot{
-    width:9px;
-    height:9px;
-    border-radius:50%;
-    position:absolute;
-    top: 0.05em;        
-    right:4px;      
-    background:orange;
+.mt-status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  position: absolute;
+  top: 0.05em;
+  right: 4px;
+  /* background set dynamically via inline style */
 }
 @media (max-width: 600px) {
     .mt-logo {
@@ -277,19 +313,33 @@
                               <div class="col-lg-2 col-xl-3 col-sm-6 col-6 col-custom">
                                     <div class="header-right-area main-nav">
                                         <div class="mt-logo">
-                                            FC
-                                            <div class="mt-status-dot" id="mtStatusDot"></div>
+                                            <?php echo $logo_initials; ?>
+                                             <div class="mt-status-dot" style="background: <?php echo $status_dot_color; ?>;"></div>
                                         </div>
                                         <ul class="nav">
-                                            <li class="login-register-wrap d-none d-xl-flex">
-                                                <span><a href="login/sign.php">Login</a></span>
-                                                <span><a href="login/register.php">Register</a></span>
-                                            </li>
-                                            <li class="mobile-menu-btn d-lg-none">
-                                                <a class="off-canvas-btn" href="#">
-                                                    <i class="fa fa-bars"></i>
-                                                </a>
-                                            </li>
+                                            <?php if (!isset($_SESSION['user_id'])): ?>
+                                                <li class="login-register-wrap d-none d-xl-flex">
+                                                    <span><a href="login/sign.php">Login</a></span>
+                                                    <span><a href="login/register.php">Register</a></span>
+                                                </li>
+                                            <?php endif; ?>
+                                            <?php if (isset($_SESSION['user_id'])): ?>
+                                                <?php
+                                                if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['logout'])) {
+                                                    session_unset();
+                                                    session_destroy();
+                                                    echo "<script>location.reload();</script>";
+                                                    exit();
+                                                }
+                                                ?>
+                                                <li>
+                                                    <form method="post" style="display:inline;">
+                                                        <button type="submit" name="logout" title="Logout" style="background:none;border:none;padding:0;cursor:pointer;">
+                                                            <i class="ion-log-out" style="color: black;"></i>
+                                                        </button>
+                                                    </form>
+                                                </li>
+                                            <?php endif; ?>
                                         </ul>
                                         
                                     </div>
@@ -345,8 +395,16 @@
                                 
                                     <li class="menu-item-has-children"><a href="#">My Account</a>
                                         <ul class="dropdown">
-                                            <li><a href="login/sign.php">Login</a></li>
-                                            <li><a href="login/register.php">Register</a></li>
+                                            <?php if (!isset($_SESSION['user_id'])): ?>
+                                                <li><a href="login/sign.php">Login</a></li>
+                                                <li><a href="login/register.php">Register</a></li>
+                                            <?php else: ?>
+                                                <li>
+                                                    <form method="post" style="display:inline;">
+                                                        <button type="submit" name="logout" style="background:none;border:none;padding:0;cursor:pointer;color:inherit;">Logout</button>
+                                                    </form>
+                                                </li>
+                                            <?php endif; ?>
                                         </ul>
                                     </li>
                                     

@@ -1,27 +1,10 @@
 <?php
-  require '../connection.php';
+  require 'connection.php';
   session_start();
 
   $cart_count = 0;
   $can_access_cart = false;
   $cart_disabled_reason = 'Login required';
-
-
-  // Set status dot color based on session
-  $status_dot_color = isset($_SESSION['user_id']) ? 'GreenYellow' : 'red';
-
-  // Set initials for logo
-  $logo_initials = 'FC';
-  if (isset($_SESSION['user_id'])) {
-    $user_id = $_SESSION['user_id'];
-    $user_rs = Database::search("SELECT first_name, last_name FROM users WHERE id='$user_id'");
-    if ($user_rs && $user_row = $user_rs->fetch_assoc()) {
-      $first = isset($user_row['first_name']) ? strtoupper(substr($user_row['first_name'], 0, 1)) : '';
-      $last = isset($user_row['last_name']) ? strtoupper(substr($user_row['last_name'], 0, 1)) : '';
-      $logo_initials = $first . $last;
-      if ($logo_initials === '') $logo_initials = 'FC';
-    }
-  }
 
   if (isset($_SESSION['user_id'])) {
     $user_id = $_SESSION['user_id'];
@@ -88,7 +71,7 @@
         position: absolute;
         top: 0.05em;
         right: 4px;
-        /* background set dynamically via inline style */
+        background: orange;
       }
       @media (max-width: 600px) {
         .mt-logo {
@@ -102,7 +85,6 @@
           height: 6px;
           right: 2px;
           top: 0.1em;
-          /* background set dynamically via inline style */
         }
       }
 
@@ -124,7 +106,8 @@
       }
 
       .nav-left img {
-        height: 50px;
+        height: 60px;
+        width: 150px;
       }
 
       /* Dropdown */
@@ -497,60 +480,7 @@
       </div>
 
       <div class="mobile-menu">
-        <!-- Mobile Search -->
-        <div class="mobile-search">
-          <input type="text" placeholder="Search products..." />
-        </div>
-
-        <!-- Category Dropdown -->
-        <div class="mobile-menu-item">
-          <button onclick="toggleMobileCategories()">
-            <i class="fas fa-th-large"></i>
-            <span>Categories</span>
-            <i
-              class="fas fa-angle-down"
-              id="mobileCategoryArrow"
-              style="margin-left: auto"
-            ></i>
-          </button>
-          <div class="mobile-category-list" id="mobileCategoryList">
-            <a href="#" data-category="All" data-id="0"><i class="fa-solid fa-list"></i> All Items</a>
-            <a href="#" data-category="Vegetables" data-id="1"
-              ><i class="fa-solid fa-carrot veg"></i> Vegetables</a
-            >
-            <a href="#" data-category="Fruits" data-id="2"
-              ><i class="fa-solid fa-apple-whole fruit"></i> Fruits</a
-            >
-            <a href="#" data-category="Snacks" data-id="3"
-              ><i class="fa-solid fa-cookie-bite snack"></i> Snacks</a
-            >
-            <a href="#" data-category="Biscuits" data-id="4"
-              ><i class="fa-solid fa-bread-slice biscuit"></i> Biscuits</a
-            >
-            <a href="#" data-category="Coffee" data-id="5"
-              ><i class="fa-solid fa-mug-hot coffee"></i> Coffee</a
-            >
-            <a href="#" data-category="Eggs" data-id="6"
-              ><i class="fa-solid fa-egg egg"></i> Eggs</a
-            >
-            <a href="#" data-category="Water" data-id="7"
-              ><i class="fa-solid fa-bottle-water water"></i> Water</a
-            >
-            <a href="#" data-category="Tea" data-id="8"
-              ><i class="fa-solid fa-mug-saucer tea"></i> Tea</a
-            >
-            <a href="#" data-category="Cheese" data-id="9"
-              ><i class="fa-solid fa-cheese cheese"></i> Cheese</a
-            >
-            <a href="#" data-category="Yoghurts & Curd" data-id="10"
-              ><i class="fa-solid fa-ice-cream yoghurt"></i> Yoghurts & Curd</a
-            >
-            <a href="#" data-category="Desserts" data-id="11"
-              ><i class="fa-solid fa-cake-candles dessert"></i> Desserts</a
-            >
-          </div>
-        </div>
-
+    
         <!-- Login -->
         <div class="mobile-menu-item">
           <a href="../login/sign.php">
@@ -624,12 +554,6 @@
         cursor: pointer;
       }
 
-      /* Hover Effect */
-      /*.mobile-menu-item button:hover,
-.mobile-menu-item a:hover {
-  background-color: #c78888;
-}*/
-
       /* Category List Links */
       .mobile-category-list a {
         width: 70%;
@@ -663,115 +587,21 @@
     <div class="navbar">
       <!-- Left Side -->
       <div class="nav-left">
-        <a href="../index.php">
-          <img src="../assets/images/logo/logo-freshco.png" alt="Header Logo" />
+        <a href="index.php">
+          <img src="assets/images/logo/logo-freshco.png" alt="Header Logo" />
         </a>
-        <div class="dropdown">
-          <button class="dropbtn" onclick="toggleDropdown()">
-            Category <i class="fa fa-angle-down" id="arrowIcon"></i>
-          </button>
-          <div class="dropdown-content" id="categoryMenu">
-            <a href="#" data-category="All" data-id="0"><i class="fa-solid fa-list"></i> All Items</a>
-             <a href="#" data-category="" data-id="0"
-              ><i class="fa-solid fa-carrot veg"></i> All</a
-            >
-            <a href="#" data-category="Vegetables" data-id="1"
-              ><i class="fa-solid fa-carrot veg"></i> Vegetables</a
-            >
-            <a href="#" data-category="Fruits" data-id="2"
-              ><i class="fa-solid fa-apple-whole fruit"></i> Fruits</a
-            >
-            <a href="#" data-category="Snacks" data-id="3"
-              ><i class="fa-solid fa-cookie-bite snack"></i> Snacks</a
-            >
-            <a href="#" data-category="Biscuits" data-id="4"
-              ><i class="fa-solid fa-bread-slice biscuit"></i> Biscuits</a
-            >
-            <a href="#" data-category="Coffee" data-id="5"
-              ><i class="fa-solid fa-mug-hot coffee"></i> Coffee</a
-            >
-            <a href="#" data-category="Eggs" data-id="6"
-              ><i class="fa-solid fa-egg egg"></i> Eggs</a
-            >
-            <a href="#" data-category="Water" data-id="7"
-              ><i class="fa-solid fa-bottle-water water"></i> Water</a
-            >
-            <a href="#" data-category="Tea" data-id="8"
-              ><i class="fa-solid fa-mug-saucer tea"></i> Tea</a
-            >
-            <a href="#" data-category="Cheese" data-id="9"
-              ><i class="fa-solid fa-cheese cheese"></i> Cheese</a
-            >
-            <a href="#" data-category="Yoghurts & Curd" data-id="10"
-              ><i class="fa-solid fa-ice-cream yoghurt"></i> Yoghurts & Curd</a
-            >
-            <a href="#" data-category="Desserts" data-id="11"
-              ><i class="fa-solid fa-cake-candles dessert"></i> Desserts</a
-            >
-          </div>
-
-          <style>
-            /* Align items */
-
-            .dropdown-content a {
-              display: flex;
-              align-items: center;
-              gap: 10px;
-            }
-
-            /* Individual Colors */
-            .veg {
-              color: #4caf50;
-            } /* Green */
-            .fruit {
-              color: #ff5252;
-            } /* Red */
-            .snack {
-              color: #ff9800;
-            } /* Orange */
-            .biscuit {
-              color: #a1887f;
-            } /* Brown */
-            .coffee {
-              color: #6d4c41;
-            } /* Dark Brown */
-            .egg {
-              color: #fbc02d;
-            } /* Yellow */
-            .water {
-              color: #2196f3;
-            } /* Blue */
-            .tea {
-              color: #8bc34a;
-            } /* Light Green */
-            .cheese {
-              color: #ffca28;
-            } /* Cheese Yellow */
-            .yoghurt {
-              color: #ba68c8;
-            } /* Purple */
-            .dessert {
-              color: #e91e63;
-            } /* Pink */
-          </style>
-        </div>
-
-        <div class="search-bar">
-          <input type="text" placeholder="Search products..." />
-          <button>Search</button>
-        </div>
       </div>
 
       <!-- Right Side -->
       <div class="nav-right">
         <div class="mt-logo">
-          <?php echo $logo_initials; ?>
-          <div class="mt-status-dot" id="mtStatusDot" style="background: <?php echo $status_dot_color; ?>;"></div>
-        </div> 
-        <a href="../login/sign.php" class="login-btn">Login</a>
-        <a href="../login/register.php" class="signup-btn">Sign Up</a>
+          FC
+          <div class="mt-status-dot" id="mtStatusDot"></div>
+        </div>
+        <a href="/cecweb/login/sign.php" class="login-btn">Login</a>
+        <a href="/cecweb/login/register.php" class="signup-btn">Sign Up</a>
         <?php if ($can_access_cart): ?>
-          <a href="../product/shopping-cart.php" class="cart-btn">
+          <a href="/cecweb/product/shopping-cart.php" class="cart-btn">
             <i class="fa-solid fa-cart-shopping"></i>
           </a>
         <?php else: ?>
@@ -788,6 +618,6 @@
     </div>
 
     <!-- JavaScript -->
-    <script src="navBar.js"></script>
+    <script src="proceedNavbar.js"></script>
   </body>
 </html>

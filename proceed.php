@@ -1,7 +1,4 @@
-<?php
-require 'connection.php';
-session_start();
-?>
+
 
 <!doctype html>
 <html lang="en">
@@ -87,7 +84,7 @@ session_start();
   </head>
   <body>
     <!-- Navbar -->
-    <div id="navbar" class="navbar-container"></div>
+    <?php include 'proceedNavbar.php'; ?>
 
     <!-- Breadcrumb -->
     <div
@@ -131,6 +128,7 @@ session_start();
     $total = $subtotal + $delivery_charge;
     ?>
     <!-- Checkout -->
+    <div id="msgdiv" style="display:none;"></div>
     <div class="checkout-area">
       <div class="container">
         <div class="row g-4">
@@ -192,18 +190,6 @@ session_start();
                 <input type="email" class="form-control" value = "<?php  echo $user_data['email'] ?>" readonly required/>
               </div>
 
-              <!-- <div class="mb-3 form-check">
-                <input
-                  type="checkbox"
-                  class="form-check-input"
-                  id="shipDifferent"
-                  onclick="toggleAddress()"
-                />
-                <label class="form-check-label" for="shipDifferent"
-                  >Ship to a different address?</label
-                >
-              </div> -->
-
               <div id="shippingAddress" style="display: none">
                 <div class="mb-3">
                   <label>Shipping Address *</label>
@@ -262,7 +248,8 @@ session_start();
               </div>
 
               <button
-                type="submit"
+                type="button"
+                onclick = "placeOrder()"
                 form="checkoutForm"
                 class="btn btn-success w-100"
               >
@@ -279,7 +266,28 @@ session_start();
 
     <!-- JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="script.js"></script>
     <script>
+      // Expose PHP variables to JS for logging in placeOrder()
+      window.sessionUserId = <?php echo json_encode($user_id); ?>;
+      window.totalAmount = <?php echo json_encode($total); ?>;
+      window.deliveryFee = <?php echo json_encode($delivery_charge); ?>;
+      window.orderItems = <?php
+        // Build array of order items with item_id, quantity, price, subtotal, and item_price from items table
+        if (!empty($order_items)) {
+          $cart_id = isset($cart_id) ? $cart_id : null;
+          $items = [];
+          $item_rs = Database::search("SELECT ci.item_id, ci.quantity, ci.price AS line_price, i.price AS item_price FROM cart_items ci INNER JOIN items i ON ci.item_id = i.id WHERE ci.cart_id='$cart_id'");
+          while ($item = $item_rs->fetch_assoc()) {
+            $item['subtotal'] = (float)$item['line_price'];
+            $items[] = $item;
+          }
+          echo json_encode($items);
+        } else {
+          echo 'null';
+        }
+      ?>;
+
       function toggleAddress() {
         const check = document.getElementById("shipDifferent");
         const box = document.getElementById("shippingAddress");
@@ -296,20 +304,7 @@ session_start();
         });
       });
 
-      fetch("product/nav.php")
-        .then((response) => response.text())
-        .then((data) => {
-          let fixedData = data
-            .replace(/src="\.\.\/assets\/images\/logo\/logo-freshco\.png"/g, 'src="assets/images/logo/logo-freshco.png"')
-            .replace(/href="\.\.\/login\/sign\.php"/g, 'href="login/sign.php"')
-            .replace(/href="\.\.\/login\/register\.php"/g, 'href="login/register.php"')
-            .replace(/href="\.\.\/product\/shopping-cart\.html"/g, 'href="product/shopping-cart.html"');
-
-          document.getElementById("navbar").innerHTML = fixedData;
-          const script = document.createElement("script");
-          script.src = "product/navBar.js";
-          document.body.appendChild(script);
-        });
+      // Navbar is now included via PHP (proceedNavbar.php)
     </script>
   </body>
 </html>

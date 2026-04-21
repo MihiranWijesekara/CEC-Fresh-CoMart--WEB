@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Completed Orders</title>
+    <title> Orders</title>
 
      <style>
       body {
@@ -51,7 +51,8 @@
 
     <div class="main-card">
       <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2 class="fw-bold mb-0" style="font-size:1.5rem;letter-spacing:1px;">Completed Orders</h2>
+        <h2 class="fw-bold mb-0" style="font-size:1.5rem;letter-spacing:1px;">Orders</h2>
+
        
       </div>
       <div class="table-responsive">
@@ -68,8 +69,6 @@
             </tr>
           </thead>
           <tbody>
-
-          
   
           </tbody>
         </table>

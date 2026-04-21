@@ -1,12 +1,8 @@
 function contactUs() { 
     var contactName = document.getElementById("con_name").value;
-    console.log(contactName);
     var email = document.getElementById("con_email").value;
-    console.log(email);
     var subject = document.getElementById("con_content").value;
-    console.log(subject);
     var message = document.getElementById("con_message").value;
-    console.log(message);
 
     var f = new FormData();
     f.append("contactName",contactName);
@@ -66,11 +62,8 @@ function confirmAddToCart() {
   var totalPrice = itemQty * selectedPrice;
   var formData = new FormData();
   formData.append('item_id', selectedProduct);
-  console.log('Selected Product ID:', selectedProduct);
   formData.append('quantity', itemQty);
-  console.log('Item Quantity:', itemQty);
   formData.append('price', totalPrice);
-  console.log('Total Price:', totalPrice);
 
   var xhr = new XMLHttpRequest();
   xhr.open('POST', './productProcess.php', true);
@@ -96,3 +89,51 @@ function confirmAddToCart() {
   xhr.send(formData);
 }
 
+
+function placeOrder() {
+    var streetAddress1 = document.getElementById("streetAddress1").value;
+    var streetAddress2 = document.getElementById("streetAddress2").value;
+    var town = document.getElementById("town").value;
+
+    var user_id = window.sessionUserId || null;
+    var total_amount = window.totalAmount || null;
+    var delivery_fee = window.deliveryFee || null;
+    var orderItems = window.orderItems || null;
+
+    var f = new FormData();
+    f.append('streetAddress1', streetAddress1);
+    f.append('streetAddress2', streetAddress2);
+    f.append('town', town);
+    f.append("user_id", user_id);
+    f.append("total_amount", total_amount);
+    f.append("delivery_fee", delivery_fee);
+
+    // Using [] syntax so PHP treats these as arrays automatically
+    if (orderItems && Array.isArray(orderItems)) {
+        orderItems.forEach(function(item) {
+            f.append('item_id[]', item.item_id);
+            f.append('quantity[]', item.quantity);
+            f.append('subtotal[]', item.subtotal);
+            f.append('item_price[]', item.item_price);
+        });
+    }
+
+    var r = new XMLHttpRequest();
+    r.onreadystatechange = function () {
+        if (r.readyState == 4 && r.status == 200) {
+            var t = r.responseText.trim();
+            var msgDiv = document.getElementById("msgdiv");
+            msgDiv.style.display = "block";
+            
+            if (t == "success") {
+                msgDiv.className = "alert alert-success";
+                msgDiv.innerHTML = "Order placed successfully!";
+            } else {
+                msgDiv.className = "alert alert-danger";
+                msgDiv.innerHTML = '<i class="bi bi-exclamation-circle pe-3"></i>' + t;
+            }
+        }
+    }
+    r.open("POST", "proceedProcess.php", true);
+    r.send(f);
+}

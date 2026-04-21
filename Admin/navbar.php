@@ -49,6 +49,9 @@
                             <a class="nav-link" href="Item.php">Items</a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link" href="order.php"> Orders</a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link" href="completOrder.php">Completed Orders</a>
                         </li>
                         <li class="nav-item">
