@@ -5,6 +5,7 @@
   $cart_count = 0;
   $can_access_cart = false;
   $cart_disabled_reason = 'Login required';
+  $is_logged_in = isset($_SESSION['user_id']);
 
 
   // Set status dot color based on session
@@ -551,21 +552,23 @@
           </div>
         </div>
 
-        <!-- Login -->
-        <div class="mobile-menu-item">
-          <a href="../login/sign.php">
-            <i class="fas fa-user"></i>
-            <span>Login</span>
-          </a>
-        </div>
+        <?php if (!$is_logged_in): ?>
+          <!-- Login -->
+          <div class="mobile-menu-item">
+            <a href="../login/sign.php">
+              <i class="fas fa-user"></i>
+              <span>Login</span>
+            </a>
+          </div>
 
-        <!-- Sign Up -->
-        <div class="mobile-menu-item">
-          <a href="../login/register.php">
-            <i class="fas fa-user-plus"></i>
-            <span>Sign Up</span>
-          </a>
-        </div>
+          <!-- Sign Up -->
+          <div class="mobile-menu-item">
+            <a href="../login/register.php">
+              <i class="fas fa-user-plus"></i>
+              <span>Sign Up</span>
+            </a>
+          </div>
+        <?php endif; ?>
 
         <!-- Cart -->
         <div class="mobile-menu-item">
@@ -768,8 +771,10 @@
           <?php echo $logo_initials; ?>
           <div class="mt-status-dot" id="mtStatusDot" style="background: <?php echo $status_dot_color; ?>;"></div>
         </div> 
-        <a href="../login/sign.php" class="login-btn">Login</a>
-        <a href="../login/register.php" class="signup-btn">Sign Up</a>
+        <?php if (!$is_logged_in): ?>
+          <a href="../login/sign.php" class="login-btn">Login</a>
+          <a href="../login/register.php" class="signup-btn">Sign Up</a>
+        <?php endif; ?>
         <?php if ($can_access_cart): ?>
           <a href="../product/shopping-cart.php" class="cart-btn">
             <i class="fa-solid fa-cart-shopping"></i>

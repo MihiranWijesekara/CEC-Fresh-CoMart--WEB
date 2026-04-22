@@ -1,5 +1,8 @@
 <?php
- require '../connection.php';
+require '../connection.php';
+session_start();
+
+$isLoggedIn = isset($_SESSION['user_id']);
 ?>
 
 <!doctype html>
@@ -16,13 +19,12 @@
       rel="stylesheet"
     />
 
-    <?php session_start(); $isLoggedIn = isset($_SESSION["users"]); ?>
-
     <style>
       body {
         background-color: #f0f2f5;
         font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
         min-height: 100vh;
+       
       }
 
       .navbar-container {
@@ -36,6 +38,7 @@
         padding: 100px 20px 40px;
         display: flex;
         justify-content: center;
+        flex: 1;
       }
 
       .card-container {
@@ -99,10 +102,12 @@
         background-color: #ce3333;
         color: #fff;
         border: none;
-        padding: 10px 45px;
+        padding: 8px 26px;
         border-radius: 25px;
         cursor: pointer;
-        font-size: 15px;
+        font-size: 13px;
+        min-width: 120px;
+        font-weight: 600;
         transition: all 0.3s ease;
       }
 
@@ -216,6 +221,8 @@
         transform: scale(1.05);
         color: #fff;
       }
+
+     
     </style>
   </head>
   <body>
@@ -308,6 +315,7 @@
         </div>
       </div>
     </div>
+
 
 
     <script>
