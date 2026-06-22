@@ -20,7 +20,13 @@ if ($q->num_rows == 1) {
         $_SESSION["users"] = $user;
         $_SESSION["user_id"] = $user["id"];
         $_SESSION["user_email"] = $user["email"];
-        echo "success";
+        $_SESSION["is_admin"] = (int)$user["is_admin"];
+        
+        if ((int)$user["is_admin"] === 1) {
+            echo "admin_success";
+        } else {
+            echo "success";
+        }
     } else {
         echo "Invalid email or password";
     }

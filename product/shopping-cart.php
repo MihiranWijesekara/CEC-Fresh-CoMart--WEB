@@ -183,6 +183,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_item_id'])) {
       .checkout-btn:hover {
         background-color: #343a40;
       }
+
+      footer {
+        background-color: #212529;
+        color: white;
+        text-align: center;
+        padding: 15px 0;
+        margin-top: 150px;
+      }
     </style>
   </head>
   <body>
@@ -321,6 +329,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_item_id'])) {
         </div>
       </div>
     </div>
+
+    <!-- Footer -->
+    <footer>© 2026 CEC Fresh-Co Mart. All Rights Reserved.</footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>

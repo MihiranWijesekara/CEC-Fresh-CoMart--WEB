@@ -222,6 +222,14 @@ $isLoggedIn = isset($_SESSION['user_id']);
         color: #fff;
       }
 
+      footer {
+        background-color: #212529;
+        color: white;
+        text-align: center;
+        padding: 15px 0;
+        margin-top: 150px;
+      }
+
      
     </style>
   </head>
@@ -315,7 +323,9 @@ $isLoggedIn = isset($_SESSION['user_id']);
         </div>
       </div>
     </div>
-
+     
+     <!-- Footer -->
+    <footer>© 2026 CEC Fresh-Co Mart. All Rights Reserved.</footer>
 
 
     <script>

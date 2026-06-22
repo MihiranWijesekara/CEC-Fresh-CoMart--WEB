@@ -1,4 +1,5 @@
 <?php  
+require 'adminAuth.php';
 require("../connection.php");
 
 

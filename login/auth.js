@@ -56,14 +56,18 @@ function signIn(){
             var t = r.responseText;
             var msgDiv = document.getElementById("msgdiv");
             msgDiv.style.display = "block";
-            if (t == "success") {
+            if (t == "success" || t == "admin_success") {
                                 // Clear all input fields
                                 document.getElementById("loginForm").reset();
                                 // Show beautiful success message
                                 msgDiv.className = "alert alert-success";
                                 msgDiv.innerHTML = '<i class="bi bi-check-circle pe-3"></i>' + "Login Successful!";
                                 setTimeout(function() {
-                                    window.location.href = "../product/product.php";
+                                    if (t == "admin_success") {
+                                        window.location.href = "../Admin/dashboard.php";
+                                    } else {
+                                        window.location.href = "../product/product.php";
+                                    }
                                 }, 1200);
           
             } else {

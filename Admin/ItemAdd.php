@@ -1,3 +1,4 @@
+<?php require 'adminAuth.php'; ?>
 <!doctype html>
 <html lang="en">
 <head>
@@ -126,8 +127,8 @@
         <option value="4">Biscuits</option>
         <option value="5">Coffee</option>
         <option value="6">Eggs</option>
-        <option value="7">Water</option>
-        <option value="8">Tea</option>
+        <option value="7">Beverages</option>
+        <!-- <option value="8">Tea</option> -->
         <option value="9">Cheese</option>
         <option value="10">Yoghurts & Curd</option>
         <option value="11">Desserts</option>
