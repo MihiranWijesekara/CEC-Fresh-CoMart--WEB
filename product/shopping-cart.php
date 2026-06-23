@@ -2,6 +2,11 @@
  require '../connection.php';
  session_start();
 
+if (!isset($_SESSION['user_id'])) {
+    header("Location: ../login/sign.php");
+    exit();
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_item_id'])) {
     header('Content-Type: application/json');
 
@@ -211,10 +216,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_item_id'])) {
           $total_data = $total_rs->fetch_assoc();
           $subTotal = (float)$total_data['total_price'];
           $itemCount = (int)$total_data['total_items'];
-          $grandTotal = $subTotal + $bagCharge;
+          $grandTotal = $itemCount > 0 ? $subTotal + $bagCharge : 0;
         } else {
           $ItemRs = false;
-          $grandTotal = $bagCharge;
+          $grandTotal = 0;
         }
     ?>
    
@@ -322,9 +327,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_item_id'])) {
               <span id="grandTotal">Rs. <?php echo number_format($grandTotal, 2); ?></span>
             </div>
 
+            <?php if ($itemCount > 0) { ?>
             <a href="../proceed.php" style="text-decoration: none">
               <button class="checkout-btn">Proceed to Checkout</button>
             </a>
+            <?php } else { ?>
+              <button class="checkout-btn" disabled style="background-color: #ccc; cursor: not-allowed;">Proceed to Checkout</button>
+            <?php } ?>
           </div>
         </div>
       </div>

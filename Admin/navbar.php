@@ -7,7 +7,7 @@ if (session_status() === PHP_SESSION_NONE) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['admin_logout'])) {
     session_unset();
     session_destroy();
-    header("Location: ../login/sign.php");
+    header("Location: login.php");
     exit();
 }
 

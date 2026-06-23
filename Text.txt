@@ -32,3 +32,17 @@ Totl Card component display correct all item total prrice (Done)
  --------Proceed page ------
  order total summary display card  develop
  
+
+
+
+
+Next Task
+
+shopping cart 
+nav bar not show the category drop down 
+and check the what is the error has in the cart page
+
+-want to develop the user profile 
+-i have no idea how to display products in the product page 
+-deeply check the proceed check out page
+-home page Shop By Category section develop

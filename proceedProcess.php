@@ -79,5 +79,8 @@ foreach ($item_ids as $index => $item_id) {
     }
 }
 
+// 7. Update status of the current active cart to 'Ordered'
+Database::iud("UPDATE carts SET status='Ordered' WHERE user_id='$user_id' AND status='Active'");
+
 echo "success";
 ?>

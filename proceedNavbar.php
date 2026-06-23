@@ -9,12 +9,22 @@
   if (isset($_SESSION['user_id'])) {
     $user_id = $_SESSION['user_id'];
     $cart_rs = Database::search("SELECT * FROM carts WHERE user_id='$user_id' AND status='Active'");
-    $cart_count = $cart_rs->num_rows;
+    
+    if ($cart_rs && $cart_rs->num_rows > 0) {
+      $cart_data = $cart_rs->fetch_assoc();
+      $cart_id = $cart_data['id'];
+      $items_rs = Database::search("SELECT COUNT(id) AS total_items FROM cart_items WHERE cart_id='$cart_id'");
+      $items_data = $items_rs->fetch_assoc();
+      $cart_count = (int)$items_data['total_items'];
+    } else {
+      $cart_count = 0;
+    }
 
     if ($cart_count > 0) {
       $can_access_cart = true;
       $cart_disabled_reason = '';
     } else {
+      $can_access_cart = false;
       $cart_disabled_reason = 'Your cart is empty';
     }
   }
