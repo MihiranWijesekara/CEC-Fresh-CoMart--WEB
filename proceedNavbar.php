@@ -1,6 +1,8 @@
 <?php
-  require 'connection.php';
-  session_start();
+  require_once 'connection.php';
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
   $cart_count = 0;
   $can_access_cart = false;

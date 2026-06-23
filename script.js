@@ -127,7 +127,10 @@ function placeOrder() {
             
             if (t == "success") {
                 msgDiv.className = "alert alert-success";
-                msgDiv.innerHTML = "Order placed successfully!";
+                msgDiv.innerHTML = '<i class="bi bi-check-circle pe-3"></i>Order placed successfully! Redirecting...';
+                setTimeout(function() {
+                    window.location.href = "product/product.php";
+                }, 2000);
             } else {
                 msgDiv.className = "alert alert-danger";
                 msgDiv.innerHTML = '<i class="bi bi-exclamation-circle pe-3"></i>' + t;

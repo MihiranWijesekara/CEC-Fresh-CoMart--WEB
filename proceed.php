@@ -1,5 +1,27 @@
 
 
+<?php
+session_start();
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login/sign.php");
+    exit();
+}
+require_once 'connection.php';
+$user_id = $_SESSION['user_id'];
+$cart_rs = Database::search("SELECT id FROM carts WHERE user_id='$user_id' AND status='Active' LIMIT 1");
+$cart_has_items = false;
+if ($cart_rs && $cart_rs->num_rows > 0) {
+    $cart_id = $cart_rs->fetch_assoc()['id'];
+    $items_rs = Database::search("SELECT COUNT(id) AS total_items FROM cart_items WHERE cart_id='$cart_id'");
+    if ($items_rs && $items_rs->fetch_assoc()['total_items'] > 0) {
+        $cart_has_items = true;
+    }
+}
+if (!$cart_has_items) {
+    header("Location: product/product.php");
+    exit();
+}
+?>
 <!doctype html>
 <html lang="en">
   <head>
