@@ -151,7 +151,7 @@ if ($orders_rs && $orders_rs->num_rows > 0) {
                     <!-- Main Order Row -->
                     <tr class="order-row-<?php echo $order_id; ?>" style="border-bottom: 1px solid #e3e6ed;">
                       <td>
-                        <button class="btn-expand" type="button" data-bs-toggle="collapse" data-bs-target="#order-items-<?php echo $order_id; ?>" aria-expanded="false" aria-controls="order-items-<?php echo $order_id; ?>">
+                        <button class="btn-expand" type="button" onclick="toggleOrderDetails(<?php echo $order_id; ?>, this)" aria-expanded="false">
                           <i class="bi bi-chevron-down"></i>
                         </button>
                       </td>
@@ -246,6 +246,20 @@ if ($orders_rs && $orders_rs->num_rows > 0) {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
+        function toggleOrderDetails(orderId, button) {
+            const detailsDiv = document.getElementById("order-items-" + orderId);
+            if (!detailsDiv) return;
+            
+            const isExpanded = button.getAttribute("aria-expanded") === "true";
+            if (isExpanded) {
+                detailsDiv.classList.remove("show");
+                button.setAttribute("aria-expanded", "false");
+            } else {
+                detailsDiv.classList.add("show");
+                button.setAttribute("aria-expanded", "true");
+            }
+        }
+
         function updateOrderStatus(orderId, nextStatus) {
             let confirmMsg = "";
             if (nextStatus === 'processing') {

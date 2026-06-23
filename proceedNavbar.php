@@ -492,22 +492,23 @@ if (session_status() === PHP_SESSION_NONE) {
       </div>
 
       <div class="mobile-menu">
-    
-        <!-- Login -->
-        <div class="mobile-menu-item">
-          <a href="../login/sign.php">
-            <i class="fas fa-user"></i>
-            <span>Login</span>
-          </a>
-        </div>
+        <?php if (!isset($_SESSION['user_id'])): ?>
+          <!-- Login -->
+          <div class="mobile-menu-item">
+            <a href="../login/sign.php">
+              <i class="fas fa-user"></i>
+              <span>Login</span>
+            </a>
+          </div>
 
-        <!-- Sign Up -->
-        <div class="mobile-menu-item">
-          <a href="../login/register.php">
-            <i class="fas fa-user-plus"></i>
-            <span>Sign Up</span>
-          </a>
-        </div>
+          <!-- Sign Up -->
+          <div class="mobile-menu-item">
+            <a href="../login/register.php">
+              <i class="fas fa-user-plus"></i>
+              <span>Sign Up</span>
+            </a>
+          </div>
+        <?php endif; ?>
 
         <!-- Cart -->
         <div class="mobile-menu-item">
@@ -524,6 +525,16 @@ if (session_status() === PHP_SESSION_NONE) {
             </button>
           <?php endif; ?>
         </div>
+
+        <?php if (isset($_SESSION['user_id'])): ?>
+          <!-- My Orders -->
+          <div class="mobile-menu-item">
+            <a href="../product/my-orders.php">
+              <i class="fas fa-shopping-bag"></i>
+              <span>My Orders</span>
+            </a>
+          </div>
+        <?php endif; ?>
       </div>
     </div>
 
@@ -610,8 +621,14 @@ if (session_status() === PHP_SESSION_NONE) {
           FC
           <div class="mt-status-dot" id="mtStatusDot"></div>
         </div>
-        <a href="/cecweb/login/sign.php" class="login-btn">Login</a>
-        <a href="/cecweb/login/register.php" class="signup-btn">Sign Up</a>
+        <?php if (isset($_SESSION['user_id'])): ?>
+          <a href="/cecweb/product/my-orders.php" class="btn btn-outline-light btn-sm rounded-pill px-3 fw-bold me-2" style="font-size: 14px; border: 2px solid white; text-decoration: none;">
+            <i class="fas fa-shopping-bag me-1"></i>My Orders
+          </a>
+        <?php else: ?>
+          <a href="/cecweb/login/sign.php" class="login-btn">Login</a>
+          <a href="/cecweb/login/register.php" class="signup-btn">Sign Up</a>
+        <?php endif; ?>
         <?php if ($can_access_cart): ?>
           <a href="/cecweb/product/shopping-cart.php" class="cart-btn">
             <i class="fa-solid fa-cart-shopping"></i>

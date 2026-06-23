@@ -595,6 +595,16 @@
             </button>
           <?php endif; ?>
         </div>
+
+        <?php if ($is_logged_in): ?>
+          <!-- My Orders -->
+          <div class="mobile-menu-item">
+            <a href="../product/my-orders.php">
+              <i class="fas fa-shopping-bag"></i>
+              <span>My Orders</span>
+            </a>
+          </div>
+        <?php endif; ?>
       </div>
     </div>
 
@@ -781,6 +791,11 @@
           <?php echo $logo_initials; ?>
           <div class="mt-status-dot" id="mtStatusDot" style="background: <?php echo $status_dot_color; ?>;"></div>
         </div> 
+        <?php if ($is_logged_in): ?>
+          <a href="../product/my-orders.php" class="btn btn-outline-light btn-sm rounded-pill px-3 fw-bold me-2" style="font-size: 14px; border: 2px solid white; text-decoration: none;">
+            <i class="fas fa-shopping-bag me-1"></i>My Orders
+          </a>
+        <?php endif; ?>
         <?php if (!$is_logged_in): ?>
           <a href="../login/sign.php" class="login-btn">Login</a>
           <a href="../login/register.php" class="signup-btn">Sign Up</a>
