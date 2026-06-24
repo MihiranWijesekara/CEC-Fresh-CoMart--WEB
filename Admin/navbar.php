@@ -5,17 +5,19 @@ if (session_status() === PHP_SESSION_NONE) {
 
 // Handle Admin Logout
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['admin_logout'])) {
-    session_unset();
-    session_destroy();
+    unset($_SESSION['admin_users']);
+    unset($_SESSION['admin_user_id']);
+    unset($_SESSION['admin_user_email']);
+    unset($_SESSION['admin_is_admin']);
     header("Location: login.php");
     exit();
 }
 
 // Set initials for avatar
 $logo_initials = 'AD';
-if (isset($_SESSION['users'])) {
-    $first = isset($_SESSION['users']['first_name']) ? strtoupper(substr($_SESSION['users']['first_name'], 0, 1)) : '';
-    $last = isset($_SESSION['users']['last_name']) ? strtoupper(substr($_SESSION['users']['last_name'], 0, 1)) : '';
+if (isset($_SESSION['admin_users'])) {
+    $first = isset($_SESSION['admin_users']['first_name']) ? strtoupper(substr($_SESSION['admin_users']['first_name'], 0, 1)) : '';
+    $last = isset($_SESSION['admin_users']['last_name']) ? strtoupper(substr($_SESSION['admin_users']['last_name'], 0, 1)) : '';
     $logo_initials = $first . $last;
     if ($logo_initials === '') $logo_initials = 'AD';
 }

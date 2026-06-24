@@ -130,8 +130,10 @@
                                             <?php if (isset($_SESSION['user_id'])): ?>
                                                 <?php
                                                 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['logout'])) {
-                                                    session_unset();
-                                                    session_destroy();
+                                                    unset($_SESSION['users']);
+                                                    unset($_SESSION['user_id']);
+                                                    unset($_SESSION['user_email']);
+                                                    unset($_SESSION['is_admin']);
                                                     echo "<script>location.reload();</script>";
                                                     exit();
                                                 }
@@ -340,8 +342,10 @@
                                             <?php if (isset($_SESSION['user_id'])): ?>
                                                 <?php
                                                 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['logout'])) {
-                                                    session_unset();
-                                                    session_destroy();
+                                                     unset($_SESSION['users']);
+                                                     unset($_SESSION['user_id']);
+                                                     unset($_SESSION['user_email']);
+                                                     unset($_SESSION['is_admin']);
                                                     echo "<script>location.reload();</script>";
                                                     exit();
                                                 }
@@ -639,16 +643,6 @@
                         </div>
                     </a>
                 </div>
-            </div>
-
-            <div class="container mt-4">
-                <div class="row 
-                        row-cols-1 
-                        row-cols-sm-3 
-                        row-cols-md-5 
-                        row-cols-lg-6 
-                        g-3 
-                        justify-content-center">
                 <div class="col">
                     <a href="product/product.php?category=6" class="text-decoration-none text-dark">
                         <div class="card text-center h-100 p-2 category-card-hover">
@@ -669,7 +663,6 @@
                         </div>
                     </a>
                 </div>
-
                 <div class="col">
                     <a href="product/product.php?category=8" class="text-decoration-none text-dark">
                         <div class="card text-center h-100 p-2 category-card-hover">
@@ -680,7 +673,6 @@
                         </div>
                     </a>
                 </div>
-
                  <div class="col">
                     <a href="product/product.php?category=9" class="text-decoration-none text-dark">
                         <div class="card text-center h-100 p-2 category-card-hover">
@@ -691,7 +683,6 @@
                         </div>
                     </a>
                 </div>
-
                 <div class="col">
                     <a href="product/product.php?category=10" class="text-decoration-none text-dark">
                         <div class="card text-center h-100 p-2 category-card-hover">
@@ -702,7 +693,6 @@
                         </div>
                     </a>
                 </div>
-
                 <div class="col">
                     <a href="product/product.php?category=11" class="text-decoration-none text-dark">
                         <div class="card text-center h-100 p-2 category-card-hover">
@@ -713,18 +703,6 @@
                         </div>
                     </a>
                 </div>
-                </div>
-            </div>
-
-            <!-- Third Row for Newly Added Supermarket Categories -->
-            <div class="container mt-4">
-                <div class="row 
-                        row-cols-1 
-                        row-cols-sm-3 
-                        row-cols-md-4 
-                        row-cols-lg-7 
-                        g-3 
-                        justify-content-center">
                 <div class="col">
                     <a href="product/product.php?category=12" class="text-decoration-none text-dark">
                         <div class="card text-center h-100 p-2 category-card-hover">

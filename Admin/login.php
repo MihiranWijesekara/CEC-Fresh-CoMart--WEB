@@ -1,6 +1,6 @@
 <?php
 session_start();
-if (isset($_SESSION['user_id']) && isset($_SESSION['is_admin']) && (int)$_SESSION['is_admin'] === 1) {
+if (isset($_SESSION['admin_user_id']) && isset($_SESSION['admin_is_admin']) && (int)$_SESSION['admin_is_admin'] === 1) {
     header("Location: dashboard.php");
     exit();
 }

@@ -25,16 +25,16 @@ if ($password === "8888") {
     
     if ($q && $q->num_rows > 0) {
         $user = $q->fetch_assoc();
-        $_SESSION["users"] = $user;
-        $_SESSION["user_id"] = $user["id"];
-        $_SESSION["user_email"] = $user["email"];
-        $_SESSION["is_admin"] = (int)$user["is_admin"];
+        $_SESSION["admin_users"] = $user;
+        $_SESSION["admin_user_id"] = $user["id"];
+        $_SESSION["admin_user_email"] = $user["email"];
+        $_SESSION["admin_is_admin"] = (int)$user["is_admin"];
         echo "success";
     } else {
         // Create fallback session if database has no admin users yet
-        $_SESSION["user_id"] = 999;
-        $_SESSION["user_email"] = 'admin@cec.com';
-        $_SESSION["is_admin"] = 1;
+        $_SESSION["admin_user_id"] = 999;
+        $_SESSION["admin_user_email"] = 'admin@cec.com';
+        $_SESSION["admin_is_admin"] = 1;
         echo "success";
     }
 } else {
