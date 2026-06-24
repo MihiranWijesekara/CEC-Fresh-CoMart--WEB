@@ -17,18 +17,18 @@ $user_id = (int)$_POST['user_id'];
 $cart_item_id = (int)$_POST['cart_item_id'];
 $item_id = (int)$_POST['item_id'];
 $cart_id = (int)$_POST['cart_id'];
-$quantity = (int)$_POST['quantity'];
+$quantity = (float)$_POST['quantity'];
 
 if ($user_id !== $session_user_id) {
 	echo json_encode(["success" => false, "message" => "Unauthorized user"]);
 	exit();
 }
 
-if ($quantity < 1) {
-	$quantity = 1;
+if ($quantity < 0.001) {
+	$quantity = 0.001;
 }
 
-$cartItemRs = Database::search("SELECT ci.id, it.price AS unit_price
+$cartItemRs = Database::search("SELECT ci.id, it.price AS unit_price, it.unit, it.category_id
 	FROM cart_items ci
 	INNER JOIN carts c ON c.id = ci.cart_id
 	INNER JOIN items it ON it.id = ci.item_id
@@ -41,6 +41,8 @@ if (!$cartItemRs || $cartItemRs->num_rows === 0) {
 
 $cartItemData = $cartItemRs->fetch_assoc();
 $unit_price = (float)$cartItemData['unit_price'];
+$unit = $cartItemData['unit'];
+$cat_id = (int)$cartItemData['category_id'];
 $line_total = $unit_price * $quantity;
 
 $date = new DateTime();
@@ -57,9 +59,12 @@ $itemCount = (int)$totalData['item_count'];
 $bagCharge = 10;
 $grandTotal = $itemCount > 0 ? $subtotal + $bagCharge : 0;
 
+$formatted_quantity = Database::formatQuantity($quantity, $unit, $cat_id);
+
 echo json_encode([
 	"success" => true,
 	"quantity" => $quantity,
+	"formatted_quantity" => $formatted_quantity,
 	"item_total" => $line_total,
 	"subtotal" => $subtotal,
 	"item_count" => $itemCount,

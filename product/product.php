@@ -409,7 +409,7 @@ $isLoggedIn = isset($_SESSION['user_id']);
               
               <div class="price-tag">Rs. <?php echo number_format((float)$price, 2); ?></div>
               
-              <button class="btn-add" onclick="checkLogin('<?php echo $id; ?>', '<?php echo $price; ?>')" <?php if (!$isInStock) echo 'disabled'; ?>>
+              <button class="btn-add" onclick="checkLogin('<?php echo $id; ?>', '<?php echo $price; ?>', '<?php echo $unit; ?>', <?php echo $row['category_id']; ?>)" <?php if (!$isInStock) echo 'disabled'; ?>>
                 <i class="bi bi-cart-plus-fill"></i> Add to Cart
               </button>
             </div>
@@ -445,19 +445,47 @@ $isLoggedIn = isset($_SESSION['user_id']);
 
     <!-- Add More Items Modal -->
     <div class="overlay" id="addMoreModal" style="display:none;">
-      <div class="popup" style="max-width:350px;">
+      <div class="popup" style="max-width:380px;">
         <div class="popup-header1">
-          <h3>Add More?</h3>
+          <h3 id="addMoreTitle">Add to Cart</h3>
           <button class="close-btn" onclick="closeAddMoreModal()">×</button>
         </div>
         <div class="popup-content text-center">
-          <p class="mb-3 text-dark fw-semibold">How many items would you like to add?</p>
-          <div class="d-flex justify-content-center align-items-center gap-3 my-4">
-            <button class="qty-adjust-btn" onclick="changeQty(-1)">-</button>
-            <span id="itemQty" class="fs-4 fw-bold" style="min-width:30px; display:inline-block;">1</span>
-            <button class="qty-adjust-btn" onclick="changeQty(1)">+</button>
+          <!-- Standard item container -->
+          <div id="standardQtyContainer">
+            <p class="mb-3 text-dark fw-semibold">How many items would you like to add?</p>
+            <div class="d-flex justify-content-center align-items-center gap-3 my-4">
+              <button class="qty-adjust-btn" onclick="changeQty(-1)">-</button>
+              <span id="itemQty" class="fs-4 fw-bold" style="min-width:30px; display:inline-block;">1</span>
+              <button class="qty-adjust-btn" onclick="changeQty(1)">+</button>
+            </div>
           </div>
-          <div class="button-group">
+          
+          <!-- Weight item container -->
+          <div id="weightQtyContainer" style="display:none;">
+            <p class="mb-3 text-dark fw-semibold">Select weight and package count:</p>
+            
+            <div class="mb-3">
+              <label for="weightSelect" class="form-label small text-secondary fw-bold">Select Weight / Volume</label>
+              <select class="form-select fs-5 text-center fw-bold" id="weightSelect" style="border-radius:12px; border:2px solid #27b62e;"></select>
+            </div>
+            
+            <div class="mb-3">
+              <label class="form-label small text-secondary fw-bold">Number of Packages</label>
+              <div class="d-flex justify-content-center align-items-center gap-3 my-2">
+                <button class="qty-adjust-btn" onclick="changeQty(-1)">-</button>
+                <span id="itemQtyWeight" class="fs-4 fw-bold" style="min-width:30px; display:inline-block;">1</span>
+                <button class="qty-adjust-btn" onclick="changeQty(1)">+</button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Real-time Price and Weight Preview -->
+          <div class="alert alert-success border-0 p-2 my-3 text-center fw-bold fs-6" id="addMorePreview" style="background-color:#eefdf0; color:#1e8e24; border-radius:12px;">
+            Total: Rs. 0.00
+          </div>
+          
+          <div class="button-group mt-3">
             <button class="popup-btn-primary" onclick="confirmAddToCart()">Add to Cart</button>
             <button class="popup-btn-secondary" onclick="closeAddMoreModal()">Cancel</button>
           </div>
@@ -474,22 +502,166 @@ $isLoggedIn = isset($_SESSION['user_id']);
 
     <script>
       var isLoggedIn = <?php echo $isLoggedIn ? 'true' : 'false'; ?>;
-      
-      // Share isLoggedIn state globally with script.js
       window.isLoggedIn = isLoggedIn;
+      
+      var selectedProduct = null;
+      var selectedPrice = 0;
+      var itemQty = 1;
+      var isBulkVal = false;
+      var dbUnitStr = '';
 
-      function checkLogin(productId, price) {
+      function parseUnitToGrams(unitStr) {
+          unitStr = unitStr.toLowerCase().trim();
+          const match = unitStr.match(/^([\d\.]+)\s*(kg|g|l|ml)?$/);
+          if (!match) {
+              return { val: 1, metric: 'units', baseVal: 1 };
+          }
+          const val = parseFloat(match[1]);
+          const metric = match[2];
+          let baseVal = val;
+          if (metric === 'kg') {
+              baseVal = val * 1000;
+          } else if (metric === 'g') {
+              baseVal = val;
+          } else if (metric === 'l') {
+              baseVal = val * 1000;
+          } else if (metric === 'ml') {
+              baseVal = val;
+          }
+          return { val: val, metric: metric, baseVal: baseVal };
+      }
+
+      function isBulkProduct(catId, unitStr) {
+          const bulkCategories = [1, 2, 14, 15, 16];
+          if (!bulkCategories.includes(parseInt(catId))) {
+              return false;
+          }
+          const unitLower = unitStr.toLowerCase().trim();
+          return unitLower.endsWith('kg') || unitLower.endsWith('g') || unitLower.endsWith('l') || unitLower.endsWith('ml');
+      }
+
+      function checkLogin(productId, price, unit, categoryId) {
         if (isLoggedIn) {
-          // Store details in shared global scope for script.js to access
           window.selectedProduct = productId;
           window.selectedPrice = parseFloat(price);
           window.itemQty = 1;
+          window.dbUnitStr = unit;
+          window.isBulkVal = isBulkProduct(categoryId, unit);
           
-          document.getElementById('itemQty').innerText = window.itemQty;
+          const stdContainer = document.getElementById('standardQtyContainer');
+          const weightContainer = document.getElementById('weightQtyContainer');
+          const weightSelect = document.getElementById('weightSelect');
+          
+          if (window.isBulkVal) {
+              stdContainer.style.display = 'none';
+              weightContainer.style.display = 'block';
+              weightSelect.innerHTML = '';
+              
+              const parsedDb = parseUnitToGrams(unit);
+              const metric = parsedDb.metric;
+              
+              let options = [];
+              if (metric === 'kg' || metric === 'g') {
+                  options = [
+                      { text: '500 g', baseVal: 500 },
+                      { text: '1 kg', baseVal: 1000 },
+                      { text: '2 kg', baseVal: 2000 },
+                      { text: '3 kg', baseVal: 3000 },
+                      { text: '4 kg', baseVal: 4000 },
+                      { text: '5 kg', baseVal: 5000 },
+                      { text: '6 kg', baseVal: 6000 },
+                      { text: '8 kg', baseVal: 8000 },
+                      { text: '10 kg', baseVal: 10000 }
+                  ];
+              } else if (metric === 'l' || metric === 'ml') {
+                  options = [
+                      { text: '250 ml', baseVal: 250 },
+                      { text: '500 ml', baseVal: 500 },
+                      { text: '1 L', baseVal: 1000 },
+                      { text: '2 L', baseVal: 2000 },
+                      { text: '3 L', baseVal: 3000 },
+                      { text: '4 L', baseVal: 4000 },
+                      { text: '5 L', baseVal: 5000 }
+                  ];
+              }
+              
+              options.forEach(opt => {
+                  const el = document.createElement("option");
+                  el.value = opt.baseVal;
+                  el.textContent = opt.text;
+                  weightSelect.appendChild(el);
+              });
+              
+              const closestOpt = options.find(o => Math.abs(o.baseVal - parsedDb.baseVal) < 1);
+              if (closestOpt) {
+                  weightSelect.value = closestOpt.baseVal;
+              } else {
+                  const customOpt = document.createElement("option");
+                  customOpt.value = parsedDb.baseVal;
+                  customOpt.textContent = unit;
+                  weightSelect.appendChild(customOpt);
+                  weightSelect.value = parsedDb.baseVal;
+              }
+              
+              document.getElementById('itemQtyWeight').innerText = window.itemQty;
+          } else {
+              stdContainer.style.display = 'block';
+              weightContainer.style.display = 'none';
+              document.getElementById('itemQty').innerText = window.itemQty;
+          }
+          
+          updateAddMorePreview();
           document.getElementById('addMoreModal').style.display = 'flex';
         } else {
           openPopup();
         }
+      }
+
+      function updateAddMorePreview() {
+          const previewEl = document.getElementById('addMorePreview');
+          if (window.isBulkVal) {
+              const selectedBase = parseFloat(document.getElementById('weightSelect').value);
+              const dbUnitBase = parseUnitToGrams(window.dbUnitStr).baseVal;
+              const multiplier = selectedBase / dbUnitBase;
+              const totalPrice = window.itemQty * window.selectedPrice * multiplier;
+              const totalWeightVal = window.itemQty * selectedBase;
+              
+              let weightText = '';
+              const parsedDb = parseUnitToGrams(window.dbUnitStr);
+              if (parsedDb.metric === 'kg' || parsedDb.metric === 'g') {
+                  if (totalWeightVal >= 1000) {
+                      weightText = (totalWeightVal / 1000).toFixed(totalWeightVal % 1000 === 0 ? 0 : 2) + ' kg';
+                  } else {
+                      weightText = totalWeightVal + ' g';
+                  }
+              } else if (parsedDb.metric === 'l' || parsedDb.metric === 'ml') {
+                  if (totalWeightVal >= 1000) {
+                      weightText = (totalWeightVal / 1000).toFixed(totalWeightVal % 1000 === 0 ? 0 : 2) + ' L';
+                  } else {
+                      weightText = totalWeightVal + ' ml';
+                  }
+              }
+              
+              previewEl.innerHTML = `Total: Rs. ${totalPrice.toFixed(2)} (${weightText})`;
+          } else {
+              const totalPrice = window.itemQty * window.selectedPrice;
+              previewEl.innerHTML = `Total: Rs. ${totalPrice.toFixed(2)} (${window.itemQty} items)`;
+          }
+      }
+
+      function changeQty(delta) {
+        if (typeof window.itemQty === 'undefined') {
+          window.itemQty = 1;
+        }
+        window.itemQty += delta;
+        if (window.itemQty < 1) window.itemQty = 1;
+        
+        if (window.isBulkVal) {
+            document.getElementById('itemQtyWeight').innerText = window.itemQty;
+        } else {
+            document.getElementById('itemQty').innerText = window.itemQty;
+        }
+        updateAddMorePreview();
       }
 
       function closeAddMoreModal() {
@@ -503,14 +675,46 @@ $isLoggedIn = isset($_SESSION['user_id']);
       function closePopup() {
         document.getElementById("popupOverlay").style.display = "none";
       }
+      
+      // Update preview when weight option changes
+      document.addEventListener('DOMContentLoaded', function() {
+          const wSelect = document.getElementById('weightSelect');
+          if (wSelect) {
+              wSelect.addEventListener('change', updateAddMorePreview);
+          }
+      });
 
-      function changeQty(delta) {
-        if (typeof window.itemQty === 'undefined') {
-          window.itemQty = 1;
+      function confirmAddToCart() {
+        let finalQty = window.itemQty;
+        let totalPrice = window.itemQty * window.selectedPrice;
+        
+        if (window.isBulkVal) {
+            const selectedBase = parseFloat(document.getElementById('weightSelect').value);
+            const dbUnitBase = parseUnitToGrams(window.dbUnitStr).baseVal;
+            const multiplier = selectedBase / dbUnitBase;
+            finalQty = multiplier * window.itemQty;
+            totalPrice = finalQty * window.selectedPrice;
         }
-        window.itemQty += delta;
-        if (window.itemQty < 1) window.itemQty = 1;
-        document.getElementById('itemQty').innerText = window.itemQty;
+        
+        var formData = new FormData();
+        formData.append('item_id', window.selectedProduct);
+        formData.append('quantity', finalQty);
+        formData.append('price', totalPrice);
+
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', './productProcess.php', true);
+        xhr.onreadystatechange = function() {
+          if (xhr.readyState === 4) {
+            if (xhr.status === 200) {
+              showToast('Added to cart successfully!', 'success');
+            } else {
+              showToast('Error adding to cart.', 'error');
+              console.error('Error adding to cart:', xhr.statusText);
+            }
+            closeAddMoreModal();
+          }
+        };
+        xhr.send(formData);
       }
       
       // Load user navigation

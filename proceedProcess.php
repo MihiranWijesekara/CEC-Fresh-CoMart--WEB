@@ -66,9 +66,9 @@ $order_number = str_pad($order_id, 5, '0', STR_PAD_LEFT);
 // Update the order with the order number
 Database::iud("UPDATE orders SET order_number='$order_number' WHERE id='$order_id'");
 
-// 6. Insert Order Items using a simple loop
+// 6. Insert Order Items and Update Stock / Log Transactions
 foreach ($item_ids as $index => $item_id) {
-    $qty = $quantities[$index] ?? 0;
+    $qty = (float)($quantities[$index] ?? 0);
     $price = $item_prices[$index] ?? 0;
     $sub = $subtotals[$index] ?? 0;
 
@@ -76,6 +76,24 @@ foreach ($item_ids as $index => $item_id) {
         $item_sql = "INSERT INTO order_items (order_id, item_id, quantity, price, subtotal) 
                      VALUES ('$order_id', '$item_id', '$qty', '$price', '$sub')";
         Database::iud($item_sql);
+
+        // Decrement stock and write audit transaction log
+        $stock_rs = Database::search("SELECT stock_quantity, name FROM items WHERE id = '$item_id' LIMIT 1");
+        if ($stock_rs && $stock_rs->num_rows > 0) {
+            $stock_row = $stock_rs->fetch_assoc();
+            $prev_stock = (float)$stock_row['stock_quantity'];
+            $new_stock = max(0.000, $prev_stock - $qty);
+
+            // Update items table
+            Database::iud("UPDATE items SET stock_quantity = '$new_stock' WHERE id = '$item_id'");
+
+            // Log stock transaction
+            $reason = "Customer Order #" . $order_number;
+            Database::setUpConnection();
+            $reason_escaped = Database::$connection->real_escape_string($reason);
+            Database::iud("INSERT INTO stock_transactions (item_id, transaction_type, quantity, previous_stock, new_stock, reason, created_at) 
+                           VALUES ('$item_id', 'out', '$qty', '$prev_stock', '$new_stock', '$reason_escaped', '$created_at')");
+        }
     }
 }
 

@@ -248,7 +248,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_item_id'])) {
                 while ($row = $ItemRs->fetch_assoc()) {
                   $cartItemId = (int)$row['id'];
                     $item_id = $row['item_id'];
-                    $item_rs = Database::search("SELECT name, image_path, price FROM items WHERE id='$item_id'");
+                    $item_rs = Database::search("SELECT name, image_path, price, category_id, unit FROM items WHERE id='$item_id'");
                     $item_data = $item_rs->fetch_assoc();
 
                     $img = htmlspecialchars($item_data['image_path']);
@@ -256,6 +256,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_item_id'])) {
                     $onePrice = htmlspecialchars($item_data['price']);
                     $quantity = htmlspecialchars($row['quantity']);
                     $lineTotalPrice = htmlspecialchars($row['price']);
+                    
+                    $catId = (int)$item_data['category_id'];
+                    $unit = htmlspecialchars($item_data['unit']);
+                    $isBulk = Database::isBulkItem($catId, $unit);
+                    $metric = Database::getUnitMetric($unit);
                 ?>
                 <tr>
                   <td class="product-name">
@@ -275,9 +280,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_item_id'])) {
                       <input
                         type="text"
                         class="qty-input"
-                        value=<?php echo $quantity; ?>
+                        value="<?php echo Database::formatQuantity($quantity, $unit, $catId); ?>"
                         id="qtyInput-<?php echo $cartItemId; ?>"
                         data-unit-price="<?php echo (float)$item_data['price']; ?>"
+                        data-raw-qty="<?php echo $quantity; ?>"
+                        data-is-bulk="<?php echo $isBulk ? 'true' : 'false'; ?>"
+                        data-unit-string="<?php echo $unit; ?>"
+                        data-metric="<?php echo $metric; ?>"
                         readonly
                       />
                       <button class="qty-btn" onclick="increaseQty(<?php echo $cartItemId; ?>, <?php echo (int)$item_id; ?>, <?php echo (int)$cart_id; ?>, <?php echo (int)$user_id; ?>)">+</button>
@@ -370,7 +379,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_item_id'])) {
 
               const input = document.getElementById("qtyInput-" + cartItemId);
               if (input) {
-                input.value = data.quantity;
+                input.value = data.formatted_quantity;
+                input.setAttribute("data-raw-qty", data.quantity);
               }
 
               const itemTotalEl = document.getElementById("itemTotal-" + cartItemId);
@@ -391,17 +401,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_item_id'])) {
 
       function increaseQty(cartItemId, itemId, cartId, userId) {
         const input = document.getElementById("qtyInput-" + cartItemId);
-        const nextQty = (parseInt(input.value, 10) || 0) + 1;
+        const isBulk = input.getAttribute("data-is-bulk") === 'true';
+        const rawQty = parseFloat(input.getAttribute("data-raw-qty")) || 0;
+        
+        let step = 1.0;
+        if (isBulk) {
+            const metric = input.getAttribute("data-metric");
+            if (metric === 'kg' || metric === 'l') {
+                step = 0.5;
+            } else {
+                step = 1.0;
+            }
+        }
+        
+        const nextQty = rawQty + step;
         sendQtyUpdate(cartItemId, itemId, cartId, userId, nextQty);
       }
 
       function decreaseQty(cartItemId, itemId, cartId, userId) {
         const input = document.getElementById("qtyInput-" + cartItemId);
-        const currentQty = parseInt(input.value, 10) || 1;
-        if (currentQty <= 1) {
-          return;
+        const isBulk = input.getAttribute("data-is-bulk") === 'true';
+        const rawQty = parseFloat(input.getAttribute("data-raw-qty")) || 0;
+        
+        let step = 1.0;
+        if (isBulk) {
+            const metric = input.getAttribute("data-metric");
+            if (metric === 'kg' || metric === 'l') {
+                step = 0.5;
+            } else {
+                step = 1.0;
+            }
         }
-        sendQtyUpdate(cartItemId, itemId, cartId, userId, currentQty - 1);
+        
+        const nextQty = rawQty - step;
+        if (nextQty <= 0.001) {
+            return;
+        }
+        sendQtyUpdate(cartItemId, itemId, cartId, userId, nextQty);
       }
 
       function removeItem(cartItemId) {

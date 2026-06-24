@@ -9,7 +9,7 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 $itemID  = $_POST['item_id'];
-$quantity  = $_POST['quantity'];
+$quantity  = (float)$_POST['quantity'];
 $price  = $_POST['price'];
 
 $date = new DateTime();
@@ -37,7 +37,7 @@ $existing_item_rs = Database::search("SELECT id, quantity, price FROM cart_items
  
 if ($existing_item_rs && $existing_item_rs->num_rows > 0) {
     $existing_item_data = $existing_item_rs->fetch_assoc();
-    $existing_qty = (int)$existing_item_data['quantity'];
+    $existing_qty = (float)$existing_item_data['quantity'];
     $existing_price = (float)$existing_item_data['price'];
     $new_qty = $existing_qty + $quantity;
     $new_price = $existing_price + $price;
