@@ -27,7 +27,9 @@ function signup() {
                 // Show beautiful success message
                 msgDiv.className = "alert alert-success";
                 msgDiv.innerHTML = '<i class="bi bi-check-circle pe-3"></i>' + "Registration Successful!";
-          
+                setTimeout(function() {
+                    window.location.href = "sign.php";
+                }, 1500);
             } else {
                 msgDiv.className = "alert alert-danger";
                 msgDiv.innerHTML = '<i class="bi bi-exclamation-circle pe-3"></i>' + t;

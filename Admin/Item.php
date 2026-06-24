@@ -101,6 +101,7 @@ $items_rs = Database::search("SELECT * FROM `items` ORDER BY `created_at` DESC")
               <th scope="col">Unit</th>
               <th scope="col">Price</th>
               <th scope="col">Category</th>
+              <th scope="col">Stock</th>
               <th scope="col">Created Date</th>
               <th scope="col">Status</th>
               <th scope="col">Action</th>
@@ -120,6 +121,7 @@ $items_rs = Database::search("SELECT * FROM `items` ORDER BY `created_at` DESC")
                     $category_name = isset($categories[$cat_id]) ? $categories[$cat_id] : "Other";
                     $created_at = date("Y-m-d", strtotime($row['created_at']));
                     $status = $row['status'];
+                    $stock_qty = (int)$row['stock_quantity'];
                     $badgeClass = ($status === 'active') ? 'bg-success' : 'bg-secondary';
                     ?>
                     <tr id="row-<?php echo $id; ?>">
@@ -138,6 +140,15 @@ $items_rs = Database::search("SELECT * FROM `items` ORDER BY `created_at` DESC")
                       <td><?php echo $unit; ?></td>
                       <td class="fw-bold">Rs. <?php echo number_format((float)$price, 2); ?></td>
                       <td><?php echo $category_name; ?></td>
+                      <td>
+                          <?php if ($stock_qty === 0) { ?>
+                              <span class="badge bg-danger" id="stock-badge-<?php echo $id; ?>">Out of Stock (0)</span>
+                          <?php } else if ($stock_qty <= 5) { ?>
+                              <span class="badge bg-warning text-dark" id="stock-badge-<?php echo $id; ?>">Low Stock (<?php echo $stock_qty; ?>)</span>
+                          <?php } else { ?>
+                              <span class="badge bg-light text-dark" id="stock-badge-<?php echo $id; ?>"><?php echo $stock_qty; ?></span>
+                          <?php } ?>
+                      </td>
                       <td class="text-muted"><?php echo $created_at; ?></td>
                       <td>
                           <span class="badge <?php echo $badgeClass; ?> status-badge" id="badge-<?php echo $id; ?>" onclick="toggleStatus(<?php echo $id; ?>)">
@@ -145,9 +156,14 @@ $items_rs = Database::search("SELECT * FROM `items` ORDER BY `created_at` DESC")
                           </span>
                       </td>
                       <td>
-                          <button class="btn btn-outline-primary btn-sm rounded-pill px-3" onclick="toggleStatus(<?php echo $id; ?>)">
-                              Toggle Status
-                          </button>
+                          <div class="d-flex justify-content-center gap-2">
+                              <button class="btn btn-outline-primary btn-sm rounded-pill px-3" onclick="toggleStatus(<?php echo $id; ?>)">
+                                  Toggle Status
+                              </button>
+                              <button class="btn btn-primary btn-sm rounded-pill px-3" onclick="openRestockModal(<?php echo $id; ?>, '<?php echo addslashes($name); ?>', <?php echo $stock_qty; ?>)">
+                                  Restock
+                              </button>
+                          </div>
                       </td>
                     </tr>
                     <?php
@@ -155,13 +171,41 @@ $items_rs = Database::search("SELECT * FROM `items` ORDER BY `created_at` DESC")
             } else {
                 ?>
                 <tr>
-                    <td colspan="9" class="text-center py-4 text-muted">No items found in database.</td>
+                    <td colspan="10" class="text-center py-4 text-muted">No items found in database.</td>
                 </tr>
                 <?php
             }
             ?>
           </tbody>
         </table>
+      </div>
+    </div>
+    <!-- Restock Modal -->
+    <div class="modal fade" id="restockModal" tabindex="-1" aria-labelledby="restockModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius:15px; border:none; box-shadow: 0 10px 30px rgba(0,0,0,0.15);">
+          <div class="modal-header border-0 bg-light" style="border-top-left-radius: 15px; border-top-right-radius: 15px; padding: 20px;">
+            <h5 class="modal-title fw-bold" id="restockModalLabel" style="color: #1e3a8a;"><i class="bi bi-box-seam me-2"></i>Restock Item</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body" style="padding: 25px;">
+            <p class="mb-4">Item to update: <strong id="restockItemName" style="color: #3b82f6;"></strong></p>
+            <form id="restockForm" onsubmit="event.preventDefault(); submitRestock();">
+              <input type="hidden" id="restockItemId">
+              <div class="mb-3">
+                <label for="newQuantity" class="form-label fw-bold">Stock Quantity</label>
+                <div class="input-group">
+                  <span class="input-group-text"><i class="bi bi-hash"></i></span>
+                  <input type="number" class="form-control form-control-lg" id="newQuantity" min="0" required placeholder="Enter new quantity">
+                </div>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer border-0 pb-4 pe-4">
+            <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-success rounded-pill px-4" onclick="submitRestock()">Save Changes</button>
+          </div>
+        </div>
       </div>
     </div>
     
@@ -191,6 +235,77 @@ $items_rs = Database::search("SELECT * FROM `items` ORDER BY `created_at` DESC")
             };
             xhr.open("POST", "toggleProductStatus.php", true);
             xhr.send(formData);
+        }
+
+        let restockModalInstance = null;
+
+        function openRestockModal(itemId, itemName, currentStock) {
+            document.getElementById("restockItemId").value = itemId;
+            document.getElementById("restockItemName").textContent = itemName;
+            document.getElementById("newQuantity").value = currentStock;
+            
+            const modalEl = document.getElementById("restockModal");
+            restockModalInstance = new bootstrap.Modal(modalEl);
+            restockModalInstance.show();
+        }
+
+        function submitRestock() {
+            const itemId = document.getElementById("restockItemId").value;
+            const newQty = document.getElementById("newQuantity").value;
+            
+            if (newQty === "" || parseInt(newQty) < 0) {
+                alert("Please enter a valid stock quantity.");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("item_id", itemId);
+            formData.append("stock_quantity", newQty);
+
+            const xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    const response = xhr.responseText.trim();
+                    if (response === "success") {
+                        // Update stock column in table dynamically without full page reload
+                        const stockBadge = document.getElementById("stock-badge-" + itemId);
+                        if (stockBadge) {
+                            const qtyVal = parseInt(newQty);
+                            stockBadge.textContent = qtyVal;
+                            if (qtyVal === 0) {
+                                stockBadge.className = "badge bg-danger";
+                                stockBadge.textContent = "Out of Stock (0)";
+                            } else if (qtyVal <= 5) {
+                                stockBadge.className = "badge bg-warning text-dark";
+                                stockBadge.textContent = "Low Stock (" + qtyVal + ")";
+                            } else {
+                                stockBadge.className = "badge bg-light text-dark";
+                            }
+                            
+                            // Also update the onclick parameter of the Restock button in that row to match the new qty
+                            const row = document.getElementById("row-" + itemId);
+                            if (row) {
+                                const restockBtn = row.querySelector("button.btn-primary");
+                                if (restockBtn) {
+                                    restockBtn.setAttribute("onclick", "openRestockModal(" + itemId + ", '" + addslashes(document.getElementById("restockItemName").textContent) + "', " + qtyVal + ")");
+                                }
+                            }
+                        }
+                        // Close modal
+                        if (restockModalInstance) {
+                            restockModalInstance.hide();
+                        }
+                    } else {
+                        alert("Error updating stock quantity: " + response);
+                    }
+                }
+            };
+            xhr.open("POST", "updateStock.php", true);
+            xhr.send(formData);
+        }
+
+        function addslashes(str) {
+            return (str + '').replace(/[\\"']/g, '\\$&').replace(/\u0000/g, '\\0');
         }
     </script>
 </body>

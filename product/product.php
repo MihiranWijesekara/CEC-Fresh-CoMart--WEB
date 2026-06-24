@@ -388,6 +388,8 @@ $isLoggedIn = isset($_SESSION['user_id']);
             $status = htmlspecialchars($row['status']);
             $id = htmlspecialchars($row['id']);
             $isActive = ($status === 'active');
+            $stock_qty = isset($row['stock_quantity']) ? (int)$row['stock_quantity'] : 0;
+            $isInStock = ($isActive && $stock_qty > 0);
           ?>
           <div class="product-card">
             <div class="product-img-wrapper">
@@ -398,7 +400,7 @@ $isLoggedIn = isset($_SESSION['user_id']);
               
               <div class="card-meta">
                 <span class="badge-unit"><?php echo $unit; ?></span>
-                <?php if ($isActive) { ?>
+                <?php if ($isInStock) { ?>
                   <span class="badge-status in-stock"><i class="bi bi-check2-circle me-1"></i>In Stock</span>
                 <?php } else { ?>
                   <span class="badge-status out-of-stock"><i class="bi bi-x-circle me-1"></i>Out of Stock</span>
@@ -407,7 +409,7 @@ $isLoggedIn = isset($_SESSION['user_id']);
               
               <div class="price-tag">Rs. <?php echo number_format((float)$price, 2); ?></div>
               
-              <button class="btn-add" onclick="checkLogin('<?php echo $id; ?>', '<?php echo $price; ?>')" <?php if (!$isActive) echo 'disabled'; ?>>
+              <button class="btn-add" onclick="checkLogin('<?php echo $id; ?>', '<?php echo $price; ?>')" <?php if (!$isInStock) echo 'disabled'; ?>>
                 <i class="bi bi-cart-plus-fill"></i> Add to Cart
               </button>
             </div>
