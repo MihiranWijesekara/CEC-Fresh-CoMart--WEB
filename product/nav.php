@@ -418,6 +418,30 @@
       .dessert {
         color: #e91e63;
       }
+      .beverage {
+        color: #00bcd4;
+      }
+      .bakery {
+        color: #d7ccc8;
+      }
+      .meat {
+        color: #ef5350;
+      }
+      .pantry {
+        color: #ffca28;
+      }
+      .dairy {
+        color: #90caf9;
+      }
+      .frozen {
+        color: #00e5ff;
+      }
+      .household {
+        color: #66bb6a;
+      }
+      .personal {
+        color: #f48fb1;
+      }
 
       /* Mobile Responsive */
       @media screen and (max-width: 968px) {
@@ -536,7 +560,7 @@
               ><i class="fa-solid fa-cookie-bite snack"></i> Snacks</a
             >
             <a href="#" data-category="Biscuits" data-id="4"
-              ><i class="fa-solid fa-bread-slice biscuit"></i> Biscuits</a
+              ><i class="fa-solid fa-cookie biscuit"></i> Biscuits</a
             >
             <a href="#" data-category="Coffee" data-id="5"
               ><i class="fa-solid fa-mug-hot coffee"></i> Coffee</a
@@ -558,6 +582,30 @@
             >
             <a href="#" data-category="Desserts" data-id="11"
               ><i class="fa-solid fa-cake-candles dessert"></i> Desserts</a
+            >
+            <a href="#" data-category="Beverages" data-id="12"
+              ><i class="fa-solid fa-glass-water beverage"></i> Beverages</a
+            >
+            <a href="#" data-category="Bakery" data-id="13"
+              ><i class="fa-solid fa-bread-slice bakery"></i> Bakery</a
+            >
+            <a href="#" data-category="Meat & Seafood" data-id="14"
+              ><i class="fa-solid fa-drumstick-bite meat"></i> Meat & Seafood</a
+            >
+            <a href="#" data-category="Pantry Staples" data-id="15"
+              ><i class="fa-solid fa-bowl-rice pantry"></i> Pantry Staples</a
+            >
+            <a href="#" data-category="Dairy Staples" data-id="16"
+              ><i class="fa-solid fa-cow dairy"></i> Dairy Staples</a
+            >
+            <a href="#" data-category="Frozen Foods" data-id="17"
+              ><i class="fa-solid fa-snowflake frozen"></i> Frozen Foods</a
+            >
+            <a href="#" data-category="Household & Cleaning" data-id="18"
+              ><i class="fa-solid fa-soap household"></i> Household & Cleaning</a
+            >
+            <a href="#" data-category="Personal Care" data-id="19"
+              ><i class="fa-solid fa-baby-carriage personal"></i> Personal Care & Baby</a
             >
           </div>
         </div>
@@ -695,9 +743,6 @@
           </button>
           <div class="dropdown-content" id="categoryMenu">
             <a href="#" data-category="All" data-id="0"><i class="fa-solid fa-list"></i> All Items</a>
-             <a href="#" data-category="" data-id="0"
-              ><i class="fa-solid fa-carrot veg"></i> All</a
-            >
             <a href="#" data-category="Vegetables" data-id="1"
               ><i class="fa-solid fa-carrot veg"></i> Vegetables</a
             >
@@ -708,7 +753,7 @@
               ><i class="fa-solid fa-cookie-bite snack"></i> Snacks</a
             >
             <a href="#" data-category="Biscuits" data-id="4"
-              ><i class="fa-solid fa-bread-slice biscuit"></i> Biscuits</a
+              ><i class="fa-solid fa-cookie biscuit"></i> Biscuits</a
             >
             <a href="#" data-category="Coffee" data-id="5"
               ><i class="fa-solid fa-mug-hot coffee"></i> Coffee</a
@@ -730,6 +775,30 @@
             >
             <a href="#" data-category="Desserts" data-id="11"
               ><i class="fa-solid fa-cake-candles dessert"></i> Desserts</a
+            >
+            <a href="#" data-category="Beverages" data-id="12"
+              ><i class="fa-solid fa-glass-water beverage"></i> Beverages</a
+            >
+            <a href="#" data-category="Bakery" data-id="13"
+              ><i class="fa-solid fa-bread-slice bakery"></i> Bakery</a
+            >
+            <a href="#" data-category="Meat & Seafood" data-id="14"
+              ><i class="fa-solid fa-drumstick-bite meat"></i> Meat & Seafood</a
+            >
+            <a href="#" data-category="Pantry Staples" data-id="15"
+              ><i class="fa-solid fa-bowl-rice pantry"></i> Pantry Staples</a
+            >
+            <a href="#" data-category="Dairy Staples" data-id="16"
+              ><i class="fa-solid fa-cow dairy"></i> Dairy Staples</a
+            >
+            <a href="#" data-category="Frozen Foods" data-id="17"
+              ><i class="fa-solid fa-snowflake frozen"></i> Frozen Foods</a
+            >
+            <a href="#" data-category="Household & Cleaning" data-id="18"
+              ><i class="fa-solid fa-soap household"></i> Household & Cleaning</a
+            >
+            <a href="#" data-category="Personal Care" data-id="19"
+              ><i class="fa-solid fa-baby-carriage personal"></i> Personal Care & Baby</a
             >
           </div>
 
@@ -776,6 +845,30 @@
             .dessert {
               color: #e91e63;
             } /* Pink */
+            .beverage {
+              color: #00bcd4;
+            } /* Cyan/Teal */
+            .bakery {
+              color: #d7ccc8;
+            } /* Light Brown */
+            .meat {
+              color: #ef5350;
+            } /* Red */
+            .pantry {
+              color: #ffca28;
+            } /* Yellow-Orange */
+            .dairy {
+              color: #90caf9;
+            } /* Soft Blue */
+            .frozen {
+              color: #00e5ff;
+            } /* Cyan */
+            .household {
+              color: #66bb6a;
+            } /* Green */
+            .personal {
+              color: #f48fb1;
+            } /* Soft Pink */
           </style>
         </div>
 

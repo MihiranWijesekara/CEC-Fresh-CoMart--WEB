@@ -196,11 +196,19 @@
           <option value="4">Biscuits</option>
           <option value="5">Coffee</option>
           <option value="6">Eggs</option>
-          <option value="7">Beverages</option>
-          <!-- <option value="8">Tea</option> -->
+          <option value="7">Water</option>
+          <option value="8">Tea</option>
           <option value="9">Cheese</option>
           <option value="10">Yoghurts & Curd</option>
           <option value="11">Desserts</option>
+          <option value="12">Beverages</option>
+          <option value="13">Bakery</option>
+          <option value="14">Meat & Seafood</option>
+          <option value="15">Pantry Staples</option>
+          <option value="16">Dairy Staples</option>
+          <option value="17">Frozen Foods</option>
+          <option value="18">Household & Cleaning</option>
+          <option value="19">Personal Care & Baby Care</option>
         </select>
       </div>
 

@@ -7,8 +7,19 @@ if (session_status() === PHP_SESSION_NONE) {
   $cart_count = 0;
   $can_access_cart = false;
   $cart_disabled_reason = 'Login required';
+  $logo_initials = 'FC';
+  $status_dot_color = isset($_SESSION['user_id']) ? 'GreenYellow' : 'red';
 
   if (isset($_SESSION['user_id'])) {
+    $user_id = $_SESSION['user_id'];
+    $user_rs = Database::search("SELECT first_name, last_name FROM users WHERE id='$user_id'");
+    if ($user_rs && $user_row = $user_rs->fetch_assoc()) {
+      $first = isset($user_row['first_name']) ? strtoupper(substr($user_row['first_name'], 0, 1)) : '';
+      $last = isset($user_row['last_name']) ? strtoupper(substr($user_row['last_name'], 0, 1)) : '';
+      $logo_initials = $first . $last;
+      if ($logo_initials === '') $logo_initials = 'FC';
+    }
+
     $user_id = $_SESSION['user_id'];
     $cart_rs = Database::search("SELECT * FROM carts WHERE user_id='$user_id' AND status='Active'");
     
@@ -618,19 +629,19 @@ if (session_status() === PHP_SESSION_NONE) {
       <!-- Right Side -->
       <div class="nav-right">
         <div class="mt-logo">
-          FC
-          <div class="mt-status-dot" id="mtStatusDot"></div>
+          <?php echo $logo_initials; ?>
+          <div class="mt-status-dot" id="mtStatusDot" style="background: <?php echo $status_dot_color; ?>;"></div>
         </div>
         <?php if (isset($_SESSION['user_id'])): ?>
-          <a href="/cecweb/product/my-orders.php" class="btn btn-outline-light btn-sm rounded-pill px-3 fw-bold me-2" style="font-size: 14px; border: 2px solid white; text-decoration: none;">
+          <a href="product/my-orders.php" class="btn btn-outline-light btn-sm rounded-pill px-3 fw-bold me-2" style="font-size: 14px; border: 2px solid white; text-decoration: none;">
             <i class="fas fa-shopping-bag me-1"></i>My Orders
           </a>
         <?php else: ?>
-          <a href="/cecweb/login/sign.php" class="login-btn">Login</a>
-          <a href="/cecweb/login/register.php" class="signup-btn">Sign Up</a>
+          <a href="login/sign.php" class="login-btn">Login</a>
+          <a href="login/register.php" class="signup-btn">Sign Up</a>
         <?php endif; ?>
         <?php if ($can_access_cart): ?>
-          <a href="/cecweb/product/shopping-cart.php" class="cart-btn">
+          <a href="product/shopping-cart.php" class="cart-btn">
             <i class="fa-solid fa-cart-shopping"></i>
           </a>
         <?php else: ?>

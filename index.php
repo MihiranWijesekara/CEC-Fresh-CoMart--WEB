@@ -101,7 +101,14 @@
                                                 <a href="contact-us.php">
                                                     <span class="menu-text">Contact</span>
                                                 </a>
-                                            </li><!-- MT Logo HTML -->
+                                            </li>
+                                            <?php if (isset($_SESSION['user_id'])): ?>
+                                                <li>
+                                                    <a href="product/my-orders.php">
+                                                        <span class="menu-text">My Orders</span>
+                                                    </a>
+                                                </li>
+                                            <?php endif; ?><!-- MT Logo HTML -->
                                         </ul>
                                     </nav>    
                                 </div>   
@@ -232,6 +239,13 @@
                                                     <span class="menu-text">Contact</span>
                                                 </a>
                                             </li>
+                                            <?php if (isset($_SESSION['user_id'])): ?>
+                                                <li>
+                                                    <a href="product/my-orders.php">
+                                                        <span class="menu-text">My Orders</span>
+                                                    </a>
+                                                </li>
+                                            <?php endif; ?>
                                         </ul>
 
 <!-- Divider Section -->
@@ -383,6 +397,9 @@
                                 
                                     <li><a href="product/product.php">Product</a></li>
                                     <li><a href="contact-us.php">Contact</a></li>
+                                    <?php if (isset($_SESSION['user_id'])): ?>
+                                        <li><a href="product/my-orders.php">My Orders</a></li>
+                                    <?php endif; ?>
                                 </ul>
                             </nav>
                             <!-- mobile menu navigation end -->
@@ -505,6 +522,18 @@
     background-repeat: no-repeat;
 }
 
+/* Category cards premium hover style */
+.category-card-hover {
+    transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.25s ease, border-color 0.25s ease;
+    cursor: pointer;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    border-radius: 15px !important;
+}
+.category-card-hover:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(39, 182, 46, 0.15) !important;
+    border-color: #27b62e !important;
+}
 
         </style>
         <!-- Slider Area One End Here -->
@@ -551,52 +580,64 @@
                         g-3 
                         justify-content-center">
                 <div class="col">
-                    <div class="card text-center h-100 p-2">
-                        <img src="assets/images/shopCategory/vegetable.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
+                    <a href="product/product.php?category=1" class="text-decoration-none text-dark">
+                        <div class="card text-center h-100 p-2 category-card-hover">
+                            <img src="assets/images/shopCategory/vegetable.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
                             <div class="card-body">
                                 <p class="card-text">Vegetables</p>
                             </div>
-                    </div>
+                        </div>
+                    </a>
                 </div>
                 <div class="col">
-                    <div class="card text-center h-100 p-2">
-                        <img src="assets/images/shopCategory/fruits.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
+                    <a href="product/product.php?category=2" class="text-decoration-none text-dark">
+                        <div class="card text-center h-100 p-2 category-card-hover">
+                            <img src="assets/images/shopCategory/fruits.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
                             <div class="card-body">
                                 <p class="card-text">Fruits</p>
                             </div>
-                    </div>
+                        </div>
+                    </a>
                 </div>
                 <div class="col">
-                    <div class="card text-center h-100 p-2">
-                        <img src="assets/images/shopCategory/snack.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
+                    <a href="product/product.php?category=3" class="text-decoration-none text-dark">
+                        <div class="card text-center h-100 p-2 category-card-hover">
+                            <img src="assets/images/shopCategory/snack.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
                             <div class="card-body">
                                 <p class="card-text">Snacks</p>
                             </div>
-                    </div>
+                        </div>
+                    </a>
                 </div>
                 <div class="col">
-                    <div class="card text-center h-100 p-2">
-                        <img src="assets/images/shopCategory/bread.png" class="card-img-top mx-auto"style="width:100px;height:100px;object-fit:contain;">
-                        <div class="card-body">
-                            <p class="card-text">Bakery</p>
+                    <a href="product/product.php?category=13" class="text-decoration-none text-dark">
+                        <div class="card text-center h-100 p-2 category-card-hover">
+                            <img src="assets/images/shopCategory/bread.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
+                            <div class="card-body">
+                                <p class="card-text">Bakery</p>
+                            </div>
                         </div>
-                    </div>
+                    </a>
                 </div>
                 <div class="col">
-                    <div class="card text-center h-100 p-2">
-                        <img src="assets/images/shopCategory/biscuit.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
-                        <div class="card-body">
-                            <p class="card-text">Biscuits</p>
+                    <a href="product/product.php?category=4" class="text-decoration-none text-dark">
+                        <div class="card text-center h-100 p-2 category-card-hover">
+                            <img src="assets/images/shopCategory/biscuit.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
+                            <div class="card-body">
+                                <p class="card-text">Biscuits</p>
+                            </div>
                         </div>
-                    </div>
+                    </a>
                 </div>
                 <div class="col">
-                    <div class="card text-center h-100 p-2">
-                        <img src="assets/images/shopCategory/coffee.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
-                        <div class="card-body">
-                            <p class="card-text">Coffee</p>
+                    <a href="product/product.php?category=5" class="text-decoration-none text-dark">
+                        <div class="card text-center h-100 p-2 category-card-hover">
+                            <img src="assets/images/shopCategory/coffee.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
+                            <div class="card-body">
+                                <p class="card-text">Coffee</p>
+                            </div>
                         </div>
-                    </div>
+                    </a>
                 </div>
             </div>
 
@@ -609,56 +650,150 @@
                         g-3 
                         justify-content-center">
                 <div class="col">
-                    <div class="card text-center h-100 p-2">
-                        <img src="assets/images/shopCategory/eggs.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
-                        <div class="card-body">
-                            <p class="card-text">Eggs</p>
+                    <a href="product/product.php?category=6" class="text-decoration-none text-dark">
+                        <div class="card text-center h-100 p-2 category-card-hover">
+                            <img src="assets/images/shopCategory/eggs.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
+                            <div class="card-body">
+                                <p class="card-text">Eggs</p>
+                            </div>
                         </div>
-                    </div>
+                    </a>
                 </div>
                 <div class="col">
-                    <div class="card text-center h-100 p-2">
-                        <img src="assets/images/shopCategory/waterBottle.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
-                        <div class="card-body">
-                            <p class="card-text">Water</p>
+                    <a href="product/product.php?category=7" class="text-decoration-none text-dark">
+                        <div class="card text-center h-100 p-2 category-card-hover">
+                            <img src="assets/images/shopCategory/waterBottle.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
+                            <div class="card-body">
+                                <p class="card-text">Water</p>
+                            </div>
                         </div>
-                    </div>
+                    </a>
                 </div>
 
                 <div class="col">
-                    <div class="card text-center h-100 p-2">
-                        <img src="assets/images/shopCategory/tea-bag.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
-                        <div class="card-body">
-                            <p class="card-text">Tea</p>
+                    <a href="product/product.php?category=8" class="text-decoration-none text-dark">
+                        <div class="card text-center h-100 p-2 category-card-hover">
+                            <img src="assets/images/shopCategory/tea-bag.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
+                            <div class="card-body">
+                                <p class="card-text">Tea</p>
+                            </div>
                         </div>
-                    </div>
+                    </a>
                 </div>
 
                  <div class="col">
-                    <div class="card text-center h-100 p-2">
-                        <img src="assets/images/shopCategory/cheese.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
-                        <div class="card-body">
-                            <p class="card-text">Cheese</p>
+                    <a href="product/product.php?category=9" class="text-decoration-none text-dark">
+                        <div class="card text-center h-100 p-2 category-card-hover">
+                            <img src="assets/images/shopCategory/cheese.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
+                            <div class="card-body">
+                                <p class="card-text">Cheese</p>
+                            </div>
                         </div>
-                    </div>
+                    </a>
                 </div>
 
                 <div class="col">
-                    <div class="card text-center h-100 p-2">
-                        <img src="assets/images/shopCategory/yoghurt.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
-                        <div class="card-body">
-                            <p class="card-text">Yoghurts & Curd</p>
+                    <a href="product/product.php?category=10" class="text-decoration-none text-dark">
+                        <div class="card text-center h-100 p-2 category-card-hover">
+                            <img src="assets/images/shopCategory/yoghurt.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
+                            <div class="card-body">
+                                <p class="card-text">Yoghurts & Curd</p>
+                            </div>
                         </div>
-                    </div>
+                    </a>
                 </div>
 
                 <div class="col">
-                    <div class="card text-center h-100 p-2">
-                        <img src="assets/images/shopCategory/snack.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
-                        <div class="card-body">
-                            <p class="card-text">Desserts</p>
+                    <a href="product/product.php?category=11" class="text-decoration-none text-dark">
+                        <div class="card text-center h-100 p-2 category-card-hover">
+                            <img src="assets/images/shopCategory/snack.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
+                            <div class="card-body">
+                                <p class="card-text">Desserts</p>
+                            </div>
                         </div>
-                    </div>
+                    </a>
+                </div>
+                </div>
+            </div>
+
+            <!-- Third Row for Newly Added Supermarket Categories -->
+            <div class="container mt-4">
+                <div class="row 
+                        row-cols-1 
+                        row-cols-sm-3 
+                        row-cols-md-4 
+                        row-cols-lg-7 
+                        g-3 
+                        justify-content-center">
+                <div class="col">
+                    <a href="product/product.php?category=12" class="text-decoration-none text-dark">
+                        <div class="card text-center h-100 p-2 category-card-hover">
+                            <img src="assets/images/shopCategory/beverages.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
+                            <div class="card-body">
+                                <p class="card-text">Beverages</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="product/product.php?category=14" class="text-decoration-none text-dark">
+                        <div class="card text-center h-100 p-2 category-card-hover">
+                            <img src="assets/images/shopCategory/meat.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
+                            <div class="card-body">
+                                <p class="card-text">Meat & Seafood</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="product/product.php?category=15" class="text-decoration-none text-dark">
+                        <div class="card text-center h-100 p-2 category-card-hover">
+                            <img src="assets/images/shopCategory/pantry.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
+                            <div class="card-body">
+                                <p class="card-text">Pantry Staples</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="product/product.php?category=16" class="text-decoration-none text-dark">
+                        <div class="card text-center h-100 p-2 category-card-hover">
+                            <img src="assets/images/shopCategory/dairy.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
+                            <div class="card-body">
+                                <p class="card-text">Dairy Staples</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="product/product.php?category=17" class="text-decoration-none text-dark">
+                        <div class="card text-center h-100 p-2 category-card-hover">
+                            <img src="assets/images/shopCategory/frozen.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
+                            <div class="card-body">
+                                <p class="card-text">Frozen Foods</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="product/product.php?category=18" class="text-decoration-none text-dark">
+                        <div class="card text-center h-100 p-2 category-card-hover">
+                            <img src="assets/images/shopCategory/household.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
+                            <div class="card-body">
+                                <p class="card-text">Cleaning Goods</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="product/product.php?category=19" class="text-decoration-none text-dark">
+                        <div class="card text-center h-100 p-2 category-card-hover">
+                            <img src="assets/images/shopCategory/personal.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
+                            <div class="card-body">
+                                <p class="card-text">Personal Care</p>
+                            </div>
+                        </div>
+                    </a>
                 </div>
                 </div>
             </div>
@@ -1179,12 +1314,14 @@
 // Set status dot color based on online/offline
 function updateStatusDot() {
     var dot = document.getElementById('mtStatusDot');
-    if (navigator.offline) {
-        dot.style.background = 'green';
-        dot.title = 'Online';
-    } else {
-        dot.style.background = 'orange';
-        dot.title = 'Offline';
+    if (dot) {
+        <?php if (isset($_SESSION['user_id'])): ?>
+            dot.style.background = navigator.onLine ? 'GreenYellow' : 'orange';
+            dot.title = navigator.onLine ? 'Online' : 'Connection Offline';
+        <?php else: ?>
+            dot.style.background = 'red';
+            dot.title = 'Logged Out';
+        <?php endif; ?>
     }
 }
 window.addEventListener('online', updateStatusDot);

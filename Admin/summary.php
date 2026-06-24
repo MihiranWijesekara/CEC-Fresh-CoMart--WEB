@@ -14,7 +14,15 @@ $categories = [
     8 => "Tea",
     9 => "Cheese",
     10 => "Yoghurts & Curd",
-    11 => "Desserts"
+    11 => "Desserts",
+    12 => "Beverages",
+    13 => "Bakery",
+    14 => "Meat & Seafood",
+    15 => "Pantry Staples",
+    16 => "Dairy Staples",
+    17 => "Frozen Foods",
+    18 => "Household & Cleaning",
+    19 => "Personal Care & Baby Care"
 ];
 
 // 1. Sales by Category
