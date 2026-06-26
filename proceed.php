@@ -6,6 +6,11 @@ if (!isset($_SESSION['user_id'])) {
     header("Location: login/sign.php");
     exit();
 }
+
+// Generate a fresh CSRF token for this page load
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
 require_once 'connection.php';
 $user_id = $_SESSION['user_id'];
 $cart_rs = Database::search("SELECT id FROM carts WHERE user_id='$user_id' AND status='Active' LIMIT 1");
@@ -290,12 +295,12 @@ if (!$cart_has_items) {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="script.js"></script>
     <script>
-      // Expose PHP variables to JS for logging in placeOrder()
+      // Expose PHP variables to JS for placeOrder()
       window.sessionUserId = <?php echo json_encode($user_id); ?>;
-      window.totalAmount = <?php echo json_encode($total); ?>;
-      window.deliveryFee = <?php echo json_encode($delivery_charge); ?>;
+      window.totalAmount   = <?php echo json_encode($total); ?>;
+      window.deliveryFee   = <?php echo json_encode($delivery_charge); ?>;
+      window.csrfToken     = <?php echo json_encode($_SESSION['csrf_token']); ?>;
       window.orderItems = <?php
-        // Build array of order items with item_id, quantity, price, subtotal, and item_price from items table
         if (!empty($order_items)) {
           $cart_id = isset($cart_id) ? $cart_id : null;
           $items = [];

@@ -22,8 +22,8 @@
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <title>CEC Fresh-Co Mart</title>
-    <meta name="robots" content="noindex, follow" />
-    <meta name="description" content="">
+    <meta name="robots" content="index, follow" />
+    <meta name="description" content="CEC Fresh-Co Mart – Shop fresh vegetables, fruits, and organic groceries online. Quality produce delivered to your door.">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <!-- Favicon -->
     <link rel="shortcut icon" type="image/x-icon" href="assets/images/logo/logo-freshco.png">
@@ -152,10 +152,8 @@
                                              </li>
                                          </ul>
                                      </div>
-                                </div></div>
+                                 </div>
                             </div>
-       </nav>
-                                </div>
                         </div>
                     </div>
                 </div>
@@ -303,7 +301,7 @@
   height: 9px;
   border-radius: 50%;
   position: absolute;
-  top: 0.05em;
+  top: 0.078em;
   right: 4px;
   /* background set dynamically via inline style */
 }

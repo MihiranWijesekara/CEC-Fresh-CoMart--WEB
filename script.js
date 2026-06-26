@@ -87,28 +87,42 @@ function placeOrder() {
     var streetAddress2 = document.getElementById("streetAddress2").value;
     var town = document.getElementById("town").value;
 
-    var user_id = window.sessionUserId || null;
-    var total_amount = window.totalAmount || null;
-    var delivery_fee = window.deliveryFee || null;
-    var orderItems = window.orderItems || null;
+    if (!streetAddress1.trim()) {
+        alert("Please enter your street address.");
+        return;
+    }
+    if (!town.trim()) {
+        alert("Please enter your town.");
+        return;
+    }
+
+    var user_id      = window.sessionUserId  || null;
+    var total_amount = window.totalAmount    || null;
+    var delivery_fee = window.deliveryFee    || null;
+    var orderItems   = window.orderItems     || null;
+    var csrfToken    = window.csrfToken      || '';
 
     var f = new FormData();
     f.append('streetAddress1', streetAddress1);
     f.append('streetAddress2', streetAddress2);
     f.append('town', town);
-    f.append("user_id", user_id);
-    f.append("total_amount", total_amount);
-    f.append("delivery_fee", delivery_fee);
+    f.append("user_id",       user_id);
+    f.append("total_amount",  total_amount);
+    f.append("delivery_fee",  delivery_fee);
+    f.append("csrf_token",    csrfToken);   // CSRF protection
 
     // Using [] syntax so PHP treats these as arrays automatically
     if (orderItems && Array.isArray(orderItems)) {
         orderItems.forEach(function(item) {
-            f.append('item_id[]', item.item_id);
-            f.append('quantity[]', item.quantity);
-            f.append('subtotal[]', item.subtotal);
+            f.append('item_id[]',    item.item_id);
+            f.append('quantity[]',   item.quantity);
+            f.append('subtotal[]',   item.subtotal);
             f.append('item_price[]', item.item_price);
         });
     }
+
+    var placeBtn = document.querySelector('button[onclick="placeOrder()"]');
+    if (placeBtn) { placeBtn.disabled = true; placeBtn.textContent = 'Placing Order…'; }
 
     var r = new XMLHttpRequest();
     r.onreadystatechange = function () {
@@ -116,14 +130,15 @@ function placeOrder() {
             var t = r.responseText.trim();
             var msgDiv = document.getElementById("msgdiv");
             msgDiv.style.display = "block";
-            
+
             if (t == "success") {
                 msgDiv.className = "alert alert-success";
-                msgDiv.innerHTML = '<i class="bi bi-check-circle pe-3"></i>Order placed successfully! Redirecting...';
+                msgDiv.innerHTML = '<i class="bi bi-check-circle pe-3"></i>Order placed successfully! Redirecting…';
                 setTimeout(function() {
-                    window.location.href = "product/product.php";
-                }, 2000);
+                    window.location.href = "order-confirmation.php";  // → dedicated confirmation page
+                }, 1500);
             } else {
+                if (placeBtn) { placeBtn.disabled = false; placeBtn.textContent = 'Place Order'; }
                 msgDiv.className = "alert alert-danger";
                 msgDiv.innerHTML = '<i class="bi bi-exclamation-circle pe-3"></i>' + t;
             }
