@@ -53,6 +53,28 @@ document.addEventListener("keydown", function (e) {
 	
 });
 
+// Profile dropdown toggle
+(function() {
+	const dropdowns = document.querySelectorAll(".profile-dropdown-wrapper");
+	dropdowns.forEach(wrapper => {
+		const logo = wrapper.querySelector(".mt-logo");
+		const menu = wrapper.querySelector(".profile-dropdown-menu");
+		
+		logo.addEventListener("click", function(e) {
+			e.stopPropagation();
+			menu.classList.toggle("show");
+		});
+	});
+
+	// Close dropdown when clicking outside
+	document.addEventListener("click", function() {
+		document.querySelectorAll(".profile-dropdown-menu").forEach(menu => {
+			menu.classList.remove("show");
+		});
+	});
+})();
+
+
 
 function filterCategory(id) {
     var form = new FormData();

@@ -1,4 +1,21 @@
 <!doctype html>
+<?php
+  require 'connection.php';
+  session_start();
+  $status_dot_color = isset($_SESSION['user_id']) ? 'GreenYellow' : 'red';
+
+  $logo_initials = 'FC';
+  if (isset($_SESSION['user_id'])) {
+    $user_id = $_SESSION['user_id'];
+    $user_rs = Database::search("SELECT first_name, last_name FROM users WHERE id='$user_id'");
+    if ($user_rs && $user_row = $user_rs->fetch_assoc()) {
+      $first = isset($user_row['first_name']) ? strtoupper(substr($user_row['first_name'], 0, 1)) : '';
+      $last = isset($user_row['last_name']) ? strtoupper(substr($user_row['last_name'], 0, 1)) : '';
+      $logo_initials = $first . $last;
+      if ($logo_initials === '') $logo_initials = 'FC';
+    }
+  }
+?>
 <html class="no-js" lang="en">
 
 <head>
@@ -71,21 +88,103 @@
     right:4px;      
     background:orange;
 }
-@media (max-width: 600px) {
+    @media (max-width: 600px) {
+        .mt-logo {
+            width: 32px;
+            height: 32px;
+            font-size: 12px;
+            top: 0.5em;
+        }
+        .mt-status-dot {
+            width: 6px;
+            height: 6px;
+            right: 2px;
+            top: 0.1em;
+        }
+    }
+
+    /* Profile Dropdown styling */
+    .profile-dropdown-wrapper {
+      position: relative;
+      display: inline-block;
+      margin-right: 110px;
+    }
+    .profile-dropdown-wrapper .mt-logo {
+      margin-right: 0 !important;
+      margin-top: 20px;
+    }
+    .profile-dropdown-menu {
+      display: none;
+      position: absolute;
+      top: 75px;
+      right: 0;
+      background-color: white;
+      min-width: 220px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+      border-radius: 12px;
+      overflow: hidden;
+      z-index: 1100;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      font-family: Arial, sans-serif;
+    }
+    .profile-dropdown-menu.show {
+      display: block;
+      animation: profileFadeIn 0.2s ease;
+    }
+    @keyframes profileFadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .profile-dropdown-header {
+      padding: 15px 18px;
+      border-bottom: 1px solid #f3f4f6;
+      background-color: #f9fafb;
+    }
+    .profile-dropdown-header .user-name {
+      font-weight: 700;
+      color: #27b62e;
+      font-size: 14px;
+      margin-bottom: 2px;
+      text-transform: none;
+    }
+    .profile-dropdown-header .user-email {
+      color: #6b7280;
+      font-size: 12px;
+      word-break: break-all;
+      text-transform: none;
+    }
+    .profile-dropdown-menu a {
+      display: flex !important;
+      align-items: center !important;
+      gap: 10px !important;
+      padding: 12px 18px !important;
+      text-decoration: none !important;
+      color: #374151 !important;
+      font-size: 14px !important;
+      font-weight: 600 !important;
+      transition: background 0.2s, color 0.2s !important;
+      border: none !important;
+      background: none !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+      text-transform: none !important;
+    }
+    .profile-dropdown-menu a:hover {
+      background-color: #e8f5e9 !important;
+      color: #27b62e !important;
+    }
+    .profile-dropdown-menu i {
+      font-size: 16px;
+      color: #6b7280;
+      width: 20px;
+      text-align: center;
+    }
+    .profile-dropdown-menu a:hover i {
+      color: #27b62e;
+    }
     .mt-logo {
-        width: 32px;
-        height: 32px;
-        font-size: 12px;
-        top: 0.5em;
-       
+      cursor: pointer;
     }
-    .mt-status-dot {
-        width: 6px;
-        height: 6px;
-        right: 2px;
-        top: 0.1em;
-    }
-}
     </style>
 </head>
 
@@ -144,15 +243,35 @@
                                 </div>
                                 <div class="col-lg-2 col-xl-3 col-sm-6 col-6 col-custom">
                                    <div class="header-right-area main-nav">
-                                        <div class="mt-logo">
-                                            FC
-                                            <div class="mt-status-dot" id="mtStatusDot"></div>
-                                        </div>
+                                        <?php if (isset($_SESSION['user_id'])): ?>
+                                            <div class="profile-dropdown-wrapper">
+                                                <div class="mt-logo">
+                                                    <?php echo $logo_initials; ?>
+                                                    <div class="mt-status-dot" style="background: <?php echo $status_dot_color; ?>;"></div>
+                                                </div>
+                                                <div class="profile-dropdown-menu">
+                                                    <div class="profile-dropdown-header">
+                                                        <div class="user-name">Hello, <?php echo isset($_SESSION['users']['first_name']) ? htmlspecialchars($_SESSION['users']['first_name']) : 'User'; ?></div>
+                                                        <div class="user-email"><?php echo isset($_SESSION['user_email']) ? htmlspecialchars($_SESSION['user_email']) : ''; ?></div>
+                                                    </div>
+                                                    <a href="profile.php"><i class="fa fa-cog"></i> Edit Profile</a>
+                                                    <a href="product/my-orders.php"><i class="fa fa-history"></i> Order History</a>
+                                                    <a href="login/logout.php" style="border-top: 1px solid #f3f4f6;"><i class="fa fa-sign-out"></i> Logout</a>
+                                                </div>
+                                            </div>
+                                        <?php else: ?>
+                                            <div class="mt-logo">
+                                                <?php echo $logo_initials; ?>
+                                                <div class="mt-status-dot" style="background: <?php echo $status_dot_color; ?>;"></div>
+                                            </div>
+                                        <?php endif; ?>
                                         <ul class="nav">
-                                            <li class="login-register-wrap d-none d-xl-flex">
-                                                <span><a href="login/sign.php">Login</a></span>
-                                                <span><a href="login/register.php">Register</a></span>
-                                            </li>
+                                            <?php if (!isset($_SESSION['user_id'])): ?>
+                                                <li class="login-register-wrap d-none d-xl-flex">
+                                                    <span><a href="login/sign.php">Login</a></span>
+                                                    <span><a href="login/register.php">Register</a></span>
+                                                </li>
+                                            <?php endif; ?>
                                          
                                             <li class="mobile-menu-btn d-lg-none">
                                                 <a class="off-canvas-btn" href="#">
@@ -253,21 +372,40 @@
                                 </div>
                                 <div class="col-lg-2 col-xl-3 col-sm-6 col-6 col-custom">
                                     <div class="header-right-area main-nav">
-                                        <div class="mt-logo">
-                                            FC
-                                            <div class="mt-status-dot" id="mtStatusDot"></div>
-                                        </div>
+                                        <?php if (isset($_SESSION['user_id'])): ?>
+                                            <div class="profile-dropdown-wrapper">
+                                                <div class="mt-logo">
+                                                    <?php echo $logo_initials; ?>
+                                                    <div class="mt-status-dot" style="background: <?php echo $status_dot_color; ?>;"></div>
+                                                </div>
+                                                <div class="profile-dropdown-menu">
+                                                    <div class="profile-dropdown-header">
+                                                        <div class="user-name">Hello, <?php echo isset($_SESSION['users']['first_name']) ? htmlspecialchars($_SESSION['users']['first_name']) : 'User'; ?></div>
+                                                        <div class="user-email"><?php echo isset($_SESSION['user_email']) ? htmlspecialchars($_SESSION['user_email']) : ''; ?></div>
+                                                    </div>
+                                                    <a href="profile.php"><i class="fa fa-cog"></i> Edit Profile</a>
+                                                    <a href="product/my-orders.php"><i class="fa fa-history"></i> Order History</a>
+                                                    <a href="login/logout.php" style="border-top: 1px solid #f3f4f6;"><i class="fa fa-sign-out"></i> Logout</a>
+                                                </div>
+                                            </div>
+                                        <?php else: ?>
+                                            <div class="mt-logo">
+                                                <?php echo $logo_initials; ?>
+                                                <div class="mt-status-dot" style="background: <?php echo $status_dot_color; ?>;"></div>
+                                            </div>
+                                        <?php endif; ?>
                                         <ul class="nav">
-                                            <li class="login-register-wrap d-none d-xl-flex">
-                                                <span><a href="login/sign.php">Login</a></span>
-                                                <span><a href="login/register.php">Register</a></span>
-                                            </li>
+                                            <?php if (!isset($_SESSION['user_id'])): ?>
+                                                <li class="login-register-wrap d-none d-xl-flex">
+                                                    <span><a href="login/sign.php">Login</a></span>
+                                                    <span><a href="login/register.php">Register</a></span>
+                                                </li>
+                                            <?php endif; ?>
                                             <li class="mobile-menu-btn d-lg-none">
                                                 <a class="off-canvas-btn" href="#">
                                                     <i class="fa fa-bars"></i>
                                                 </a>
                                             </li>
-                                          
                                         </ul>
                                     </div>
                                 </div>
@@ -684,6 +822,28 @@
     <!-- Custom JS -->
     <script src="script.js"></script>
 
+    <script>
+    // Profile dropdown toggle
+    (function() {
+    	const dropdowns = document.querySelectorAll(".profile-dropdown-wrapper");
+    	dropdowns.forEach(wrapper => {
+    		const logo = wrapper.querySelector(".mt-logo");
+    		const menu = wrapper.querySelector(".profile-dropdown-menu");
+    		
+    		logo.addEventListener("click", function(e) {
+    			e.stopPropagation();
+    			menu.classList.toggle("show");
+    		});
+    	});
+
+    	// Close dropdown when clicking outside
+    	document.addEventListener("click", function() {
+    		document.querySelectorAll(".profile-dropdown-menu").forEach(menu => {
+    			menu.classList.remove("show");
+    		});
+    	});
+    })();
+    </script>
 </body>
 
 </html>

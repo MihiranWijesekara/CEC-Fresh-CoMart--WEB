@@ -540,6 +540,85 @@
           padding: 10px 15px;
         }
       }
+
+      /* Profile Dropdown styling */
+      .profile-dropdown-wrapper {
+        position: relative;
+        display: inline-block;
+        margin-right: 50px;
+      }
+      .profile-dropdown-wrapper .mt-logo {
+        margin-right: 0 !important;
+      }
+      .profile-dropdown-menu {
+        display: none;
+        position: absolute;
+        top: 55px;
+        right: 0;
+        background-color: white;
+        min-width: 220px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+        border-radius: 12px;
+        overflow: hidden;
+        z-index: 1100;
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        font-family: Arial, sans-serif;
+      }
+      .profile-dropdown-menu.show {
+        display: block;
+        animation: profileFadeIn 0.2s ease;
+      }
+      @keyframes profileFadeIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .profile-dropdown-header {
+        padding: 15px 18px;
+        border-bottom: 1px solid #f3f4f6;
+        background-color: #f9fafb;
+      }
+      .profile-dropdown-header .user-name {
+        font-weight: 700;
+        color: #27b62e;
+        font-size: 14px;
+        margin-bottom: 2px;
+      }
+      .profile-dropdown-header .user-email {
+        color: #6b7280;
+        font-size: 12px;
+        word-break: break-all;
+      }
+      .profile-dropdown-menu a {
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+        padding: 12px 18px !important;
+        text-decoration: none !important;
+        color: #374151 !important;
+        font-size: 14px !important;
+        font-weight: 600 !important;
+        transition: background 0.2s, color 0.2s !important;
+        border: none !important;
+        background: none !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+      }
+      .profile-dropdown-menu a:hover {
+        background-color: #e8f5e9 !important;
+        color: #27b62e !important;
+      }
+      .profile-dropdown-menu i {
+        font-size: 16px;
+        color: #6b7280;
+        width: 20px;
+        text-align: center;
+      }
+      .profile-dropdown-menu a:hover i {
+        color: #27b62e;
+      }
+      .mt-logo {
+        cursor: pointer;
+      }
     </style>
   </head>
 
@@ -905,16 +984,30 @@
 
       <!-- Right Side -->
       <div class="nav-right">
-        <div class="mt-logo">
-          <?php echo $logo_initials; ?>
-          <div class="mt-status-dot" id="mtStatusDot" style="background: <?php echo $status_dot_color; ?>;"></div>
-        </div> 
         <?php if ($is_logged_in): ?>
-          <a href="../product/my-orders.php" class="btn btn-outline-light btn-sm rounded-pill px-3 fw-bold me-2" style="font-size: 14px; border: 2px solid white; text-decoration: none;">
+          <div class="profile-dropdown-wrapper">
+            <div class="mt-logo">
+              <?php echo $logo_initials; ?>
+              <div class="mt-status-dot" id="mtStatusDot" style="background: <?php echo $status_dot_color; ?>;"></div>
+            </div>
+            <div class="profile-dropdown-menu">
+              <div class="profile-dropdown-header">
+                <div class="user-name">Hello, <?php echo isset($_SESSION['users']['first_name']) ? htmlspecialchars($_SESSION['users']['first_name']) : 'User'; ?></div>
+                <div class="user-email"><?php echo isset($_SESSION['user_email']) ? htmlspecialchars($_SESSION['user_email']) : ''; ?></div>
+              </div>
+              <a href="../profile.php"><i class="fas fa-user-cog"></i> Edit Profile</a>
+              <a href="my-orders.php"><i class="fas fa-history"></i> Order History</a>
+              <a href="../login/logout.php" style="border-top: 1px solid #f3f4f6;"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            </div>
+          </div>
+          <a href="my-orders.php" class="btn btn-outline-light btn-sm rounded-pill px-3 fw-bold me-2" style="font-size: 14px; border: 2px solid white; text-decoration: none;">
             <i class="fas fa-shopping-bag me-1"></i>My Orders
           </a>
-        <?php endif; ?>
-        <?php if (!$is_logged_in): ?>
+        <?php else: ?>
+          <div class="mt-logo">
+            <?php echo $logo_initials; ?>
+            <div class="mt-status-dot" id="mtStatusDot" style="background: <?php echo $status_dot_color; ?>;"></div>
+          </div>
           <a href="../login/sign.php" class="login-btn">Login</a>
           <a href="../login/register.php" class="signup-btn">Sign Up</a>
         <?php endif; ?>
