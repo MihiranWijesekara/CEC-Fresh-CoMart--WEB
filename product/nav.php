@@ -82,7 +82,7 @@
         width: 43px;
         height: 43px;
         background: #007bff;
-        border-radius: 60%;
+        border-radius: 50%;
         display: flex;
         justify-content: center;
         align-items: center;

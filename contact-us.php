@@ -63,13 +63,18 @@
     align-items:center;
 }
 
+.header-right-area.main-nav {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+
 .mt-logo{
-    margin-top: 20px;
     margin-right: 110px;
     width:43px;
     height:43px;
     background:#007bff;
-    border-radius:60%;
+    border-radius:50%;
     display:flex;
     justify-content:center;
     align-items:center;
@@ -111,7 +116,6 @@
     }
     .profile-dropdown-wrapper .mt-logo {
       margin-right: 0 !important;
-      margin-top: 20px;
     }
     .profile-dropdown-menu {
       display: none;
