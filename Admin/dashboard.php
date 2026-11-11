@@ -21,8 +21,8 @@ $pending_orders = $pending_rs ? (int)$pending_rs->fetch_assoc()['total'] : 0;
 
 // Fetch Recent 5 Orders
 $recent_orders_rs = Database::search("
-    SELECT o.id, o.order_number, u.first_name, u.last_name, o.total_amount, o.order_status, o.created_at,
-           o.order_method, o.payment_status
+    SELECT o.id, o.order_number, u.first_name, u.last_name, o.customer_name, o.total_amount, o.order_status, o.created_at,
+           o.purchase_method, o.payment_status
     FROM orders o 
     INNER JOIN users u ON o.user_id = u.id 
     ORDER BY o.created_at DESC 
@@ -189,16 +189,17 @@ $recent_orders_rs = Database::search("
                         <?php if ($recent_orders_rs && $recent_orders_rs->num_rows > 0) {
                             while ($order = $recent_orders_rs->fetch_assoc()) {
                                 $status = $order['order_status'] ? $order['order_status'] : 'pending';
+                                $customerName = !empty(trim($order['customer_name'] ?? '')) ? $order['customer_name'] : ($order['first_name'] . ' ' . $order['last_name']);
                                 ?>
                                 <tr style="border-bottom: 1px solid #f1f3f7;">
                                     <td class="fw-bold">#<?php echo htmlspecialchars($order['order_number'] ?: str_pad($order['id'], 5, '0', STR_PAD_LEFT)); ?></td>
-                                    <td><?php echo htmlspecialchars($order['first_name'] . ' ' . $order['last_name']); ?></td>
+                                    <td><?php echo htmlspecialchars($customerName); ?></td>
                                     <td class="fw-semibold">Rs. <?php echo number_format((float)$order['total_amount'], 2); ?></td>
-                                    <td><?php echo fc_method_badge($order['order_method'] ?? 'delivery'); ?></td>
-                                    <td><?php echo fc_payment_badge($order['payment_status'] ?? 'Unpaid'); ?></td>
+                                    <td><?php echo fc_method_badge($order['purchase_method'] ?? 'cod'); ?></td>
+                                    <td><?php echo fc_payment_badge($order['payment_status'] ?? 'unpaid'); ?></td>
                                     <td class="text-muted"><?php echo date("F d, Y h:i A", strtotime($order['created_at'])); ?></td>
                                     <td>
-                                        <?php echo fc_status_badge($status, $order['order_method'] ?? 'delivery'); ?>
+                                        <?php echo fc_status_badge($status, $order['purchase_method'] ?? 'cod'); ?>
                                     </td>
                                     <td class="text-center">
                                         <a href="order.php" class="btn btn-outline-primary btn-sm px-3 rounded-pill">Manage</a>

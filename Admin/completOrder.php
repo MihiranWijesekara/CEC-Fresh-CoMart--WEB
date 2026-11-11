@@ -5,6 +5,8 @@ require '../connection.php';
 // Query completed orders
 $orders_rs = Database::search("
     SELECT o.id AS order_id, o.order_number, o.created_at, o.order_status, o.total_amount, o.delivery_fee,
+           o.customer_name AS o_cname, o.customer_phone AS o_cphone,
+           o.street_address1 AS o_addr1, o.street_address2 AS o_addr2, o.town AS o_town,
            u.first_name, u.last_name, u.street_address1, u.street_address2, u.town, u.phone_number,
            oi.quantity, oi.price AS item_price, oi.subtotal AS item_subtotal,
            i.name AS product_name
@@ -22,6 +24,11 @@ if ($orders_rs && $orders_rs->num_rows > 0) {
     while ($row = $orders_rs->fetch_assoc()) {
         $oid = $row['order_id'];
         if (!isset($orders[$oid])) {
+            $cust_name = !empty(trim($row['o_cname'] ?? '')) ? $row['o_cname'] : ($row['first_name'] . ' ' . $row['last_name']);
+            $cust_phone = !empty(trim($row['o_cphone'] ?? '')) ? $row['o_cphone'] : ($row['phone_number'] ?? '');
+            $a1 = !empty(trim($row['o_addr1'] ?? '')) ? $row['o_addr1'] : ($row['street_address1'] ?? '');
+            $a2 = !empty(trim($row['o_addr2'] ?? '')) ? $row['o_addr2'] : ($row['street_address2'] ?? '');
+            $tw = !empty(trim($row['o_town'] ?? '')) ? $row['o_town'] : ($row['town'] ?? '');
             $orders[$oid] = [
                 'order_id' => $row['order_id'],
                 'order_number' => $row['order_number'],
@@ -29,9 +36,9 @@ if ($orders_rs && $orders_rs->num_rows > 0) {
                 'order_status' => $row['order_status'],
                 'total_amount' => $row['total_amount'],
                 'delivery_fee' => $row['delivery_fee'],
-                'customer_name' => $row['first_name'] . ' ' . $row['last_name'],
-                'address' => $row['street_address1'] . ", " . $row['street_address2'] . ", " . $row['town'],
-                'phone_number' => $row['phone_number'],
+                'customer_name' => $cust_name,
+                'address' => trim($a1 . ($a2 ? ", " . $a2 : "") . ", " . $tw, ', '),
+                'phone_number' => $cust_phone,
                 'items' => []
             ];
         }

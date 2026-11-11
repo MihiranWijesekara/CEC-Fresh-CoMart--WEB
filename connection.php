@@ -15,16 +15,16 @@
                     Database::$connection->query("UPDATE `users` SET `is_admin` = 1 WHERE `email` = 'achintha@gmail.com'");
                 }
 
-                // Self-healing migration: purchase-method columns on orders (additive, nullable/defaulted,
-                // so existing rows and existing INSERTs keep working).
+                // Self-healing migration: Ensure schema updates are present
                 $orderCols = [
-                    'order_method'          => "VARCHAR(20) NOT NULL DEFAULT 'delivery'",
-                    'payment_method'        => "VARCHAR(20) NOT NULL DEFAULT 'cod'",
-                    'payment_status'        => "VARCHAR(20) NOT NULL DEFAULT 'Unpaid'",
-                    'pickup_code'           => "VARCHAR(12) NULL",
+                    'purchase_method'       => "ENUM('cod', 'pickup') NOT NULL DEFAULT 'cod'",
+                    'payment_status'        => "ENUM('unpaid', 'paid', 'cancelled') NOT NULL DEFAULT 'unpaid'",
+                    'customer_name'         => "VARCHAR(150) NOT NULL DEFAULT ''",
+                    'customer_phone'        => "VARCHAR(30) NOT NULL DEFAULT ''",
+                    'delivery_notes'        => "TEXT NULL",
                     'pickup_date'           => "DATE NULL",
-                    'pickup_slot'           => "VARCHAR(40) NULL",
-                    'delivery_instructions' => "VARCHAR(500) NULL",
+                    'pickup_time_slot'      => "VARCHAR(50) NULL",
+                    'pickup_code'           => "VARCHAR(20) NULL",
                 ];
                 $existingCols = [];
                 $colRs = Database::$connection->query("SHOW COLUMNS FROM `orders`");

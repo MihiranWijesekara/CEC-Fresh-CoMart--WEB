@@ -39,18 +39,29 @@ $items_rs = Database::search(
 unset($_SESSION['last_order_number'], $_SESSION['last_order_id']);
 
 // ---- presentation helpers -------------------------------------------------
-$is_pickup  = (($order['order_method'] ?? 'delivery') === 'pickup');
+$method_val = $order['purchase_method'] ?? ($order['order_method'] ?? 'cod');
+$is_pickup  = ($method_val === 'pickup');
 $raw_status = $order['order_status'] ?: 'pending';
 $steps = $is_pickup
     ? ['Pending', 'Processing', 'Ready for Pickup', 'Collected']
     : ['Pending', 'Processing', 'Shipped', 'Delivered'];
-$status_index = ['pending' => 0, 'processing' => 1, 'shipped' => 2, 'ready' => 2, 'delivered' => 3, 'collected' => 3];
+$status_index = [
+    'pending' => 0, 
+    'processing' => 1, 
+    'shipped' => 2, 
+    'ready' => 2, 
+    'ready_for_pickup' => 2, 
+    'delivered' => 3, 
+    'collected' => 3
+];
 $current = $status_index[$raw_status] ?? 0;
 $cancelled = ($raw_status === 'cancelled');
 
 $subtotal_amt = (float)$order['total_amount'] - (float)$order['delivery_fee'];
 $pay_label    = $is_pickup ? 'Pay at Store Counter' : 'Cash on Delivery';
-$pay_status   = $order['payment_status'] ?? 'Unpaid';
+$pay_status   = !empty($order['payment_status']) ? ucfirst(strtolower($order['payment_status'])) : 'Unpaid';
+$pickup_slot_val = $order['pickup_time_slot'] ?? ($order['pickup_slot'] ?? '');
+$delivery_notes_val = $order['delivery_notes'] ?? ($order['delivery_instructions'] ?? '');
 ?>
 <!doctype html>
 <html lang="en">
@@ -101,7 +112,7 @@ $pay_status   = $order['payment_status'] ?? 'Unpaid';
           <div><dt>Pickup time slot</dt>
             <dd><i class="fa-regular fa-calendar me-1 text-warning"></i>
               <?php echo !empty($order['pickup_date']) ? date('D, d M Y', strtotime($order['pickup_date'])) : ''; ?>
-              &middot; <?php echo htmlspecialchars($order['pickup_slot'] ?? ''); ?></dd></div>
+              &middot; <?php echo htmlspecialchars($pickup_slot_val); ?></dd></div>
           <div><dt>Store address</dt>
             <dd><?php echo htmlspecialchars($store['address']); ?><br>
               <small class="text-muted fw-normal"><?php echo htmlspecialchars($store['hours']); ?> · <?php echo htmlspecialchars($store['phone']); ?></small></dd></div>
@@ -156,11 +167,11 @@ $pay_status   = $order['payment_status'] ?? 'Unpaid';
       <div class="fc-kv"><span>Payment method</span><span><?php echo $pay_label; ?></span></div>
       <?php if (!$is_pickup): ?>
         <div class="fc-kv"><span>Delivery address</span><span><?php echo htmlspecialchars(trim($order['street_address1'] . ', ' . ($order['street_address2'] ? $order['street_address2'] . ', ' : '') . $order['town'])); ?></span></div>
-        <?php if (!empty($order['delivery_instructions'])): ?>
-          <div class="fc-kv"><span>Delivery instructions</span><span><?php echo htmlspecialchars($order['delivery_instructions']); ?></span></div>
+        <?php if (!empty($delivery_notes_val)): ?>
+          <div class="fc-kv"><span>Delivery instructions</span><span><?php echo htmlspecialchars($delivery_notes_val); ?></span></div>
         <?php endif; ?>
       <?php endif; ?>
-      <div class="fc-kv"><span>Status</span><span><?php echo htmlspecialchars(ucfirst($raw_status === 'shipped' && $is_pickup ? 'ready' : $raw_status)); ?></span></div>
+      <div class="fc-kv"><span>Status</span><span><?php echo htmlspecialchars(ucfirst($raw_status === 'shipped' && $is_pickup ? 'ready' : str_replace('_', ' ', $raw_status))); ?></span></div>
     </div>
 
     <!-- CTAs -->

@@ -8,21 +8,24 @@ if (isset($_POST['order_id']) && (isset($_POST['status']) || isset($_POST['payme
     // Order status change (pending → processing → shipped/ready → delivered/collected)
     if (isset($_POST['status'])) {
         $status = $_POST['status'];
-        $allowed_statuses = ['pending', 'processing', 'shipped', 'ready', 'delivered', 'collected'];
+        $allowed_statuses = ['pending', 'processing', 'ready_for_pickup', 'ready', 'shipped', 'delivered', 'collected', 'cancelled'];
         if (!in_array($status, $allowed_statuses, true)) {
             echo "Invalid status";
             exit();
         }
-        Database::iud("UPDATE orders SET order_status='$status' WHERE id='$orderId'");
+        // Normalize 'ready' to 'ready_for_pickup' if passed
+        $db_status = ($status === 'ready') ? 'ready_for_pickup' : $status;
+        Database::iud("UPDATE orders SET order_status='$db_status' WHERE id='$orderId'");
         // Cash is settled when the order is handed over
-        if ($status === 'delivered' || $status === 'collected') {
-            Database::iud("UPDATE orders SET payment_status='Paid' WHERE id='$orderId'");
+        if ($db_status === 'delivered' || $db_status === 'collected') {
+            Database::iud("UPDATE orders SET payment_status='paid' WHERE id='$orderId'");
         }
     }
 
     // Manual payment status toggle
     if (isset($_POST['payment_status'])) {
-        $pay = ($_POST['payment_status'] === 'Paid') ? 'Paid' : 'Unpaid';
+        $raw_pay = strtolower(trim($_POST['payment_status']));
+        $pay = ($raw_pay === 'paid') ? 'paid' : ($raw_pay === 'cancelled' ? 'cancelled' : 'unpaid');
         Database::iud("UPDATE orders SET payment_status='$pay' WHERE id='$orderId'");
     }
     echo "success";

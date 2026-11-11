@@ -81,7 +81,7 @@ $status_breakdown_rs = Database::search("
 ");
 
 // 5. Orders by purchase method
-$method_rs = Database::search("SELECT order_method, COUNT(id) AS total_count, COALESCE(SUM(total_amount),0) AS total_value FROM orders GROUP BY order_method");
+$method_rs = Database::search("SELECT purchase_method, COUNT(id) AS total_count, COALESCE(SUM(total_amount),0) AS total_value FROM orders GROUP BY purchase_method");
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -189,10 +189,10 @@ $method_rs = Database::search("SELECT order_method, COUNT(id) AS total_count, CO
                   <h4 class="fw-bold mb-4"><i class="bi bi-bag-check-fill text-warning me-2"></i>Orders by Purchase Method</h4>
                   <div class="row g-3">
                       <?php
-                      $methods = ['delivery' => [0, 0.0], 'pickup' => [0, 0.0]];
+                      $methods = ['cod' => [0, 0.0], 'pickup' => [0, 0.0]];
                       if ($method_rs) {
                           while ($m = $method_rs->fetch_assoc()) {
-                              $k = fc_order_method($m['order_method']);
+                              $k = fc_order_method($m['purchase_method'] ?? 'cod');
                               $methods[$k][0] += (int)$m['total_count'];
                               $methods[$k][1] += (float)$m['total_value'];
                           }

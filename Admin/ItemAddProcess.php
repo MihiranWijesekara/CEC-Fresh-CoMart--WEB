@@ -59,6 +59,10 @@ if(isset($_FILES["pi"])){
         $imgType = ".png";
     }   else if($imgex == "image/svg+xml"){
         $imgType = ".svg";
+    }   else if($imgex == "image/webp"){
+        $imgType = ".webp";
+    }   else if($imgex == "image/avif"){
+        $imgType = ".avif";
     }
     $uploadDir = __DIR__ . '/ImageUpload/';
     if (!is_dir($uploadDir)) {

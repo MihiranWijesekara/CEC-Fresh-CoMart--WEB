@@ -3,10 +3,11 @@ require 'adminAuth.php';
 require '../connection.php';
 require 'orderHelpers.php';
 
-// Query active orders (excluding delivered / collected)
+// Query active orders (excluding delivered / collected / cancelled)
 $orders_rs = Database::search("
     SELECT o.id AS order_id, o.order_number, o.created_at, o.order_status, o.total_amount, o.delivery_fee,
-           o.order_method, o.payment_status, o.pickup_code, o.pickup_date, o.pickup_slot, o.delivery_instructions,
+           o.purchase_method, o.payment_status, o.customer_name AS o_cname, o.customer_phone AS o_cphone,
+           o.pickup_code, o.pickup_date, o.pickup_time_slot, o.delivery_notes,
            o.street_address1 AS o_addr1, o.street_address2 AS o_addr2, o.town AS o_town,
            u.first_name, u.last_name, u.street_address1, u.street_address2, u.town, u.phone_number,
            oi.quantity, oi.price AS item_price, oi.subtotal AS item_subtotal,
@@ -15,7 +16,7 @@ $orders_rs = Database::search("
     INNER JOIN users u ON o.user_id = u.id
     INNER JOIN order_items oi ON o.id = oi.order_id
     INNER JOIN items i ON oi.item_id = i.id
-    WHERE o.order_status NOT IN ('delivered', 'collected') OR o.order_status IS NULL
+    WHERE o.order_status NOT IN ('delivered', 'collected', 'cancelled') OR o.order_status IS NULL
     ORDER BY o.created_at DESC
 ");
 
@@ -25,10 +26,12 @@ if ($orders_rs && $orders_rs->num_rows > 0) {
     while ($row = $orders_rs->fetch_assoc()) {
         $oid = $row['order_id'];
         if (!isset($orders[$oid])) {
-            // Prefer the address captured on the order itself, fall back to the profile address
-            $a1 = $row['o_addr1'] !== null && $row['o_addr1'] !== '' ? $row['o_addr1'] : $row['street_address1'];
-            $a2 = $row['o_addr1'] !== null && $row['o_addr1'] !== '' ? $row['o_addr2'] : $row['street_address2'];
-            $tw = $row['o_addr1'] !== null && $row['o_addr1'] !== '' ? $row['o_town'] : $row['town'];
+            // Prefer order-level fields, fallback to user profile
+            $cust_name = !empty(trim($row['o_cname'] ?? '')) ? $row['o_cname'] : ($row['first_name'] . ' ' . $row['last_name']);
+            $cust_phone = !empty(trim($row['o_cphone'] ?? '')) ? $row['o_cphone'] : ($row['phone_number'] ?? '');
+            $a1 = !empty(trim($row['o_addr1'] ?? '')) ? $row['o_addr1'] : ($row['street_address1'] ?? '');
+            $a2 = !empty(trim($row['o_addr2'] ?? '')) ? $row['o_addr2'] : ($row['street_address2'] ?? '');
+            $tw = !empty(trim($row['o_town'] ?? '')) ? $row['o_town'] : ($row['town'] ?? '');
             $orders[$oid] = [
                 'order_id' => $row['order_id'],
                 'order_number' => $row['order_number'],
@@ -36,15 +39,15 @@ if ($orders_rs && $orders_rs->num_rows > 0) {
                 'order_status' => $row['order_status'],
                 'total_amount' => $row['total_amount'],
                 'delivery_fee' => $row['delivery_fee'],
-                'order_method' => fc_order_method($row['order_method']),
-                'payment_status' => $row['payment_status'] ?: 'Unpaid',
+                'order_method' => fc_order_method($row['purchase_method'] ?? 'cod'),
+                'payment_status' => $row['payment_status'] ?: 'unpaid',
                 'pickup_code' => $row['pickup_code'],
                 'pickup_date' => $row['pickup_date'],
-                'pickup_slot' => $row['pickup_slot'],
-                'instructions' => $row['delivery_instructions'],
-                'customer_name' => $row['first_name'] . ' ' . $row['last_name'],
+                'pickup_slot' => $row['pickup_time_slot'],
+                'instructions' => $row['delivery_notes'],
+                'customer_name' => $cust_name,
                 'address' => trim($a1 . ($a2 ? ", " . $a2 : "") . ", " . $tw, ', '),
-                'phone_number' => $row['phone_number'],
+                'phone_number' => $cust_phone,
                 'items' => []
             ];
         }
@@ -241,13 +244,13 @@ $count_delivery = $count_all - $count_pickup;
 
     <script>
         // ---- labels / flow (mirrors Admin/orderHelpers.php) ----
-        const LABELS = { pending: 'Pending', processing: 'Processing', ready: 'Ready for Pickup', shipped: 'Shipped', delivered: 'Delivered', collected: 'Collected' };
+        const LABELS = { pending: 'Pending', processing: 'Processing', ready_for_pickup: 'Ready for Pickup', ready: 'Ready for Pickup', shipped: 'Shipped', delivered: 'Delivered', collected: 'Collected' };
         function labelFor(status, method) { return (status === 'shipped' && method === 'pickup') ? 'Ready for Pickup' : (LABELS[status] || status); }
         function nextAction(status, method) {
             const p = method === 'pickup';
             if (status === 'pending') return ['processing', 'Accept', 'accept', 'bi-arrow-right-short'];
-            if (status === 'processing') return p ? ['ready', 'Mark Ready', 'ready', 'bi-box-seam'] : ['shipped', 'Mark Shipped', 'ready', 'bi-truck'];
-            if (status === 'ready' || status === 'shipped') return p ? ['collected', 'Mark Collected', 'done', 'bi-bag-check'] : ['delivered', 'Mark Delivered', 'done', 'bi-check-lg'];
+            if (status === 'processing') return p ? ['ready_for_pickup', 'Mark Ready', 'ready', 'bi-box-seam'] : ['shipped', 'Mark Shipped', 'ready', 'bi-truck'];
+            if (status === 'ready' || status === 'ready_for_pickup' || status === 'shipped') return p ? ['collected', 'Mark Collected', 'done', 'bi-bag-check'] : ['delivered', 'Mark Delivered', 'done', 'bi-check-lg'];
             return null;
         }
 
