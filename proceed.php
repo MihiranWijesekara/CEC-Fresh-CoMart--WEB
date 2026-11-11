@@ -70,9 +70,10 @@ if (!$cart_has_items) {
       $cart_data = $cart_rs->fetch_assoc();
       $cart_id = (int)$cart_data['id'];
 
-      $order_item_rs = Database::search("SELECT ci.quantity, ci.price AS line_price, i.name, i.unit, i.category_id FROM cart_items ci INNER JOIN items i ON ci.item_id = i.id WHERE ci.cart_id='$cart_id'");
+      $order_item_rs = Database::search("SELECT ci.quantity, ci.price AS unit_price, i.name, i.unit, i.category_id FROM cart_items ci INNER JOIN items i ON ci.item_id = i.id WHERE ci.cart_id='$cart_id'");
 
       while ($order_item = $order_item_rs->fetch_assoc()) {
+        $order_item['line_price'] = (float)$order_item['quantity'] * (float)$order_item['unit_price'];
         $order_items[] = $order_item;
         $subtotal += (float)$order_item['line_price'];
       }
@@ -276,9 +277,9 @@ if (!$cart_has_items) {
         if (!empty($order_items)) {
           $cart_id = isset($cart_id) ? $cart_id : null;
           $items = [];
-          $item_rs = Database::search("SELECT ci.item_id, ci.quantity, ci.price AS line_price, i.price AS item_price FROM cart_items ci INNER JOIN items i ON ci.item_id = i.id WHERE ci.cart_id='$cart_id'");
+          $item_rs = Database::search("SELECT ci.item_id, ci.quantity, ci.price AS unit_price, i.price AS item_price FROM cart_items ci INNER JOIN items i ON ci.item_id = i.id WHERE ci.cart_id='$cart_id'");
           while ($item = $item_rs->fetch_assoc()) {
-            $item['subtotal'] = (float)$item['line_price'];
+            $item['subtotal'] = (float)$item['quantity'] * (float)$item['unit_price'];
             $items[] = $item;
           }
           echo json_encode($items);

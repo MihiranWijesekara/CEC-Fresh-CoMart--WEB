@@ -28,7 +28,7 @@ if ($quantity < 0.001) {
 	$quantity = 0.001;
 }
 
-$cartItemRs = Database::search("SELECT ci.id, it.price AS unit_price, it.unit, it.category_id
+$cartItemRs = Database::search("SELECT ci.id, it.name AS item_name, it.price AS unit_price, it.unit, it.category_id, it.stock_quantity, it.status
 	FROM cart_items ci
 	INNER JOIN carts c ON c.id = ci.cart_id
 	INNER JOIN items it ON it.id = ci.item_id
@@ -43,6 +43,20 @@ $cartItemData = $cartItemRs->fetch_assoc();
 $unit_price = (float)$cartItemData['unit_price'];
 $unit = $cartItemData['unit'];
 $cat_id = (int)$cartItemData['category_id'];
+$stock_qty = (float)$cartItemData['stock_quantity'];
+$item_name = $cartItemData['item_name'];
+$item_status = $cartItemData['status'];
+
+if ($item_status !== 'active' || $stock_qty <= 0) {
+	echo json_encode(["success" => false, "message" => "Sorry, \"$item_name\" is currently out of stock."]);
+	exit();
+}
+
+if ($quantity > $stock_qty) {
+	echo json_encode(["success" => false, "message" => "Sorry, only $stock_qty unit(s) of \"$item_name\" are available in stock."]);
+	exit();
+}
+
 $line_total = $unit_price * $quantity;
 
 $date = new DateTime();
@@ -50,9 +64,11 @@ $tz = new DateTimeZone("Asia/Colombo");
 $date->setTimezone($tz);
 $d = $date->format("Y-m-d H:i:s");
 
-Database::iud("UPDATE cart_items SET quantity='$quantity', price='$line_total', updated_at='$d' WHERE id='$cart_item_id'");
+// Ensure cart_items.price ALWAYS stores the single unit price (not line total)
+Database::iud("UPDATE cart_items SET quantity='$quantity', price='$unit_price', updated_at='$d' WHERE id='$cart_item_id'");
 
-$totalRs = Database::search("SELECT COALESCE(SUM(price), 0) AS subtotal, COUNT(id) AS item_count FROM cart_items WHERE cart_id='$cart_id'");
+// Calculate subtotal dynamically as SUM(quantity * price)
+$totalRs = Database::search("SELECT COALESCE(SUM(quantity * price), 0) AS subtotal, COUNT(id) AS item_count FROM cart_items WHERE cart_id='$cart_id'");
 $totalData = $totalRs->fetch_assoc();
 $subtotal = (float)$totalData['subtotal'];
 $itemCount = (int)$totalData['item_count'];

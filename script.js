@@ -69,11 +69,12 @@ function confirmAddToCart() {
   xhr.open('POST', './productProcess.php', true);
   xhr.onreadystatechange = function () {
     if (xhr.readyState === 4) {
-      if (xhr.status === 200) {
-        showToast('Added ' + itemQty + ' item(s) to cart successfully!', 'success');
+      var resp = xhr.responseText.trim();
+      if (xhr.status === 200 && /^Item/.test(resp)) {
+        showToast(resp, 'success');
+        if (typeof window.refreshMiniCart === 'function') window.refreshMiniCart(false);
       } else {
-        showToast('Error adding to cart.', 'error');
-        console.error('Error adding to cart:', xhr.statusText);
+        showToast(resp || 'Error adding to cart.', 'error');
       }
       closeAddMoreModal();
     }

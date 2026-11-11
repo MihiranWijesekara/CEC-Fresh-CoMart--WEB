@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_item_id'])) {
 
     Database::iud("DELETE FROM cart_items WHERE id='$cart_item_id'");
 
-    $total_rs = Database::search("SELECT COALESCE(SUM(price), 0) AS subtotal, COUNT(id) AS total_items FROM cart_items WHERE cart_id='$cart_id'");
+    $total_rs = Database::search("SELECT COALESCE(SUM(quantity * price), 0) AS subtotal, COUNT(id) AS total_items FROM cart_items WHERE cart_id='$cart_id'");
     $total_data = $total_rs->fetch_assoc();
     $subtotal = (float)$total_data['subtotal'];
     $itemCount = (int)$total_data['total_items'];
@@ -219,13 +219,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_item_id'])) {
         $grandTotal = 0;
 
         $user_id = $_SESSION['user_id'];
-        $cart_rs = Database::search("SELECT * FROM carts WHERE user_id='$user_id' AND status='Active'");
+        $cart_rs = Database::search("SELECT * FROM carts WHERE user_id='$user_id' AND status='Active' ORDER BY id DESC LIMIT 1");
         if ($cart_rs && $cart_rs->num_rows > 0) {
           $cart_data = $cart_rs->fetch_assoc();
           $cart_id = $cart_data['id'];
           $ItemRs = Database::search("SELECT * FROM cart_items WHERE cart_id='$cart_id'");
 
-          $total_rs = Database::search("SELECT COALESCE(SUM(price), 0) AS total_price, COUNT(id) AS total_items FROM cart_items WHERE cart_id='$cart_id'");
+          $total_rs = Database::search("SELECT COALESCE(SUM(quantity * price), 0) AS total_price, COUNT(id) AS total_items FROM cart_items WHERE cart_id='$cart_id'");
           $total_data = $total_rs->fetch_assoc();
           $subTotal = (float)$total_data['total_price'];
           $itemCount = (int)$total_data['total_items'];
@@ -267,8 +267,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_item_id'])) {
                     $img = htmlspecialchars($item_data['image_path']);
                     $name = htmlspecialchars($item_data['name']);
                     $onePrice = htmlspecialchars($item_data['price']);
-                    $quantity = htmlspecialchars($row['quantity']);
-                    $lineTotalPrice = htmlspecialchars($row['price']);
+                    $quantity = (float)$row['quantity'];
+                    $unitPrice = (float)$row['price'];
+                    $lineTotalPrice = $quantity * $unitPrice;
                     
                     $catId = (int)$item_data['category_id'];
                     $unit = htmlspecialchars($item_data['unit']);

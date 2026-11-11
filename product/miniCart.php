@@ -19,13 +19,14 @@ if (isset($_SESSION['user_id'])) {
     $subtotal = 0.0;
     if ($rs) {
         while ($r = $rs->fetch_assoc()) {
-            $subtotal += (float)$r['price'];
+            $line_total = (float)$r['quantity'] * (float)$r['price'];
+            $subtotal += $line_total;
             $out['items'][] = [
                 'name'       => $r['name'],
                 'unit'       => $r['unit'],
                 'image'      => $r['image_path'],
                 'qty'        => (string)Database::formatQuantity($r['quantity'], $r['unit'], $r['category_id']),
-                'line_total' => number_format((float)$r['price'], 2),
+                'line_total' => number_format($line_total, 2),
             ];
         }
     }

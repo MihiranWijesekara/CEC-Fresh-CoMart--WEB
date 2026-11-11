@@ -450,15 +450,15 @@ $isLoggedIn = isset($_SESSION['user_id']);
 
               <div class="fc-stock-row">
                 <?php if ($isInStock) { ?>
-                  <span class="fc-pill in"><i class="bi bi-check-circle-fill"></i>In Stock</span>
+                  <span class="fc-pill in"><i class="bi bi-check-circle-fill"></i>In Stock: <?php echo (float)$stock_qty; ?> <?php echo $unit; ?></span>
                 <?php } else { ?>
                   <span class="fc-pill out"><i class="bi bi-x-circle-fill"></i>Out of Stock</span>
                 <?php } ?>
               </div>
 
-              <div class="fc-add-wrap <?php echo $showStepper ? 'is-stepper' : ''; ?>" data-id="<?php echo $id; ?>" data-price="<?php echo $price; ?>" data-unit="<?php echo $unit; ?>" data-cat="<?php echo (int)$row['category_id']; ?>" data-bulk="<?php echo $isBulk ? 1 : 0; ?>" data-qty="<?php echo $showStepper ? (int)round($cartQty) : 0; ?>">
+              <div class="fc-add-wrap <?php echo $showStepper ? 'is-stepper' : ''; ?>" data-id="<?php echo $id; ?>" data-price="<?php echo $price; ?>" data-unit="<?php echo $unit; ?>" data-cat="<?php echo (int)$row['category_id']; ?>" data-bulk="<?php echo $isBulk ? 1 : 0; ?>" data-stock="<?php echo (float)$stock_qty; ?>" data-qty="<?php echo $showStepper ? (int)round($cartQty) : 0; ?>">
                 <button type="button" class="fc-add-btn" onclick="fcAdd(this)" <?php if (!$isInStock) echo 'disabled'; ?>>
-                  <i class="bi bi-plus-lg"></i> <?php echo $isInStock ? 'Add' : 'Unavailable'; ?>
+                  <i class="bi bi-plus-lg"></i> <?php echo $isInStock ? 'Add' : 'Out of Stock'; ?>
                 </button>
                 <div class="fc-stepper" role="group" aria-label="Quantity for <?php echo $name; ?>">
                   <button type="button" onclick="fcStep(this, -1)" aria-label="Decrease quantity"><i class="bi bi-dash-lg"></i></button>
@@ -596,13 +596,18 @@ $isLoggedIn = isset($_SESSION['user_id']);
           return unitLower.endsWith('kg') || unitLower.endsWith('g') || unitLower.endsWith('l') || unitLower.endsWith('ml');
       }
 
-      function checkLogin(productId, price, unit, categoryId) {
+      function checkLogin(productId, price, unit, categoryId, stockQty) {
+        if (typeof stockQty !== 'undefined' && parseFloat(stockQty) <= 0) {
+          showToast('This product is currently out of stock.', 'error');
+          return;
+        }
         if (isLoggedIn) {
           window.selectedProduct = productId;
           window.selectedPrice = parseFloat(price);
           window.itemQty = 1;
           window.dbUnitStr = unit;
           window.isBulkVal = isBulkProduct(categoryId, unit);
+          window.currentStock = typeof stockQty !== 'undefined' ? parseFloat(stockQty) : 999999;
           
           const stdContainer = document.getElementById('standardQtyContainer');
           const weightContainer = document.getElementById('weightQtyContainer');
@@ -760,7 +765,7 @@ $isLoggedIn = isset($_SESSION['user_id']);
         if (!isLoggedIn) { openPopup(); return; }
         if (wrap.dataset.bulk === '1') {
           // weight-based items keep the existing weight/package picker
-          checkLogin(wrap.dataset.id, wrap.dataset.price, wrap.dataset.unit, wrap.dataset.cat);
+          checkLogin(wrap.dataset.id, wrap.dataset.price, wrap.dataset.unit, wrap.dataset.cat, wrap.dataset.stock);
           return;
         }
         btn.disabled = true;
@@ -812,12 +817,12 @@ $isLoggedIn = isset($_SESSION['user_id']);
         xhr.open('POST', './productProcess.php', true);
         xhr.onreadystatechange = function() {
           if (xhr.readyState === 4) {
-            if (xhr.status === 200) {
-              showToast('Added to cart successfully!', 'success');
+            var resp = xhr.responseText.trim();
+            if (xhr.status === 200 && /^Item/.test(resp)) {
+              showToast(resp, 'success');
               if (typeof window.refreshMiniCart === 'function') window.refreshMiniCart(false);
             } else {
-              showToast('Error adding to cart.', 'error');
-              console.error('Error adding to cart:', xhr.statusText);
+              showToast(resp || 'Error adding to cart.', 'error');
             }
             closeAddMoreModal();
           }

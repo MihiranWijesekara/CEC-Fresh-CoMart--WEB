@@ -51,18 +51,31 @@ if(isset($_FILES["pi"])){
     }
 
     $imgType = '';
-    if($imgex == "image/jpg" ){
-        $imgType = ".jpg";
-    }   else if($imgex == "image/jpeg"){
-        $imgType = ".jpeg";
-    }   else if($imgex == "image/png"){
-        $imgType = ".png";
-    }   else if($imgex == "image/svg+xml"){
-        $imgType = ".svg";
-    }   else if($imgex == "image/webp"){
-        $imgType = ".webp";
-    }   else if($imgex == "image/avif"){
-        $imgType = ".avif";
+    $mimeToExt = [
+        "image/jpg"     => ".jpg",
+        "image/jpeg"    => ".jpeg",
+        "image/png"     => ".png",
+        "image/webp"    => ".webp",
+        "image/svg+xml" => ".svg",
+        "image/avif"    => ".avif"
+    ];
+
+    if (isset($mimeToExt[$imgex])) {
+        $imgType = $mimeToExt[$imgex];
+    } else {
+        // Fallback: check uploaded file extension
+        $origExt = strtolower(pathinfo($img['name'], PATHINFO_EXTENSION));
+        if (in_array($origExt, ['jpg', 'jpeg', 'png', 'webp', 'svg', 'avif'])) {
+            $imgType = '.' . $origExt;
+        } else {
+            echo "Unsupported image extension.";
+            exit();
+        }
+    }
+
+    if (empty($imgType)) {
+        echo "Unable to determine image extension.";
+        exit();
     }
     $uploadDir = __DIR__ . '/ImageUpload/';
     if (!is_dir($uploadDir)) {
