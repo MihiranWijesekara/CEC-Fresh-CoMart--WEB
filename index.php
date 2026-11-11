@@ -362,7 +362,7 @@ $staples_res = Database::search("
                                 <div class="fc-card-price-row">
                                     <span class="fc-card-price">Rs. <?php echo number_format((float)$item['price'], 2); ?></span>
                                 </div>
-                                <div class="fc-card-action" id="card-action-<?php echo $itemId; ?>">
+                                <div class="fc-card-action" id="card-action-<?php echo $itemId; ?>" data-card-action="<?php echo $itemId; ?>">
                                     <?php if (!$inStock): ?>
                                         <button class="fc-btn-add" disabled>Out of Stock</button>
                                     <?php elseif ($itemCartQty > 0): ?>
@@ -442,7 +442,7 @@ $staples_res = Database::search("
                                 <div class="fc-card-price-row">
                                     <span class="fc-card-price">Rs. <?php echo number_format((float)$item['price'], 2); ?></span>
                                 </div>
-                                <div class="fc-card-action" id="card-action-<?php echo $itemId; ?>">
+                                <div class="fc-card-action" id="card-action-<?php echo $itemId; ?>" data-card-action="<?php echo $itemId; ?>">
                                     <?php if (!$inStock): ?>
                                         <button class="fc-btn-add" disabled>Out of Stock</button>
                                     <?php elseif ($itemCartQty > 0): ?>
@@ -486,8 +486,11 @@ $staples_res = Database::search("
             </div>
             <p class="small text-muted mb-3">Taxes &amp; delivery options calculated at checkout.</p>
             <div class="d-grid gap-2">
-                <a href="proceed.php" class="btn btn-success fw-bold py-2 rounded-pill">
-                    <i class="bi bi-lock me-1"></i>Proceed to Checkout
+                <a href="proceed.php?method=cod" class="btn btn-success fw-bold py-2 rounded-pill">
+                    <i class="bi bi-truck me-1"></i>Checkout – Home Delivery (COD)
+                </a>
+                <a href="proceed.php?method=pickup" class="btn btn-warning text-dark fw-bold py-2 rounded-pill">
+                    <i class="bi bi-shop me-1"></i>Checkout – Free Store Pickup
                 </a>
                 <a href="product/shopping-cart.php" class="btn btn-outline-secondary btn-sm rounded-pill">
                     View Full Cart Details
@@ -561,7 +564,7 @@ $staples_res = Database::search("
         // Mini Cart Offcanvas Drawer Loader
         function openMiniCartDrawer() {
             var offcanvasEl = document.getElementById('miniCartOffcanvas');
-            var bsOffcanvas = new bootstrap.Offcanvas(offcanvasEl);
+            var bsOffcanvas = bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl);
             bsOffcanvas.show();
 
             var container = document.getElementById('miniCartItemsContainer');

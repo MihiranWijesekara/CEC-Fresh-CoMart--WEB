@@ -292,7 +292,19 @@ if (!$cart_has_items) {
       ?>;
 
       // Purchase-method state read by placeOrder() in script.js
-      window.orderMethod = 'cod';
+      <?php
+        $initialMethod = 'cod';
+        if (isset($_GET['method']) && in_array($_GET['method'], ['cod', 'pickup'], true)) {
+            $initialMethod = $_GET['method'];
+            $_SESSION['preferred_purchase_method'] = $initialMethod;
+        } elseif (isset($_GET['pickup']) && $_GET['pickup'] === '1') {
+            $initialMethod = 'pickup';
+            $_SESSION['preferred_purchase_method'] = 'pickup';
+        } elseif (!empty($_SESSION['preferred_purchase_method']) && $_SESSION['preferred_purchase_method'] === 'pickup') {
+            $initialMethod = 'pickup';
+        }
+      ?>
+      window.orderMethod = <?php echo json_encode($initialMethod); ?>;
       window.storeInfo = <?php echo json_encode(['address' => $store['address'], 'town' => $store['town']]); ?>;
       var BASE_FEE = <?php echo json_encode($delivery_charge); ?>;
       var SUBTOTAL = <?php echo json_encode($subtotal); ?>;
@@ -333,6 +345,10 @@ if (!$cart_has_items) {
       document.querySelectorAll('input[name="payment"]').forEach(function (r) {
         r.addEventListener('change', function () { setMethod(r.value === 'store' ? 'pickup' : 'cod'); });
       });
+      // Apply initial method if Store Pickup was selected via URL or session preference
+      if (window.orderMethod === 'pickup') {
+        setMethod('pickup');
+      }
     </script>
   </body>
 </html>

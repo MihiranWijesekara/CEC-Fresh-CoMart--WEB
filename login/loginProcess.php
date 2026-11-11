@@ -1,18 +1,24 @@
 <?php
-session_start();
-require("../connection.php");
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+require_once("../connection.php");
 
-$email = $_POST["email"];
-$password = $_POST["password"];
+$email = isset($_POST["email"]) ? trim($_POST["email"]) : "";
+$password = isset($_POST["password"]) ? $_POST["password"] : "";
 
 if (empty($email) || empty($password)) {
     echo "Email and Password required";
     exit();
 }
 
-$q = Database::search("SELECT * FROM users WHERE email = '".$email."'");
+Database::setUpConnection();
+$stmt = Database::$connection->prepare("SELECT * FROM users WHERE email = ? LIMIT 1");
+$stmt->bind_param("s", $email);
+$stmt->execute();
+$q = $stmt->get_result();
 
-if ($q->num_rows == 1) {
+if ($q && $q->num_rows == 1) {
 
     $user = $q->fetch_assoc();
 
@@ -29,5 +35,5 @@ if ($q->num_rows == 1) {
 } else {
     echo "Invalid email or password";
 }
-
+$stmt->close();
 ?>

@@ -387,6 +387,12 @@ $isLoggedIn = isset($_SESSION['user_id']);
         $maxPrice = (isset($_GET['max_price']) && is_numeric($_GET['max_price']) && (float)$_GET['max_price'] > 0) ? (float)$_GET['max_price'] : '';
         $sort = isset($_GET['sort']) ? trim($_GET['sort']) : 'default';
 
+        // Persist Store Pickup preference when linked via ?pickup=1 or ?pickup=0
+        if (isset($_GET['pickup'])) {
+            $_SESSION['preferred_purchase_method'] = ($_GET['pickup'] === '1') ? 'pickup' : 'cod';
+        }
+        $isPickupPreferred = (isset($_SESSION['preferred_purchase_method']) && $_SESSION['preferred_purchase_method'] === 'pickup');
+
         // Query categories with live item count
         $categoriesList = [];
         $catRes = Database::search("
@@ -452,6 +458,16 @@ $isLoggedIn = isset($_SESSION['user_id']);
           <p><?php echo $ItemRs ? (int)$ItemRs->num_rows : 0; ?> items available</p>
         </div>
       </div>
+
+      <?php if ($isPickupPreferred): ?>
+        <div class="alert d-flex flex-wrap align-items-center justify-content-between rounded-4 mb-3 py-2 px-3" style="background:#fffbeb; border:1px solid #fde68a; color:#92400e;">
+          <div>
+            <i class="bi bi-shop me-2 text-warning"></i>
+            <strong>Store Pickup Mode Active:</strong> Your checkout will default to <strong>Free In-Store Pickup (Rajagiriya Branch – Rs. 0.00 fee)</strong>.
+          </div>
+          <a href="product.php?pickup=0" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1">Switch to Home Delivery</a>
+        </div>
+      <?php endif; ?>
 
       <!-- Enhanced Category & Attribute Filter Toolbar -->
       <div class="card p-3 mb-4 border-0 shadow-sm rounded-4 bg-white" style="border: 1px solid #e2e8f0 !important;">

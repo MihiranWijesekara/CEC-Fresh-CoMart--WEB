@@ -83,10 +83,11 @@
   // 2. AJAX Stepper & Add to Cart Controller
   window.updateCartItem = function (itemId, delta, btnEl) {
     var base = window.FC_BASE || '';
-    var container = document.getElementById('card-action-' + itemId);
-    if (!container) return;
+    var containers = document.querySelectorAll('[data-card-action="' + itemId + '"], #card-action-' + itemId);
+    if (!containers.length) return;
 
-    var qtyEl = container.querySelector('.qty');
+    var firstContainer = containers[0];
+    var qtyEl = firstContainer.querySelector('.qty');
     var currentQty = qtyEl ? parseFloat(qtyEl.textContent) : 0;
     var newQty = currentQty + delta;
 
@@ -119,26 +120,35 @@
           return;
         }
 
-        // Successfully updated
+        // Update all matching product cards on the page simultaneously
+        var updatedHtml = '';
         if (newQty <= 0) {
-          // Revert back to Add button
-          container.innerHTML = '<button class="fc-btn-add" onclick="updateCartItem(' + itemId + ', 1, this)">' +
-                                  '<i class="bi bi-cart-plus me-1"></i>Add' +
-                                '</button>';
+          updatedHtml = '<button class="fc-btn-add" onclick="updateCartItem(' + itemId + ', 1, this)">' +
+                          '<i class="bi bi-cart-plus me-1"></i>Add' +
+                        '</button>';
         } else {
-          // Render or update stepper
-          container.innerHTML = '<div class="fc-stepper">' +
-                                  '<button type="button" onclick="updateCartItem(' + itemId + ', -1, this)" aria-label="Decrease">&minus;</button>' +
-                                  '<span class="qty">' + newQty + '</span>' +
-                                  '<button type="button" onclick="updateCartItem(' + itemId + ', 1, this)" aria-label="Increase">&plus;</button>' +
-                                '</div>';
+          updatedHtml = '<div class="fc-stepper">' +
+                          '<button type="button" onclick="updateCartItem(' + itemId + ', -1, this)" aria-label="Decrease">&minus;</button>' +
+                          '<span class="qty">' + newQty + '</span>' +
+                          '<button type="button" onclick="updateCartItem(' + itemId + ', 1, this)" aria-label="Increase">&plus;</button>' +
+                        '</div>';
         }
+        containers.forEach(function (c) { c.innerHTML = updatedHtml; });
 
-        // Trigger header badge and drawer refresh if available
+        // Trigger header badge and drawer refresh with authoritative count
         if (window.refreshMiniCart) {
           window.refreshMiniCart(false);
         } else {
-          updateHeaderBadgeLocally(delta);
+          fetch(base + 'product/miniCart.php', { credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+              document.querySelectorAll('#fcCartBadge, .fc-cart-badge, .cart-count').forEach(function (badge) {
+                badge.textContent = d.count || 0;
+              });
+            })
+            .catch(function () {
+              updateHeaderBadgeLocally(delta);
+            });
         }
       })
       .catch(function (err) {

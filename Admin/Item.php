@@ -42,7 +42,37 @@ function getUnitMetric($unitStr) {
     return 'units';
 }
 
-$items_rs = Database::search("SELECT * FROM `items` ORDER BY `created_at` DESC");
+$search = isset($_GET['search']) ? trim($_GET['search']) : '';
+$stockFilter = isset($_GET['stock']) ? trim($_GET['stock']) : 'all';
+$catFilter = isset($_GET['category']) ? (int)$_GET['category'] : 0;
+
+$whereClauses = [];
+if ($search !== '') {
+    Database::setUpConnection();
+    $safeSearch = Database::$connection->real_escape_string($search);
+    $whereClauses[] = "`name` LIKE '%$safeSearch%'";
+}
+if ($catFilter > 0) {
+    $whereClauses[] = "`category_id` = '$catFilter'";
+}
+if ($stockFilter === 'low') {
+    $whereClauses[] = "`stock_quantity` > 0 AND `stock_quantity` <= 5";
+} elseif ($stockFilter === 'out') {
+    $whereClauses[] = "`stock_quantity` <= 0";
+}
+
+$whereSql = !empty($whereClauses) ? (' WHERE ' . implode(' AND ', $whereClauses)) : '';
+$items_rs = Database::search("SELECT * FROM `items`" . $whereSql . " ORDER BY `created_at` DESC");
+
+// Count stock alerts for badges
+$counts_rs = Database::search("
+    SELECT 
+        COUNT(*) AS total_count,
+        SUM(CASE WHEN stock_quantity > 0 AND stock_quantity <= 5 THEN 1 ELSE 0 END) AS low_count,
+        SUM(CASE WHEN stock_quantity <= 0 THEN 1 ELSE 0 END) AS out_count
+    FROM `items`
+");
+$stockCounts = $counts_rs ? $counts_rs->fetch_assoc() : ['total_count' => 0, 'low_count' => 0, 'out_count' => 0];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -103,9 +133,45 @@ $items_rs = Database::search("SELECT * FROM `items` ORDER BY `created_at` DESC")
     <?php include 'navbar.php'; ?>
 
     <div class="main-card">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2 class="fw-bold mb-0" style="font-size:1.5rem;letter-spacing:1px;">Items List</h2>
-        <a href="ItemAdd.php" class="btn btn-success px-4 py-2 rounded-pill shadow-sm">+ Add Item</a>
+      <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+        <div>
+          <h2 class="fw-bold mb-0" style="font-size:1.5rem;letter-spacing:0.5px;">Inventory &amp; Stock Management</h2>
+          <p class="text-muted small mb-0">Search products, filter low/out-of-stock alerts, and adjust stock levels</p>
+        </div>
+        <a href="ItemAdd.php" class="btn btn-success px-4 py-2 rounded-pill shadow-sm fw-semibold"><i class="bi bi-plus-lg me-1"></i>Add New Item</a>
+      </div>
+
+      <!-- Filter Tabs & Search Bar -->
+      <div class="row g-2 align-items-center mb-4 p-3 rounded-3" style="background:#f8fafc; border:1px solid #e2e8f0;">
+        <div class="col-lg-5 d-flex flex-wrap gap-2">
+          <a href="Item.php?stock=all" class="btn btn-sm rounded-pill px-3 fw-semibold <?php echo $stockFilter === 'all' ? 'btn-dark' : 'btn-outline-secondary'; ?>">
+            All Items (<?php echo (int)$stockCounts['total_count']; ?>)
+          </a>
+          <a href="Item.php?stock=low" class="btn btn-sm rounded-pill px-3 fw-semibold <?php echo $stockFilter === 'low' ? 'btn-warning text-dark' : 'btn-outline-warning text-dark'; ?>">
+            <i class="bi bi-exclamation-triangle me-1"></i>Low Stock (<?php echo (int)$stockCounts['low_count']; ?>)
+          </a>
+          <a href="Item.php?stock=out" class="btn btn-sm rounded-pill px-3 fw-semibold <?php echo $stockFilter === 'out' ? 'btn-danger' : 'btn-outline-danger'; ?>">
+            <i class="bi bi-x-octagon me-1"></i>Out of Stock (<?php echo (int)$stockCounts['out_count']; ?>)
+          </a>
+        </div>
+        <div class="col-lg-7">
+          <form method="GET" action="Item.php" class="d-flex gap-2 flex-wrap justify-content-lg-end">
+            <input type="hidden" name="stock" value="<?php echo htmlspecialchars($stockFilter); ?>">
+            <select name="category" class="form-select form-select-sm rounded-pill" style="max-width: 190px;" onchange="this.form.submit()">
+              <option value="0">All Categories</option>
+              <?php foreach ($categories as $cid => $cname): ?>
+                <option value="<?php echo $cid; ?>" <?php echo $catFilter === $cid ? 'selected' : ''; ?>><?php echo htmlspecialchars($cname); ?></option>
+              <?php endforeach; ?>
+            </select>
+            <div class="input-group input-group-sm" style="max-width: 260px;">
+              <input type="text" name="search" class="form-control rounded-start-pill ps-3" placeholder="Search item name..." value="<?php echo htmlspecialchars($search); ?>">
+              <button class="btn btn-primary rounded-end-pill px-3" type="submit"><i class="bi bi-search"></i></button>
+            </div>
+            <?php if ($search !== '' || $catFilter > 0 || $stockFilter !== 'all'): ?>
+              <a href="Item.php" class="btn btn-sm btn-outline-secondary rounded-pill px-3">Reset</a>
+            <?php endif; ?>
+          </form>
+        </div>
       </div>
       <div class="table-responsive">
         <table class="table table-hover align-middle text-center">

@@ -88,6 +88,20 @@
   .profile-dropdown-menu a { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 18px; text-decoration: none; color: #334155; font-size: 14px; font-weight: 600; }
   .profile-dropdown-menu a:hover { background: #f0fdf4; color: #15803d; }
   .profile-dropdown-menu i { width: 18px; text-align: center; color: #64748b; }
+  /* Live search dropdown inside fc-search */
+  .fc-search { position: relative; }
+  .fc-nav-search-dropdown {
+    display: none; position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+    box-shadow: 0 12px 30px rgba(15,23,42,.15); max-height: 360px; overflow-y: auto; z-index: 1200;
+  }
+  .fc-nav-search-dropdown.active { display: block; }
+  .fc-nav-search-item {
+    display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+    text-decoration: none; color: #0f172a; border-bottom: 1px solid #f1f5f9;
+  }
+  .fc-nav-search-item:hover { background: #f0fdf4; color: #15803d; }
+  .fc-nav-search-item img { width: 42px; height: 42px; object-fit: contain; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; }
 </style>
 
 <!-- ============ Sticky header ============ -->
@@ -103,7 +117,7 @@
     <span><small>Store</small><strong>Store: <?php echo htmlspecialchars($store['label']); ?></strong></span>
   </button>
 
-  <form class="fc-search" id="fcSearch" action="<?php echo $P; ?>product.php" method="get" role="search">
+  <form class="fc-search" id="fcSearch" action="<?php echo $P; ?>product.php" method="get" role="search" data-base="<?php echo $FC_BASE; ?>">
     <select name="category" aria-label="Search category">
       <option value="0">All Categories</option>
       <?php foreach ($all_categories as $cid => $c): ?>
@@ -113,6 +127,7 @@
     <input type="search" name="q" id="fcSearchInput" value="<?php echo $q_value; ?>" placeholder="Search for fruits, milk, rice…" autocomplete="off" aria-label="Search products" />
     <button type="button" class="fc-search-clear" id="fcSearchClear" aria-label="Clear search"><i class="fas fa-xmark"></i></button>
     <button type="submit" class="fc-search-submit" aria-label="Search"><i class="fas fa-magnifying-glass"></i><span class="d-none d-xl-inline">Search</span></button>
+    <div id="fcNavSearchDropdown" class="fc-nav-search-dropdown"></div>
   </form>
 
   <div class="fc-actions">
@@ -128,8 +143,10 @@
             <div class="user-name">Hello, <?php echo isset($_SESSION['users']['first_name']) ? htmlspecialchars($_SESSION['users']['first_name']) : 'User'; ?></div>
             <div class="user-email"><?php echo isset($_SESSION['user_email']) ? htmlspecialchars($_SESSION['user_email']) : ''; ?></div>
           </div>
+          <a href="<?php echo $FC_BASE; ?>my-account.php"><i class="fas fa-user-circle"></i> My Account &amp; Address</a>
           <a href="<?php echo $FC_BASE; ?>profile.php"><i class="fas fa-user-cog"></i> Edit Profile</a>
           <a href="<?php echo $P; ?>my-orders.php"><i class="fas fa-history"></i> Order History</a>
+          <a href="<?php echo $FC_BASE; ?>contact-us.php"><i class="fas fa-headset"></i> Help &amp; Contact</a>
           <a href="<?php echo $FC_BASE; ?>login/logout.php" style="border-top: 1px solid #e2e8f0;"><i class="fas fa-sign-out-alt"></i> Logout</a>
         </div>
       </div>

@@ -172,6 +172,51 @@ function filterCategory(id) {
 		select.value = params.get("category");
 	}
 	sync();
+
+	// Live AJAX search dropdown (300ms debounce)
+	var dropdown = document.getElementById("fcNavSearchDropdown");
+	var base = form.dataset.base != null ? form.dataset.base : "../";
+	var debounceTimer = null;
+	if (dropdown) {
+		input.addEventListener("input", function () {
+			clearTimeout(debounceTimer);
+			var q = input.value.trim();
+			var cat = select ? select.value : 0;
+			if (q.length < 2) {
+				dropdown.innerHTML = "";
+				dropdown.classList.remove("active");
+				return;
+			}
+			debounceTimer = setTimeout(function () {
+				fetch(base + "liveSearch.php?q=" + encodeURIComponent(q) + "&category=" + encodeURIComponent(cat))
+					.then(function (r) { return r.json(); })
+					.then(function (data) {
+						if (!data.results || !data.results.length) {
+							dropdown.innerHTML = '<div style="padding:12px;text-align:center;color:#64748b;font-size:13px;">No products found matching "' + q.replace(/</g, "&lt;") + '"</div>';
+							dropdown.classList.add("active");
+							return;
+						}
+						dropdown.innerHTML = data.results.map(function (it) {
+							var img = base + (it.image_path || "assets/images/logo/logo-freshco.png");
+							var link = base + "product/product.php?q=" + encodeURIComponent(it.name);
+							var badge = it.in_stock
+								? '<span style="background:#dcfce7;color:#15803d;font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;">In Stock</span>'
+								: '<span style="background:#fee2e2;color:#dc2626;font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;">Out of Stock</span>';
+							return '<a href="' + link + '" class="fc-nav-search-item">' +
+								'<img src="' + img + '" alt="" onerror="this.src=\'' + base + 'assets/images/logo/logo-freshco.png\'">' +
+								'<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + it.name + '</div>' +
+								'<div style="font-size:12px;color:#64748b;">' + it.category_name + ' &middot; ' + it.unit + '</div></div>' +
+								'<div style="text-align:right;"><div style="font-weight:800;color:#16a34a;font-size:13.5px;">' + it.price_formatted + '</div>' + badge + '</div></a>';
+						}).join("");
+						dropdown.classList.add("active");
+					})
+					.catch(function () {});
+			}, 300);
+		});
+		document.addEventListener("click", function (e) {
+			if (!form.contains(e.target)) dropdown.classList.remove("active");
+		});
+	}
 })();
 
 // ---- highlight active quick category ---------------------------------------

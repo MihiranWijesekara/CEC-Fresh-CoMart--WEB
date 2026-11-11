@@ -34,8 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_item_id'])) {
     $total_data = $total_rs->fetch_assoc();
     $subtotal = (float)$total_data['subtotal'];
     $itemCount = (int)$total_data['total_items'];
-    $bagCharge = 10;
-    $grandTotal = $itemCount > 0 ? $subtotal + $bagCharge : 0;
+    $grandTotal = $itemCount > 0 ? $subtotal : 0;
 
     echo json_encode([
       "success" => true,
@@ -43,6 +42,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_item_id'])) {
       "grand_total" => $grandTotal,
       "item_count" => $itemCount
     ]);
+    exit();
+}
+
+// Clear entire cart action
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['clear_cart'])) {
+    header('Content-Type: application/json');
+    $session_user_id = (int)$_SESSION['user_id'];
+    $cart_rs = Database::search("SELECT id FROM carts WHERE user_id='$session_user_id' AND status='Active' ORDER BY id DESC LIMIT 1");
+    if ($cart_rs && $cart_rs->num_rows > 0) {
+        $cid = (int)$cart_rs->fetch_assoc()['id'];
+        Database::iud("DELETE FROM cart_items WHERE cart_id='$cid'");
+    }
+    echo json_encode(["success" => true]);
     exit();
 }
 ?>
@@ -215,7 +227,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_item_id'])) {
     <?php 
         $subTotal = 0;
         $itemCount = 0;
-        $bagCharge = 10;
         $grandTotal = 0;
 
         $user_id = $_SESSION['user_id'];
@@ -229,7 +240,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_item_id'])) {
           $total_data = $total_rs->fetch_assoc();
           $subTotal = (float)$total_data['total_price'];
           $itemCount = (int)$total_data['total_items'];
-          $grandTotal = $itemCount > 0 ? $subTotal + $bagCharge : 0;
+          $grandTotal = $itemCount > 0 ? $subTotal : 0;
         } else {
           $ItemRs = false;
           $grandTotal = 0;
@@ -243,116 +254,147 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_item_id'])) {
         <div class="col-lg-8">
           <div class="cart-container">
             <?php if ($ItemRs && $ItemRs->num_rows > 0) { ?>
-            <h2 class="cart-header">Cart (<?php echo $itemCount; ?>)</h2>
-            <table class="table product-table">
-              <thead>
-                <tr>
-                  <th>Product Name</th>
-                  <th>Price</th>
-                  <th>Qty</th>
-                  <th>Discount</th>
-                  <th>Total</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                <?php
-                $ItemRs->data_seek(0);
-                while ($row = $ItemRs->fetch_assoc()) {
-                  $cartItemId = (int)$row['id'];
-                    $item_id = $row['item_id'];
-                    $item_rs = Database::search("SELECT name, image_path, price, category_id, unit FROM items WHERE id='$item_id'");
-                    $item_data = $item_rs->fetch_assoc();
+            <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+              <h2 class="cart-header mb-0"><i class="bi bi-cart3 text-success me-2"></i>Shopping Cart (<?php echo $itemCount; ?>)</h2>
+              <div class="d-flex gap-2">
+                <a href="product.php" class="btn btn-outline-success btn-sm rounded-pill px-3 fw-semibold">
+                  <i class="bi bi-arrow-left me-1"></i>Continue Shopping
+                </a>
+                <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-semibold" onclick="clearEntireCart()">
+                  <i class="bi bi-trash3 me-1"></i>Clear Cart
+                </button>
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table class="table product-table">
+                <thead>
+                  <tr>
+                    <th>Product Name</th>
+                    <th>Unit Price</th>
+                    <th>Qty</th>
+                    <th>Discount</th>
+                    <th>Total</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <?php
+                  $ItemRs->data_seek(0);
+                  while ($row = $ItemRs->fetch_assoc()) {
+                    $cartItemId = (int)$row['id'];
+                      $item_id = $row['item_id'];
+                      $item_rs = Database::search("SELECT name, image_path, price, category_id, unit, stock_quantity FROM items WHERE id='$item_id'");
+                      $item_data = $item_rs->fetch_assoc();
 
-                    $img = htmlspecialchars($item_data['image_path']);
-                    $name = htmlspecialchars($item_data['name']);
-                    $onePrice = htmlspecialchars($item_data['price']);
-                    $quantity = (float)$row['quantity'];
-                    $unitPrice = (float)$row['price'];
-                    $lineTotalPrice = $quantity * $unitPrice;
-                    
-                    $catId = (int)$item_data['category_id'];
-                    $unit = htmlspecialchars($item_data['unit']);
-                    $isBulk = Database::isBulkItem($catId, $unit);
-                    $metric = Database::getUnitMetric($unit);
-                ?>
-                <tr>
-                  <td class="product-name">
-                    <div class="d-flex align-items-center">
-                      <img
-                        src="../<?php echo $img; ?>"
-                        alt="Product"
-                        class="product-img me-3"
-                      />
-                      <span><?php echo $name; ?></span>
-                    </div>
-                  </td>
-                  <td>Rs. <?php echo $onePrice; ?></td>
-                  <td>
-                    <div class="qty-control">
-                      <button class="qty-btn" onclick="decreaseQty(<?php echo $cartItemId; ?>, <?php echo (int)$item_id; ?>, <?php echo (int)$cart_id; ?>, <?php echo (int)$user_id; ?>)">-</button>
-                      <input
-                        type="text"
-                        class="qty-input"
-                        value="<?php echo Database::formatQuantity($quantity, $unit, $catId); ?>"
-                        id="qtyInput-<?php echo $cartItemId; ?>"
-                        data-unit-price="<?php echo (float)$item_data['price']; ?>"
-                        data-raw-qty="<?php echo $quantity; ?>"
-                        data-is-bulk="<?php echo $isBulk ? 'true' : 'false'; ?>"
-                        data-unit-string="<?php echo $unit; ?>"
-                        data-metric="<?php echo $metric; ?>"
-                        readonly
-                      />
-                      <button class="qty-btn" onclick="increaseQty(<?php echo $cartItemId; ?>, <?php echo (int)$item_id; ?>, <?php echo (int)$cart_id; ?>, <?php echo (int)$user_id; ?>)">+</button>
-                    </div>
-                  </td>
-                  <td class="discount-text">Rs. 0.00</td>
-                  <td id="itemTotal-<?php echo $cartItemId; ?>">Rs. <?php echo number_format((float)$lineTotalPrice, 2); ?></td>
-                  <td>
-                    <button class="remove-btn" onclick="removeItem(<?php echo $cartItemId; ?>)">✕</button>
-                  </td>
-                </tr>
-                <?php } ?>
-              </tbody>
-            </table>
+                      $img = htmlspecialchars($item_data['image_path']);
+                      $name = htmlspecialchars($item_data['name']);
+                      $onePrice = number_format((float)$item_data['price'], 2);
+                      $quantity = (float)$row['quantity'];
+                      $unitPrice = (float)$row['price'];
+                      $lineTotalPrice = $quantity * $unitPrice;
+                      
+                      $catId = (int)$item_data['category_id'];
+                      $unit = htmlspecialchars($item_data['unit']);
+                      $isBulk = Database::isBulkItem($catId, $unit);
+                      $metric = Database::getUnitMetric($unit);
+                  ?>
+                  <tr>
+                    <td class="product-name">
+                      <div class="d-flex align-items-center">
+                        <img
+                          src="../<?php echo $img; ?>"
+                          alt="Product"
+                          class="product-img me-3 rounded"
+                          onerror="this.src='../assets/images/logo/logo-freshco.png'"
+                        />
+                        <div>
+                          <div class="fw-semibold text-dark"><?php echo $name; ?></div>
+                          <small class="text-muted">Per <?php echo $unit; ?></small>
+                        </div>
+                      </div>
+                    </td>
+                    <td>Rs. <?php echo $onePrice; ?></td>
+                    <td>
+                      <div class="qty-control">
+                        <button class="qty-btn" onclick="decreaseQty(<?php echo $cartItemId; ?>, <?php echo (int)$item_id; ?>, <?php echo (int)$cart_id; ?>, <?php echo (int)$user_id; ?>)">-</button>
+                        <input
+                          type="text"
+                          class="qty-input"
+                          value="<?php echo Database::formatQuantity($quantity, $unit, $catId); ?>"
+                          id="qtyInput-<?php echo $cartItemId; ?>"
+                          data-unit-price="<?php echo (float)$item_data['price']; ?>"
+                          data-raw-qty="<?php echo $quantity; ?>"
+                          data-is-bulk="<?php echo $isBulk ? 'true' : 'false'; ?>"
+                          data-unit-string="<?php echo $unit; ?>"
+                          data-metric="<?php echo $metric; ?>"
+                          readonly
+                        />
+                        <button class="qty-btn" onclick="increaseQty(<?php echo $cartItemId; ?>, <?php echo (int)$item_id; ?>, <?php echo (int)$cart_id; ?>, <?php echo (int)$user_id; ?>)">+</button>
+                      </div>
+                    </td>
+                    <td class="discount-text">Rs. 0.00</td>
+                    <td class="fw-bold" id="itemTotal-<?php echo $cartItemId; ?>">Rs. <?php echo number_format((float)$lineTotalPrice, 2); ?></td>
+                    <td>
+                      <button class="remove-btn" title="Remove item" onclick="removeItem(<?php echo $cartItemId; ?>)">✕</button>
+                    </td>
+                  </tr>
+                  <?php } ?>
+                </tbody>
+              </table>
+            </div>
             <?php } else { ?>
-            <h2 class="cart-header">Your cart is empty.</h2>
+            <div class="text-center py-5">
+              <div class="mb-3" style="font-size: 3.5rem; color: #94a3b8;"><i class="bi bi-cart-x"></i></div>
+              <h2 class="cart-header mb-2">Your shopping cart is empty</h2>
+              <p class="text-muted mb-4">Browse our fresh produce, dairy, bakery, and pantry essentials to get started.</p>
+              <a href="product.php" class="btn btn-success rounded-pill px-4 py-2 fw-bold">
+                <i class="bi bi-bag-plus me-1"></i>Start Shopping
+              </a>
+            </div>
             <?php } ?>
           </div>
         </div>
 
         <div class="col-lg-4">
           <div class="cart-container"> 
-            <div class="summary-box"> 
+            <h5 class="fw-bold mb-3">Order Summary</h5>
+            <div class="summary-box mt-0"> 
               <div class="summary-row">  
-                <span>Subtotal</span> 
-                <span id="subtotal">Rs. <?php echo number_format($subTotal, 2); ?></span>       
+                <span>Items Subtotal (<?php echo $itemCount; ?>)</span> 
+                <span class="fw-bold" id="subtotal">Rs. <?php echo number_format($subTotal, 2); ?></span>       
               </div>    
               <div class="summary-row">
-                <span>Delivery Charges</span>
-                <span>Rs. 0.00</span>
-              </div>
-              <div class="summary-row bag-charge">
-                <span
-                  >Polythene Bag Charge
-                  <i class="bi bi-info-circle info-icon"></i
-                ></span>
-                <span>Rs. 10.00</span>
+                <span><i class="bi bi-shop text-warning me-1"></i>In-Store Pickup (Rajagiriya)</span>
+                <span class="text-success fw-bold">FREE</span>
               </div>
               <div class="summary-row">
-                <span>Total Discounts</span>
-                <span>Rs. 0.00</span>
+                <span><i class="bi bi-truck text-primary me-1"></i>Home Delivery (COD)</span>
+                <span class="text-muted">Rs. 450.00</span>
+              </div>
+              <div class="summary-row">
+                <span>Discounts</span>
+                <span class="discount-text">Rs. 0.00</span>
               </div>
             </div>
 
             <div class="total-box">
-              <span>Total</span>
+              <span>Cart Subtotal</span>
               <span id="grandTotal">Rs. <?php echo number_format($grandTotal, 2); ?></span>
+            </div>
+            <div class="small text-muted mt-2 text-center">
+              Choose <strong>Home Delivery (COD)</strong> or <strong>Free Store Pickup</strong> on the next screen.
             </div>
 
             <?php if ($itemCount > 0) { ?>
-            <a href="../proceed.php" style="text-decoration: none">
-              <button class="checkout-btn">Proceed to Checkout</button>
+            <a href="../proceed.php?method=cod" style="text-decoration: none">
+              <button class="checkout-btn" style="background-color:#16a34a;">
+                <i class="bi bi-truck me-1"></i>Checkout – Home Delivery (COD)
+              </button>
+            </a>
+            <a href="../proceed.php?method=pickup" style="text-decoration: none">
+              <button class="checkout-btn mt-2" style="background-color:#d97706;">
+                <i class="bi bi-shop me-1"></i>Checkout – Free Store Pickup
+              </button>
             </a>
             <?php } else { ?>
               <button class="checkout-btn" disabled style="background-color: #ccc; cursor: not-allowed;">Proceed to Checkout</button>
@@ -366,7 +408,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_item_id'])) {
     <!-- Mobile sticky checkout bar -->
     <div class="fc-sticky-checkout">
       <div style="flex:1">
-        <div style="font-size:.72rem;color:#64748b;font-weight:600;text-transform:uppercase">Total</div>
+        <div style="font-size:.72rem;color:#64748b;font-weight:600;text-transform:uppercase">Subtotal</div>
         <div id="fcStickyTotal" style="font-weight:800;color:#0f172a">Rs. <?php echo number_format($grandTotal, 2); ?></div>
       </div>
       <a class="fc-btn fc-btn-primary" href="../proceed.php">Checkout <i class="fa-solid fa-arrow-right"></i></a>
@@ -384,8 +426,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_item_id'])) {
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-      const bagCharge = 10;
-
       function formatMoney(value) {
         return Number(value).toFixed(2);
       }
@@ -466,13 +506,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_item_id'])) {
         
         const nextQty = rawQty - step;
         if (nextQty <= 0.001) {
+            removeItem(cartItemId);
             return;
         }
         sendQtyUpdate(cartItemId, itemId, cartId, userId, nextQty);
       }
 
       function removeItem(cartItemId) {
-        if (!confirm("Are you sure you want to remove Item ID " + cartItemId + "?")) {
+        if (!confirm("Remove this item from your shopping cart?")) {
           return;
         }
         const f = new FormData();
@@ -491,6 +532,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_item_id'])) {
             } catch (e) {
               console.log(r.responseText);
             }
+          }
+        };
+        r.open("POST", "shopping-cart.php", true);
+        r.send(f);
+      }
+
+      function clearEntireCart() {
+        if (!confirm("Are you sure you want to remove all items from your cart?")) {
+          return;
+        }
+        const f = new FormData();
+        f.append("clear_cart", "1");
+        var r = new XMLHttpRequest();
+        r.onreadystatechange = function () {
+          if (r.readyState == 4 && r.status == 200) {
+            location.reload();
           }
         };
         r.open("POST", "shopping-cart.php", true);

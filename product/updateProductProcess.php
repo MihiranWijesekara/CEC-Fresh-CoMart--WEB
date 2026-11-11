@@ -72,8 +72,7 @@ $totalRs = Database::search("SELECT COALESCE(SUM(quantity * price), 0) AS subtot
 $totalData = $totalRs->fetch_assoc();
 $subtotal = (float)$totalData['subtotal'];
 $itemCount = (int)$totalData['item_count'];
-$bagCharge = 10;
-$grandTotal = $itemCount > 0 ? $subtotal + $bagCharge : 0;
+$grandTotal = $itemCount > 0 ? $subtotal : 0;
 
 $formatted_quantity = Database::formatQuantity($quantity, $unit, $cat_id);
 
