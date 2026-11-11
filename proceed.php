@@ -100,53 +100,56 @@ if (!$cart_has_items) {
         <!-- Left: purchase method -->
         <div class="col-lg-7">
           <div class="fc-segment" role="tablist" aria-label="Purchase method">
-            <button type="button" class="active" data-method="delivery" role="tab" aria-selected="true">
+            <button type="button" class="active" data-method="cod" role="tab" aria-selected="true">
               <i class="fa-solid fa-truck-fast"></i>
-              <span>Home Delivery<small>Cash on Delivery</small></span>
+              <span>Cash on Delivery (Home Delivery)<small>Pay cash when delivered to doorstep</small></span>
             </button>
             <button type="button" data-method="pickup" role="tab" aria-selected="false">
               <i class="fa-solid fa-store"></i>
-              <span>Store Pickup<small>Pay / Collect in Store</small></span>
+              <span>In-Store Purchase / Store Pickup<small>Collect from Supermarket</small></span>
             </button>
           </div>
 
           <form id="checkoutForm" action="place.html" onsubmit="return false;">
+            <!-- Customer Contact Details (Shared across COD & Pickup) -->
+            <div class="fc-card fc-section">
+              <h2><i class="fa-solid fa-user text-success"></i> Customer Details</h2>
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label for="customerName">Full Name *</label>
+                  <input type="text" class="form-control" id="customerName" value="<?php echo htmlspecialchars(trim(($user_data['first_name'] ?? '') . ' ' . ($user_data['last_name'] ?? ''))); ?>" required />
+                </div>
+                <div class="col-md-6">
+                  <label for="customerPhone">Phone Number *</label>
+                  <input type="tel" class="form-control" id="customerPhone" value="<?php echo htmlspecialchars($user_data['phone_number'] ?? ''); ?>" required />
+                </div>
+              </div>
+            </div>
+
             <!-- TAB A: Home delivery -->
             <div class="fc-panel active" id="panel-delivery" role="tabpanel">
               <div class="fc-card fc-section">
-                <h2><i class="fa-solid fa-location-dot text-success"></i> Delivery details</h2>
+                <h2><i class="fa-solid fa-location-dot text-success"></i> Delivery Address</h2>
                 <div class="row g-3">
-                  <div class="col-md-6">
-                    <label>First Name</label>
-                    <input type="text" class="form-control" value="<?php echo htmlspecialchars($user_data['first_name']); ?>" readonly required />
-                  </div>
-                  <div class="col-md-6">
-                    <label>Last Name</label>
-                    <input type="text" class="form-control" value="<?php echo htmlspecialchars($user_data['last_name']); ?>" readonly required />
-                  </div>
                   <div class="col-12">
-                    <label for="streetAddress1">Street Address</label>
+                    <label for="streetAddress1">Street Address *</label>
                     <input type="text" class="form-control" id="streetAddress1" placeholder="House number and street name" value="<?php echo htmlspecialchars($user_data['street_address1'] ?? ''); ?>" required />
                   </div>
                   <div class="col-12">
-                    <label for="streetAddress2">Apartment, suite, unit (optional)</label>
+                    <label for="streetAddress2">Apartment, suite, unit etc. (optional)</label>
                     <input type="text" class="form-control" id="streetAddress2" placeholder="Apartment, suite, unit etc. (optional)" value="<?php echo htmlspecialchars($user_data['street_address2'] ?? ''); ?>" />
                   </div>
                   <div class="col-md-6">
-                    <label for="town">Town</label>
+                    <label for="town">Town / City *</label>
                     <input type="text" class="form-control" id="town" value="<?php echo htmlspecialchars($user_data['town'] ?? ''); ?>" required />
                   </div>
                   <div class="col-md-6">
-                    <label>Phone number</label>
-                    <input type="tel" class="form-control" value="<?php echo htmlspecialchars($user_data['phone_number']); ?>" readonly required />
-                  </div>
-                  <div class="col-12">
                     <label>Email</label>
-                    <input type="email" class="form-control" value="<?php echo htmlspecialchars($user_data['email']); ?>" readonly required />
+                    <input type="email" class="form-control" value="<?php echo htmlspecialchars($user_data['email']); ?>" readonly />
                   </div>
                   <div class="col-12">
-                    <label for="deliveryInstructions">Delivery instructions (optional)</label>
-                    <textarea class="form-control" id="deliveryInstructions" rows="3" maxlength="500" placeholder="Gate code, landmarks, preferred time…"></textarea>
+                    <label for="deliveryNotes">Delivery notes (optional)</label>
+                    <textarea class="form-control" id="deliveryNotes" rows="3" maxlength="500" placeholder="Gate code, landmarks, preferred time…"></textarea>
                   </div>
                 </div>
                 <div class="mt-3 d-flex align-items-center gap-2 flex-wrap">
@@ -159,30 +162,30 @@ if (!$cart_has_items) {
             <!-- TAB B: Store pickup -->
             <div class="fc-panel" id="panel-pickup" role="tabpanel">
               <div class="fc-card fc-section">
-                <h2><i class="fa-solid fa-store" style="color:#d97706"></i> Pickup location</h2>
+                <h2><i class="fa-solid fa-store" style="color:#d97706"></i> Supermarket Pickup Location</h2>
                 <div class="fc-store-card">
                   <i class="fa-solid fa-location-dot"></i>
                   <div>
                     <strong>Freshcomart – <?php echo htmlspecialchars($store['label']); ?></strong>
                     <span><?php echo htmlspecialchars($store['address']); ?></span>
-                    <span><i class="fa-regular fa-clock me-1"></i><?php echo htmlspecialchars($store['hours']); ?> &middot; <i class="fa-solid fa-phone me-1"></i><?php echo htmlspecialchars($store['phone']); ?></span>
+                    <span><i class="fa-regular fa-clock me-1"></i>Opening Hours: 8:00 AM – 9:00 PM &middot; <i class="fa-solid fa-phone me-1"></i><?php echo htmlspecialchars($store['phone']); ?></span>
                   </div>
                 </div>
 
                 <div class="mb-3">
-                  <label for="pickupDate">Pickup date</label>
-                  <select class="form-select" id="pickupDate">
+                  <label for="pickupDate">Pickup date *</label>
+                  <select class="form-select" id="pickupDate" required>
                     <?php foreach ($pickup_dates as $val => $label): ?>
                       <option value="<?php echo $val; ?>"><?php echo htmlspecialchars($label); ?></option>
                     <?php endforeach; ?>
                   </select>
                 </div>
 
-                <label class="d-block mb-2">Pickup time slot</label>
+                <label class="d-block mb-2">Pickup time slot *</label>
                 <div class="fc-slots" id="pickupSlots">
                   <?php foreach ($store['pickup_slots'] as $i => $slot): ?>
                     <label class="fc-slot">
-                      <input type="radio" name="pickupSlot" value="<?php echo htmlspecialchars($slot); ?>" <?php echo $i === 0 ? 'checked' : ''; ?> />
+                      <input type="radio" name="pickupSlot" value="<?php echo htmlspecialchars($slot); ?>" <?php echo $i === 0 ? 'checked' : ''; ?> required />
                       <span><?php echo htmlspecialchars($slot); ?></span>
                     </label>
                   <?php endforeach; ?>
@@ -194,25 +197,25 @@ if (!$cart_has_items) {
                 </div>
 
                 <div class="mt-3 d-flex align-items-center gap-2 flex-wrap">
-                  <span class="fc-fee-chip free"><i class="fa-solid fa-tag"></i> Delivery fee: Rs. 0.00 / Free</span>
-                  <small class="text-muted">You'll get a pickup code after placing the order.</small>
+                  <span class="fc-fee-chip free"><i class="fa-solid fa-tag"></i> Delivery fee: Rs. 0.00 (Free Store Pickup)</span>
+                  <small class="text-muted">You will receive a unique pickup code on the confirmation screen.</small>
                 </div>
               </div>
             </div>
 
             <!-- Payment tiles -->
             <div class="fc-card fc-section">
-              <h2><i class="fa-regular fa-credit-card text-success"></i> Payment method</h2>
+              <h2><i class="fa-regular fa-credit-card text-success"></i> Payment Method</h2>
               <div class="fc-pay-tiles" role="radiogroup" aria-label="Payment method">
-                <label class="fc-pay-tile">
+                <label class="fc-pay-tile" id="tile-cod">
                   <input type="radio" name="payment" value="cod" checked />
                   <span class="tile">
                     <span class="ico"><i class="fa-solid fa-money-bill-wave"></i></span>
-                    <span><strong>Cash on Delivery</strong><small>Pay the rider when it arrives</small></span>
+                    <span><strong>Cash on Delivery (COD)</strong><small>Pay cash to the rider at delivery</small></span>
                     <span class="tick"><i class="fa-solid fa-check"></i></span>
                   </span>
                 </label>
-                <label class="fc-pay-tile">
+                <label class="fc-pay-tile" id="tile-store">
                   <input type="radio" name="payment" value="store" />
                   <span class="tile">
                     <span class="ico"><i class="fa-solid fa-cash-register"></i></span>
@@ -289,7 +292,7 @@ if (!$cart_has_items) {
       ?>;
 
       // Purchase-method state read by placeOrder() in script.js
-      window.orderMethod = 'delivery';
+      window.orderMethod = 'cod';
       window.storeInfo = <?php echo json_encode(['address' => $store['address'], 'town' => $store['town']]); ?>;
       var BASE_FEE = <?php echo json_encode($delivery_charge); ?>;
       var SUBTOTAL = <?php echo json_encode($subtotal); ?>;
@@ -297,25 +300,29 @@ if (!$cart_has_items) {
       function money(n) { return 'Rs. ' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
       function setMethod(method) {
-        window.orderMethod = method;
-        var isPickup = method === 'pickup';
+        window.orderMethod = (method === 'pickup') ? 'pickup' : 'cod';
+        var isPickup = (window.orderMethod === 'pickup');
         document.querySelectorAll('.fc-segment button').forEach(function (b) {
-          var on = b.dataset.method === method;
+          var on = b.dataset.method === window.orderMethod;
           b.classList.toggle('active', on);
           b.setAttribute('aria-selected', on ? 'true' : 'false');
         });
         document.getElementById('panel-delivery').classList.toggle('active', !isPickup);
         document.getElementById('panel-pickup').classList.toggle('active', isPickup);
 
-        // payment tile follows the tab
+        // Required attribute toggling
+        document.getElementById('streetAddress1').required = !isPickup;
+        document.getElementById('town').required = !isPickup;
+
+        // Payment tile follows the tab
         var pay = document.querySelector('input[name="payment"][value="' + (isPickup ? 'store' : 'cod') + '"]');
         if (pay) pay.checked = true;
 
-        // fee + totals
+        // Fee + totals
         window.deliveryFee = isPickup ? 0 : BASE_FEE;
         window.totalAmount = SUBTOTAL + window.deliveryFee;
-        document.getElementById('sumFee').innerHTML = isPickup ? '<span class="fc-free-badge">Rs. 0.00 / Free</span>' : money(BASE_FEE);
-        document.getElementById('sumFeeLabel').textContent = isPickup ? 'Delivery fee (pickup)' : 'Delivery fee';
+        document.getElementById('sumFee').innerHTML = isPickup ? '<span class="fc-free-badge">Rs. 0.00 (Free Store Pickup)</span>' : money(BASE_FEE);
+        document.getElementById('sumFeeLabel').textContent = isPickup ? 'Delivery fee (Pickup)' : 'Delivery fee';
         document.getElementById('sumTotal').textContent = money(window.totalAmount);
       }
 
@@ -324,7 +331,7 @@ if (!$cart_has_items) {
       });
       // clicking a payment tile switches the tab as well
       document.querySelectorAll('input[name="payment"]').forEach(function (r) {
-        r.addEventListener('change', function () { setMethod(r.value === 'store' ? 'pickup' : 'delivery'); });
+        r.addEventListener('change', function () { setMethod(r.value === 'store' ? 'pickup' : 'cod'); });
       });
     </script>
   </body>

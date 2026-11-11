@@ -10,7 +10,7 @@ return [
     'address'       => 'Freshcomart Main Branch, Sri Jayawardenepura Mawatha, Rajagiriya',
     'town'          => 'Rajagiriya',
     'phone'         => '+94 11 288 0000',
-    'hours'         => 'Open daily 8:00 AM - 8:00 PM',
+    'hours'         => 'Open daily 8:00 AM - 9:00 PM',
     'delivery_fee'  => 450.00, // same value the checkout used before
     'pickup_slots'  => [
         '09:00 AM - 11:00 AM',
@@ -18,7 +18,8 @@ return [
         '01:00 PM - 03:00 PM',
         '03:00 PM - 05:00 PM',
         '05:00 PM - 07:00 PM',
+        '07:00 PM - 09:00 PM',
     ],
-    'pickup_days'   => 3, // today + next 2 days
+    'pickup_days'   => 7, // today + up to 7 days ahead
 ];
 

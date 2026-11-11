@@ -1,5 +1,6 @@
 <?php
 
+if (!class_exists('Database')) {
     class Database{
 
         public static $connection;
@@ -114,4 +115,5 @@
             return $resultset;
         }
     }
+}
 ?>

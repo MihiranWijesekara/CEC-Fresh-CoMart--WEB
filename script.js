@@ -84,8 +84,20 @@ function confirmAddToCart() {
 
 
 function placeOrder() {
-  // Purchase method (set by proceed.php): 'delivery' (default) or 'pickup'
-  var isPickup = window.orderMethod === 'pickup';
+  // Purchase method (set by proceed.php): 'cod' (default) or 'pickup'
+  var isPickup = (window.orderMethod === 'pickup');
+
+  var customerName = (document.getElementById("customerName") ? document.getElementById("customerName").value : "").trim();
+  var customerPhone = (document.getElementById("customerPhone") ? document.getElementById("customerPhone").value : "").trim();
+
+  if (!customerName) {
+    alert("Please enter your full name.");
+    return;
+  }
+  if (!customerPhone) {
+    alert("Please enter your phone number.");
+    return;
+  }
 
   var streetAddress1 = document.getElementById("streetAddress1").value;
   var streetAddress2 = document.getElementById("streetAddress2").value;
@@ -93,12 +105,16 @@ function placeOrder() {
 
   var pickupDateEl = document.getElementById("pickupDate");
   var pickupSlotEl = document.querySelector('input[name="pickupSlot"]:checked');
-  var instructionsEl = document.getElementById(isPickup ? "pickupNotes" : "deliveryInstructions");
+  var deliveryNotesEl = document.getElementById("deliveryNotes");
+  var pickupNotesEl = document.getElementById("pickupNotes");
 
   if (isPickup) {
-    // Pickup orders carry the store address instead of the customer's address
     if (!pickupSlotEl) {
       alert("Please choose a pickup time slot.");
+      return;
+    }
+    if (!pickupDateEl || !pickupDateEl.value) {
+      alert("Please select a pickup date.");
       return;
     }
     if (window.storeInfo) {
@@ -112,7 +128,7 @@ function placeOrder() {
       return;
     }
     if (!town.trim()) {
-      alert("Please enter your town.");
+      alert("Please enter your town/city.");
       return;
     }
   }
@@ -124,21 +140,27 @@ function placeOrder() {
   var csrfToken = window.csrfToken || '';
 
   var f = new FormData();
+  f.append('customer_name', customerName);
+  f.append('customer_phone', customerPhone);
   f.append('streetAddress1', streetAddress1);
   f.append('streetAddress2', streetAddress2);
   f.append('town', town);
   f.append("user_id", user_id);
   f.append("total_amount", total_amount);
   f.append("delivery_fee", delivery_fee);
-  f.append("csrf_token", csrfToken);   // CSRF protection
+  f.append("csrf_token", csrfToken);
 
-  // Purchase-method fields (validated again server-side in proceedProcess.php)
-  f.append("order_method", isPickup ? "pickup" : "delivery");
+  // Purchase method & notes
+  f.append("purchase_method", isPickup ? "pickup" : "cod");
+  f.append("order_method", isPickup ? "pickup" : "cod");
   var payEl = document.querySelector('input[name="payment"]:checked');
   f.append("payment_method", payEl ? payEl.value : (isPickup ? "store" : "cod"));
-  f.append("instructions", instructionsEl ? instructionsEl.value : "");
+  f.append("delivery_notes", (isPickup ? (pickupNotesEl ? pickupNotesEl.value : "") : (deliveryNotesEl ? deliveryNotesEl.value : "")));
+  f.append("instructions", (isPickup ? (pickupNotesEl ? pickupNotesEl.value : "") : (deliveryNotesEl ? deliveryNotesEl.value : "")));
+
   if (isPickup) {
     f.append("pickup_date", pickupDateEl ? pickupDateEl.value : "");
+    f.append("pickup_time_slot", pickupSlotEl ? pickupSlotEl.value : "");
     f.append("pickup_slot", pickupSlotEl ? pickupSlotEl.value : "");
   }
 
@@ -162,12 +184,17 @@ function placeOrder() {
       var msgDiv = document.getElementById("msgdiv");
       msgDiv.style.display = "block";
 
-      if (t == "success") {
+      if (t == "success" || t.indexOf("success:") === 0) {
         msgDiv.className = "alert alert-success";
         msgDiv.innerHTML = '<i class="bi bi-check-circle pe-3"></i>Order placed successfully! Redirecting…';
+        var redirectUrl = "order-confirmation.php";
+        if (t.indexOf("success:") === 0) {
+          var oid = t.split(":")[1];
+          redirectUrl = "order-confirmation.php?order_id=" + encodeURIComponent(oid);
+        }
         setTimeout(function () {
-          window.location.href = "order-confirmation.php";  // → dedicated confirmation page
-        }, 1500);
+          window.location.href = redirectUrl;
+        }, 1200);
       } else {
         if (placeBtn) { placeBtn.disabled = false; placeBtn.textContent = 'Place Order'; }
         msgDiv.className = "alert alert-danger";

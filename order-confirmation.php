@@ -1,5 +1,7 @@
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 require_once 'connection.php';
 $store = require 'storeConfig.php';
 
@@ -9,15 +11,14 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-// Must have a confirmed order_number in session
-if (!isset($_SESSION['last_order_number']) || !isset($_SESSION['last_order_id'])) {
+// Allow loading via GET parameter order_id or fallback to session
+$order_id = isset($_GET['order_id']) ? (int)$_GET['order_id'] : (isset($_SESSION['last_order_id']) ? (int)$_SESSION['last_order_id'] : 0);
+$user_id  = (int)$_SESSION['user_id'];
+
+if ($order_id <= 0) {
     header("Location: product/product.php");
     exit();
 }
-
-$order_number = $_SESSION['last_order_number'];
-$order_id     = (int)$_SESSION['last_order_id'];
-$user_id      = (int)$_SESSION['user_id'];
 
 // Load order details
 $order_rs = Database::search("SELECT * FROM orders WHERE id='$order_id' AND user_id='$user_id' LIMIT 1");
@@ -26,6 +27,7 @@ if (!$order_rs || $order_rs->num_rows === 0) {
     exit();
 }
 $order = $order_rs->fetch_assoc();
+$order_number = $order['order_number'];
 
 // Load order items
 $items_rs = Database::search(
@@ -35,7 +37,7 @@ $items_rs = Database::search(
      WHERE oi.order_id = '$order_id'"
 );
 
-// Clear session order data so user can't refresh back here
+// Clear session order data if set
 unset($_SESSION['last_order_number'], $_SESSION['last_order_id']);
 
 // ---- presentation helpers -------------------------------------------------
