@@ -63,12 +63,22 @@ if ($orders_rs && $orders_rs->num_rows > 0) {
 
 $count_all = count($orders);
 $count_pickup = 0;
+$count_pending = 0;
+$count_processing = 0;
+$count_ready = 0;
 foreach ($orders as $o) {
     if ($o['order_method'] === 'pickup') {
         $count_pickup++;
     }
+    $st = $o['order_status'] ?: 'pending';
+    if ($st === 'pending') $count_pending++;
+    elseif ($st === 'processing') $count_processing++;
+    elseif (in_array($st, ['ready', 'ready_for_pickup', 'shipped'], true)) $count_ready++;
 }
 $count_cod = $count_all - $count_pickup;
+
+$initialFilter = isset($_GET['filter']) && in_array($_GET['filter'], ['all', 'cod', 'pickup'], true) ? $_GET['filter'] : 'all';
+$initialSearch = isset($_GET['search']) ? trim($_GET['search']) : '';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -166,18 +176,35 @@ $count_cod = $count_all - $count_pickup;
         </div>
       </div>
 
-      <!-- Controls: Method filter tabs + Live Search Bar -->
-      <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4 pb-2 border-bottom">
+      <!-- Controls: Method filter tabs + Stage filter pills + Live Search Bar -->
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3 pb-2 border-bottom">
         <div class="fc-tabs mb-0" id="orderTabs" role="tablist">
-          <button type="button" class="active" data-filter="all">All Orders <span class="n"><?php echo $count_all; ?></span></button>
-          <button type="button" data-filter="cod"><i class="bi bi-truck me-1"></i>Cash on Delivery <span class="n"><?php echo $count_cod; ?></span></button>
-          <button type="button" data-filter="pickup"><i class="bi bi-shop me-1"></i>Store Pickup <span class="n"><?php echo $count_pickup; ?></span></button>
+          <button type="button" class="<?php echo $initialFilter === 'all' ? 'active' : ''; ?>" data-filter="all">All Orders <span class="n" id="cnt-all"><?php echo $count_all; ?></span></button>
+          <button type="button" class="<?php echo $initialFilter === 'cod' ? 'active' : ''; ?>" data-filter="cod"><i class="bi bi-truck me-1"></i>Cash on Delivery <span class="n" id="cnt-cod"><?php echo $count_cod; ?></span></button>
+          <button type="button" class="<?php echo $initialFilter === 'pickup' ? 'active' : ''; ?>" data-filter="pickup"><i class="bi bi-shop me-1"></i>Store Pickup <span class="n" id="cnt-pickup"><?php echo $count_pickup; ?></span></button>
         </div>
 
         <div class="search-box flex-grow-1">
           <i class="bi bi-search"></i>
-          <input type="text" id="orderSearch" class="form-control form-control-sm py-2" placeholder="Search by Order #, Pickup Code (PK-...), Name, or Phone..." onkeyup="applyFilter()">
+          <input type="text" id="orderSearch" class="form-control form-control-sm py-2" value="<?php echo htmlspecialchars($initialSearch); ?>" placeholder="Search by Order #, Pickup Code (PK-...), Name, or Phone..." onkeyup="applyFilter()">
         </div>
+      </div>
+
+      <!-- Fulfillment Stage Filter Pills -->
+      <div class="d-flex align-items-center flex-wrap gap-2 mb-4">
+        <span class="small text-muted fw-semibold me-1"><i class="bi bi-funnel me-1"></i>Stage:</span>
+        <button type="button" class="btn btn-sm rounded-pill px-3 stage-pill active btn-dark" data-stage="all">
+          All Stages (<span id="cnt-stage-all"><?php echo $count_all; ?></span>)
+        </button>
+        <button type="button" class="btn btn-sm rounded-pill px-3 stage-pill btn-outline-secondary" data-stage="pending">
+          1. New / Pending (<span id="cnt-stage-pending"><?php echo $count_pending; ?></span>)
+        </button>
+        <button type="button" class="btn btn-sm rounded-pill px-3 stage-pill btn-outline-secondary" data-stage="processing">
+          2. Packing / Processing (<span id="cnt-stage-processing"><?php echo $count_processing; ?></span>)
+        </button>
+        <button type="button" class="btn btn-sm rounded-pill px-3 stage-pill btn-outline-secondary" data-stage="ready">
+          3. Ready / Out for Delivery (<span id="cnt-stage-ready"><?php echo $count_ready; ?></span>)
+        </button>
       </div>
 
       <div class="fc-table-wrap">
@@ -275,15 +302,20 @@ $count_cod = $count_all - $count_pickup;
                       <td colspan="11">
                         <div id="order-items-<?php echo $order_id; ?>" class="collapse" style="background-color: #f8fafc;">
                           <div class="p-4 border-bottom">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
                               <h5 class="fw-bold text-secondary mb-0" style="font-size: 0.95rem; letter-spacing: 0.5px;">
                                 <i class="bi bi-cart3 me-2"></i>Order Items Details &amp; Fulfillment Breakdown
                               </h5>
-                              <?php if ($method === 'pickup') { ?>
-                                <span class="badge bg-warning text-dark"><i class="bi bi-shop me-1"></i>Collect Counter: Main Branch Rajagiriya</span>
-                              <?php } else { ?>
-                                <span class="badge bg-primary text-white"><i class="bi bi-truck me-1"></i>Home Delivery via Courier</span>
-                              <?php } ?>
+                              <div class="d-flex align-items-center gap-2">
+                                <?php if ($method === 'pickup') { ?>
+                                  <span class="badge bg-warning text-dark"><i class="bi bi-shop me-1"></i>Collect Counter: Main Branch Rajagiriya</span>
+                                <?php } else { ?>
+                                  <span class="badge bg-primary text-white"><i class="bi bi-truck me-1"></i>Home Delivery via Courier</span>
+                                <?php } ?>
+                                <button type="button" class="btn btn-sm btn-outline-dark rounded-pill px-3 py-1 fw-semibold" onclick="printPackingSlip(<?php echo $order_id; ?>)">
+                                  <i class="bi bi-printer me-1"></i>Print Packing Slip
+                                </button>
+                              </div>
                             </div>
 
                             <?php if (!empty($order['instructions'])) { ?>
@@ -371,22 +403,50 @@ $count_cod = $count_all - $count_pickup;
             return null;
         }
 
-        // ---- quick filter tabs + search box filtering ----
-        let currentFilter = 'all';
+        // ---- quick filter tabs + stage pills + search box filtering ----
+        let currentFilter = <?php echo json_encode($initialFilter); ?>;
+        let currentStage = 'all';
+
+        function recountTabs() {
+            let all = 0, cod = 0, pickup = 0, stPending = 0, stProcessing = 0, stReady = 0;
+            document.querySelectorAll('#ordersTable tr.fc-row').forEach(function (row) {
+                all++;
+                if (row.dataset.method === 'pickup') pickup++;
+                else cod++;
+                const st = row.dataset.status || 'pending';
+                if (st === 'pending') stPending++;
+                else if (st === 'processing') stProcessing++;
+                else if (st === 'ready' || st === 'ready_for_pickup' || st === 'shipped') stReady++;
+            });
+            const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+            setTxt('cnt-all', all);
+            setTxt('cnt-cod', cod);
+            setTxt('cnt-pickup', pickup);
+            setTxt('cnt-stage-all', all);
+            setTxt('cnt-stage-pending', stPending);
+            setTxt('cnt-stage-processing', stProcessing);
+            setTxt('cnt-stage-ready', stReady);
+        }
 
         function applyFilter() {
             const q = (document.getElementById('orderSearch').value || '').toLowerCase().trim();
             let visible = 0;
             document.querySelectorAll('#ordersTable tr.fc-row').forEach(function (row) {
                 const method = row.dataset.method;
+                const status = row.dataset.status || 'pending';
                 const matchMethod = (currentFilter === 'all') ||
                                     (currentFilter === 'pickup' && method === 'pickup') ||
                                     ((currentFilter === 'cod' || currentFilter === 'delivery') && (method === 'cod' || method === 'delivery'));
                 
+                let matchStage = true;
+                if (currentStage === 'pending') matchStage = (status === 'pending');
+                else if (currentStage === 'processing') matchStage = (status === 'processing');
+                else if (currentStage === 'ready') matchStage = (status === 'ready' || status === 'ready_for_pickup' || status === 'shipped');
+
                 const searchCorpus = (row.dataset.search || '').toLowerCase();
                 const matchSearch = !q || searchCorpus.indexOf(q) !== -1;
                 
-                const show = matchMethod && matchSearch;
+                const show = matchMethod && matchStage && matchSearch;
                 row.style.display = show ? '' : 'none';
                 
                 const detail = row.nextElementSibling;
@@ -394,8 +454,7 @@ $count_cod = $count_all - $count_pickup;
                     if (!show) {
                         detail.style.display = 'none';
                     } else {
-                        const collapseDiv = detail.querySelector('.collapse');
-                        detail.style.display = (collapseDiv && collapseDiv.classList.contains('show')) ? '' : '';
+                        detail.style.display = '';
                     }
                 }
                 if (show) visible++;
@@ -408,6 +467,19 @@ $count_cod = $count_all - $count_pickup;
                 document.querySelectorAll('#orderTabs button').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 currentFilter = btn.dataset.filter;
+                applyFilter();
+            });
+        });
+
+        document.querySelectorAll('.stage-pill').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                document.querySelectorAll('.stage-pill').forEach(b => {
+                    b.classList.remove('active', 'btn-dark');
+                    b.classList.add('btn-outline-secondary');
+                });
+                btn.classList.remove('btn-outline-secondary');
+                btn.classList.add('active', 'btn-dark');
+                currentStage = btn.dataset.stage;
                 applyFilter();
             });
         });
@@ -469,13 +541,15 @@ $count_cod = $count_all - $count_pickup;
                     document.querySelectorAll(".order-row-" + orderId).forEach(r => {
                         r.style.transition = "opacity 0.3s ease";
                         r.style.opacity = 0;
-                        setTimeout(() => { r.remove(); applyFilter(); }, 300);
+                        setTimeout(() => { r.remove(); recountTabs(); applyFilter(); }, 300);
                     });
                 } else {
                     row.dataset.status = nextStatus;
                     row.querySelector('.status-cell').innerHTML =
                         `<span class="fc-badge st-${nextStatus === 'shipped' && method === 'pickup' ? 'ready' : nextStatus}">${labelFor(nextStatus, method)}</span>`;
                     renderActions(row, orderId);
+                    recountTabs();
+                    applyFilter();
                 }
             });
         }
@@ -503,10 +577,66 @@ $count_cod = $count_all - $count_pickup;
                 document.querySelectorAll(".order-row-" + orderId).forEach(r => {
                     r.style.transition = "opacity 0.3s ease";
                     r.style.opacity = 0;
-                    setTimeout(() => { r.remove(); applyFilter(); }, 300);
+                    setTimeout(() => { r.remove(); recountTabs(); applyFilter(); }, 300);
                 });
                 alert("Order #" + orderId + " has been cancelled. Item stock has been restored to inventory.");
             });
+        }
+
+        function printPackingSlip(orderId) {
+            const row = document.querySelector("tr.fc-row.order-row-" + orderId);
+            const detailsDiv = document.getElementById("order-items-" + orderId);
+            if (!row || !detailsDiv) return;
+            const orderNo = row.cells[1] ? row.cells[1].textContent.trim() : ('#' + orderId);
+            const customer = row.cells[2] ? row.cells[2].textContent.trim() : '';
+            const method = row.dataset.method === 'pickup' ? 'IN-STORE PICKUP (Rajagiriya)' : 'HOME DELIVERY (Cash on Delivery)';
+            const fulfillmentHtml = row.cells[4] ? row.cells[4].innerHTML : '';
+            const phone = row.cells[5] ? row.cells[5].textContent.trim() : '';
+            const payment = row.cells[7] ? row.cells[7].textContent.trim() : '';
+            const dateStr = row.cells[8] ? row.cells[8].textContent.trim() : '';
+            const itemsTable = detailsDiv.querySelector('table') ? detailsDiv.querySelector('table').outerHTML : '';
+
+            const win = window.open('', '_blank', 'width=820,height=700');
+            if (!win) { alert('Please allow pop-ups to print the packing slip.'); return; }
+            win.document.write(`<!DOCTYPE html><html><head><title>Packing Slip ${orderNo}</title>
+                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+                <style>body{font-family:Inter,sans-serif;padding:28px;color:#0f172a} .hdr{border-bottom:2px solid #16a34a;padding-bottom:14px;margin-bottom:18px}</style>
+                </head><body>
+                <div class="hdr d-flex justify-content-between align-items-start">
+                    <div>
+                        <h3 class="fw-bold mb-1" style="color:#15803d;">FRESHCOMART SUPERMARKET</h3>
+                        <div class="small text-muted">No. 142, Parliament Road, Rajagiriya &middot; Hotline: +94 11 234 5678</div>
+                    </div>
+                    <div class="text-end">
+                        <h4 class="fw-bold mb-0">ORDER ${orderNo}</h4>
+                        <div class="small text-muted">Placed: ${dateStr}</div>
+                        <span class="badge bg-dark mt-1">${method}</span>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <div class="p-3 border rounded">
+                            <div class="small text-muted text-uppercase fw-bold">Customer &amp; Contact</div>
+                            <div class="fw-bold fs-6 mt-1">${customer}</div>
+                            <div>Phone: <strong>${phone}</strong></div>
+                            <div>Payment Status: <strong>${payment}</strong></div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-3 border rounded">
+                            <div class="small text-muted text-uppercase fw-bold">Fulfillment Details</div>
+                            <div class="mt-1">${fulfillmentHtml}</div>
+                        </div>
+                    </div>
+                </div>
+                ${itemsTable}
+                <div class="row mt-5 pt-4 border-top small text-muted">
+                    <div class="col-6">Packed &amp; Checked By: ___________________________</div>
+                    <div class="col-6 text-end">Customer / Rider Signature: ___________________________</div>
+                </div>
+                <script>window.onload = function(){ window.print(); };<\/script>
+                </body></html>`);
+            win.document.close();
         }
     </script>
 </body>

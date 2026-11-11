@@ -170,7 +170,7 @@ foreach ($orders as $o) {
 
         <div class="search-box flex-grow-1">
           <i class="bi bi-search"></i>
-          <input type="text" id="archiveSearch" class="form-control form-control-sm py-2" placeholder="Search by Order #, Pickup Code, Name, or Phone..." onkeyup="applyFilter()">
+          <input type="text" id="archiveSearch" class="form-control form-control-sm py-2" value="<?php echo isset($_GET['search']) ? htmlspecialchars(trim($_GET['search'])) : ''; ?>" placeholder="Search by Order #, Pickup Code, Name, or Phone..." onkeyup="applyFilter()">
         </div>
       </div>
       

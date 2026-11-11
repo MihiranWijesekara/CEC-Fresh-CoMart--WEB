@@ -21,11 +21,27 @@ if ($catRes && $catRes->num_rows > 0) {
     ];
 }
 
-// 2. Sales by Category
+$period = isset($_GET['period']) && in_array($_GET['period'], ['today', '7d', 'month', 'all'], true) ? $_GET['period'] : 'all';
+$dateWhereO = "";
+$periodLabel = "All Time";
+if ($period === 'today') {
+    $dateWhereO = " AND DATE(o.created_at) = CURDATE() ";
+    $periodLabel = "Today (" . date('d M Y') . ")";
+} elseif ($period === '7d') {
+    $dateWhereO = " AND DATE(o.created_at) >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) ";
+    $periodLabel = "Last 7 Days";
+} elseif ($period === 'month') {
+    $dateWhereO = " AND YEAR(o.created_at) = YEAR(CURDATE()) AND MONTH(o.created_at) = MONTH(CURDATE()) ";
+    $periodLabel = "This Month (" . date('F Y') . ")";
+}
+
+// 2. Sales by Category (excluding cancelled orders)
 $category_sales_rs = Database::search("
     SELECT i.category_id, SUM(oi.subtotal) AS total_sales 
     FROM order_items oi 
+    INNER JOIN orders o ON oi.order_id = o.id
     INNER JOIN items i ON oi.item_id = i.id 
+    WHERE (o.order_status != 'cancelled' OR o.order_status IS NULL) $dateWhereO
     GROUP BY i.category_id
 ");
 $cat_sales = [];
@@ -49,11 +65,13 @@ foreach ($cat_sales as $item) {
     }
 }
 
-// 3. Top Selling Products
+// 3. Top Selling Products (excluding cancelled orders)
 $top_products_rs = Database::search("
     SELECT i.name, i.unit, i.category_id, SUM(oi.quantity) AS total_qty, SUM(oi.subtotal) AS total_sales 
     FROM order_items oi 
+    INNER JOIN orders o ON oi.order_id = o.id
     INNER JOIN items i ON oi.item_id = i.id 
+    WHERE (o.order_status != 'cancelled' OR o.order_status IS NULL) $dateWhereO
     GROUP BY oi.item_id 
     ORDER BY total_qty DESC 
     LIMIT 6
@@ -61,20 +79,23 @@ $top_products_rs = Database::search("
 
 // 4. Order Status Breakdown
 $status_breakdown_rs = Database::search("
-    SELECT COALESCE(order_status, 'pending') AS status, COUNT(id) AS total_count 
-    FROM orders 
-    GROUP BY order_status
+    SELECT COALESCE(o.order_status, 'pending') AS status, COUNT(o.id) AS total_count 
+    FROM orders o
+    WHERE 1=1 $dateWhereO
+    GROUP BY o.order_status
 ");
 
 // 5. Orders by purchase method & payment status breakdown
 $method_rs = Database::search("
     SELECT 
-        COALESCE(purchase_method, 'cod') AS p_method,
-        payment_status,
-        COUNT(id) AS total_count,
-        COALESCE(SUM(total_amount), 0) AS total_value
-    FROM orders 
-    GROUP BY purchase_method, payment_status
+        COALESCE(o.purchase_method, 'cod') AS p_method,
+        o.payment_status,
+        o.order_status,
+        COUNT(o.id) AS total_count,
+        COALESCE(SUM(o.total_amount), 0) AS total_value
+    FROM orders o
+    WHERE 1=1 $dateWhereO
+    GROUP BY o.purchase_method, o.payment_status, o.order_status
 ");
 
 $methodStats = [
@@ -88,13 +109,16 @@ if ($method_rs) {
         $cnt = (int)$m['total_count'];
         $val = (float)$m['total_value'];
         $pStatus = strtolower(trim((string)$m['payment_status']));
+        $oStatus = strtolower(trim((string)$m['order_status']));
 
-        $methodStats[$mKey]['count'] += $cnt;
-        $methodStats[$mKey]['sales'] += $val;
-        if ($pStatus === 'paid') {
-            $methodStats[$mKey]['paid'] += $val;
-        } else if ($pStatus !== 'cancelled') {
-            $methodStats[$mKey]['unpaid'] += $val;
+        if ($oStatus !== 'cancelled') {
+            $methodStats[$mKey]['count'] += $cnt;
+            $methodStats[$mKey]['sales'] += $val;
+            if ($pStatus === 'paid') {
+                $methodStats[$mKey]['paid'] += $val;
+            } else {
+                $methodStats[$mKey]['unpaid'] += $val;
+            }
         }
     }
 }
@@ -147,11 +171,20 @@ $recent_users_rs = Database::search("
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
           <div>
               <h1 class="fw-bold mb-1" style="color: #0f172a; font-size:1.65rem;">Business Analytics &amp; Operations Summary</h1>
-              <p class="text-muted mb-0">Breakdown of sales channels (COD vs Store Pickup), category performances, and settlement status.</p>
+              <p class="text-muted mb-0">Showing data for: <strong class="text-success"><?php echo htmlspecialchars($periodLabel); ?></strong> &middot; Excludes cancelled orders from revenue totals.</p>
           </div>
-          <div>
-              <a href="dashboard.php" class="btn btn-outline-secondary rounded-pill px-3 py-2 fw-semibold">
-                <i class="bi bi-speedometer2 me-1"></i>Operations Dashboard
+          <div class="d-flex align-items-center flex-wrap gap-2">
+              <div class="btn-group btn-group-sm" role="group" aria-label="Period Filter">
+                  <a href="summary.php?period=today" class="btn <?php echo $period === 'today' ? 'btn-success fw-bold' : 'btn-outline-secondary'; ?>">Today</a>
+                  <a href="summary.php?period=7d" class="btn <?php echo $period === '7d' ? 'btn-success fw-bold' : 'btn-outline-secondary'; ?>">Last 7 Days</a>
+                  <a href="summary.php?period=month" class="btn <?php echo $period === 'month' ? 'btn-success fw-bold' : 'btn-outline-secondary'; ?>">This Month</a>
+                  <a href="summary.php?period=all" class="btn <?php echo $period === 'all' ? 'btn-success fw-bold' : 'btn-outline-secondary'; ?>">All Time</a>
+              </div>
+              <button type="button" onclick="window.print()" class="btn btn-outline-dark btn-sm rounded-pill px-3 py-2 fw-semibold">
+                  <i class="bi bi-printer me-1"></i>Print Report
+              </button>
+              <a href="dashboard.php" class="btn btn-outline-secondary btn-sm rounded-pill px-3 py-2 fw-semibold">
+                <i class="bi bi-speedometer2 me-1"></i>Dashboard
               </a>
           </div>
       </div>
