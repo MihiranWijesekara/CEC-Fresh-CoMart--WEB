@@ -574,7 +574,18 @@
                 </div>
                 <div class="row">
                     <div class="col-md-12 col-custom">
-                        <form method="post" action="http://whizthemes.com/mail-php/reza/obrien/mail.php" id="contact-form" accept-charset="UTF-8" class="contact-form">
+                        <?php if (!empty($_SESSION['contact_success'])): ?>
+                            <div class="alert alert-success alert-dismissible fade show mt-4 mb-2" role="alert">
+                                <i class="bi bi-check-circle-fill me-2"></i><?php echo htmlspecialchars($_SESSION['contact_success']); unset($_SESSION['contact_success']); ?>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        <?php elseif (!empty($_SESSION['contact_error'])): ?>
+                            <div class="alert alert-danger alert-dismissible fade show mt-4 mb-2" role="alert">
+                                <i class="bi bi-exclamation-circle-fill me-2"></i><?php echo htmlspecialchars($_SESSION['contact_error']); unset($_SESSION['contact_error']); ?>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        <?php endif; ?>
+                        <form method="post" action="contact-usProcess.php" id="contactForm" accept-charset="UTF-8" class="contact-form">
                             <div class="comment-box mt-5">
                                 <h5 class="text-uppercase">Get in Touch</h5>
                                 <div class="row mt-3">

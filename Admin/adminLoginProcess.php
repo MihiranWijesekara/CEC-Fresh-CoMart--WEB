@@ -1,6 +1,8 @@
 <?php
-session_start();
-require("../connection.php");
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+require_once __DIR__ . "/../connection.php";
 
 if (!isset($_POST["password"])) {
     echo "Password is required";

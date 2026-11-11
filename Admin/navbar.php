@@ -129,6 +129,11 @@ if (isset($_SESSION['admin_users'])) {
                     <li class="nav-item">
                         <a class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'summary.php') ? 'active' : ''; ?>" href="summary.php">Summary</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'inquiries.php') ? 'active' : ''; ?>" href="inquiries.php">
+                            <i class="bi bi-envelope me-1"></i>Inquiries
+                        </a>
+                    </li>
                 </ul>
                 
                 <!-- Right Side Admin Controls -->

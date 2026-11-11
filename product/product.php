@@ -371,13 +371,36 @@ $isLoggedIn = isset($_SESSION['user_id']);
     <?php
         // category may be a single id ("2") or a comma separated group ("1,2" = Fruits & Veg)
         $catIds = [];
+        $selectedCat = 0;
         if (isset($_GET['category'])) {
             foreach (explode(',', (string)$_GET['category']) as $c) {
                 $c = intval($c);
                 if ($c > 0 && !in_array($c, $catIds)) { $catIds[] = $c; }
             }
+            if (count($catIds) === 1) {
+                $selectedCat = $catIds[0];
+            }
         }
         $searchQ = isset($_GET['q']) ? trim((string)$_GET['q']) : '';
+        $inStockOnly = (isset($_GET['in_stock']) && $_GET['in_stock'] === '1');
+        $minPrice = (isset($_GET['min_price']) && is_numeric($_GET['min_price']) && (float)$_GET['min_price'] > 0) ? (float)$_GET['min_price'] : '';
+        $maxPrice = (isset($_GET['max_price']) && is_numeric($_GET['max_price']) && (float)$_GET['max_price'] > 0) ? (float)$_GET['max_price'] : '';
+        $sort = isset($_GET['sort']) ? trim($_GET['sort']) : 'default';
+
+        // Query categories with live item count
+        $categoriesList = [];
+        $catRes = Database::search("
+            SELECT c.id, c.name, COUNT(i.id) AS item_count 
+            FROM categories c 
+            LEFT JOIN items i ON i.category_id = c.id AND i.status = 'active'
+            GROUP BY c.id, c.name 
+            ORDER BY c.id ASC
+        ");
+        if ($catRes) {
+            while ($crow = $catRes->fetch_assoc()) {
+                $categoriesList[] = $crow;
+            }
+        }
 
         $where = [];
         if (!empty($catIds)) {
@@ -388,7 +411,25 @@ $isLoggedIn = isset($_SESSION['user_id']);
             $safeQ = Database::$connection->real_escape_string($searchQ);
             $where[] = "`name` LIKE '%$safeQ%'";
         }
-        $sql = "SELECT * FROM `items`" . (empty($where) ? '' : ' WHERE ' . implode(' AND ', $where));
+        if ($inStockOnly) {
+            $where[] = "`stock_quantity` > 0 AND `status` = 'active'";
+        }
+        if ($minPrice !== '') {
+            $where[] = "`price` >= " . (float)$minPrice;
+        }
+        if ($maxPrice !== '') {
+            $where[] = "`price` <= " . (float)$maxPrice;
+        }
+
+        $orderBy = "ORDER BY `id` ASC";
+        switch ($sort) {
+            case 'price_asc':  $orderBy = "ORDER BY `price` ASC"; break;
+            case 'price_desc': $orderBy = "ORDER BY `price` DESC"; break;
+            case 'newest':     $orderBy = "ORDER BY `created_at` DESC"; break;
+            case 'name_asc':   $orderBy = "ORDER BY `name` ASC"; break;
+        }
+
+        $sql = "SELECT * FROM `items`" . (empty($where) ? '' : ' WHERE ' . implode(' AND ', $where)) . " " . $orderBy;
         $ItemRs = Database::search($sql);
 
         // quantity already in the shopper's cart (drives the initial "- qty +" stepper state)
@@ -410,6 +451,64 @@ $isLoggedIn = isset($_SESSION['user_id']);
           <h1><?php echo $searchQ !== '' ? 'Results for “' . htmlspecialchars($searchQ) . '”' : 'Fresh Products'; ?></h1>
           <p><?php echo $ItemRs ? (int)$ItemRs->num_rows : 0; ?> items available</p>
         </div>
+      </div>
+
+      <!-- Enhanced Category & Attribute Filter Toolbar -->
+      <div class="card p-3 mb-4 border-0 shadow-sm rounded-4 bg-white" style="border: 1px solid #e2e8f0 !important;">
+        <form method="GET" action="product.php" class="row g-2 align-items-center">
+          <?php if (!empty($searchQ)): ?>
+            <input type="hidden" name="q" value="<?php echo htmlspecialchars($searchQ); ?>">
+          <?php endif; ?>
+
+          <!-- Category filter dropdown -->
+          <div class="col-md-3 col-sm-6">
+            <label class="form-label small fw-semibold text-muted mb-1"><i class="bi bi-tag-fill text-success me-1"></i>Category</label>
+            <select name="category" class="form-select form-select-sm rounded-pill" onchange="this.form.submit()">
+              <option value="0">All Categories</option>
+              <?php foreach ($categoriesList as $cat): ?>
+                <option value="<?php echo $cat['id']; ?>" <?php echo ($selectedCat == $cat['id']) ? 'selected' : ''; ?>>
+                  <?php echo htmlspecialchars($cat['name']); ?> (<?php echo (int)$cat['item_count']; ?>)
+                </option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+
+          <!-- Sort dropdown -->
+          <div class="col-md-3 col-sm-6">
+            <label class="form-label small fw-semibold text-muted mb-1"><i class="bi bi-sort-down text-primary me-1"></i>Sort By</label>
+            <select name="sort" class="form-select form-select-sm rounded-pill" onchange="this.form.submit()">
+              <option value="default" <?php echo $sort === 'default' ? 'selected' : ''; ?>>Featured / Default</option>
+              <option value="price_asc" <?php echo $sort === 'price_asc' ? 'selected' : ''; ?>>Price: Low to High</option>
+              <option value="price_desc" <?php echo $sort === 'price_desc' ? 'selected' : ''; ?>>Price: High to Low</option>
+              <option value="newest" <?php echo $sort === 'newest' ? 'selected' : ''; ?>>Newest Arrivals</option>
+              <option value="name_asc" <?php echo $sort === 'name_asc' ? 'selected' : ''; ?>>Alphabetical (A - Z)</option>
+            </select>
+          </div>
+
+          <!-- Price range -->
+          <div class="col-md-3 col-sm-6">
+            <label class="form-label small fw-semibold text-muted mb-1"><i class="bi bi-cash me-1"></i>Price Range (Rs.)</label>
+            <div class="input-group input-group-sm">
+              <input type="number" name="min_price" class="form-control" placeholder="Min" value="<?php echo htmlspecialchars((string)$minPrice); ?>" style="border-top-left-radius: 20px; border-bottom-left-radius: 20px;">
+              <span class="input-group-text bg-light">&ndash;</span>
+              <input type="number" name="max_price" class="form-control" placeholder="Max" value="<?php echo htmlspecialchars((string)$maxPrice); ?>" style="border-top-right-radius: 20px; border-bottom-right-radius: 20px;">
+            </div>
+          </div>
+
+          <!-- In stock toggle & actions -->
+          <div class="col-md-3 col-sm-6 d-flex align-items-center justify-content-between pt-md-3">
+            <div class="form-check form-switch mt-1">
+              <input class="form-check-input" type="checkbox" name="in_stock" value="1" id="inStockSwitch" <?php echo $inStockOnly ? 'checked' : ''; ?> onchange="this.form.submit()">
+              <label class="form-check-label small fw-semibold text-dark" for="inStockSwitch">In Stock Only</label>
+            </div>
+            <div class="d-flex gap-1">
+              <button type="submit" class="btn btn-success btn-sm rounded-pill px-3 fw-bold">Filter</button>
+              <?php if (!empty($catIds) || !empty($searchQ) || $inStockOnly || $minPrice !== '' || $maxPrice !== '' || $sort !== 'default'): ?>
+                <a href="product.php" class="btn btn-outline-secondary btn-sm rounded-pill px-2" title="Reset Filters"><i class="bi bi-x-circle"></i></a>
+              <?php endif; ?>
+            </div>
+          </div>
+        </form>
       </div>
       <div class="fc-grid card-container" id="productGrid">
         <?php

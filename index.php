@@ -1,1411 +1,612 @@
-<!doctype html>
 <?php
-  require 'connection.php';
-  session_start();
-  $status_dot_color = isset($_SESSION['user_id']) ? 'GreenYellow' : 'red';
+require_once __DIR__ . '/connection.php';
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+$store = require __DIR__ . '/storeConfig.php';
 
-  $logo_initials = 'FC';
-  if (isset($_SESSION['user_id'])) {
-    $user_id = $_SESSION['user_id'];
-    $user_rs = Database::search("SELECT first_name, last_name FROM users WHERE id='$user_id'");
-    if ($user_rs && $user_row = $user_rs->fetch_assoc()) {
-      $first = isset($user_row['first_name']) ? strtoupper(substr($user_row['first_name'], 0, 1)) : '';
-      $last = isset($user_row['last_name']) ? strtoupper(substr($user_row['last_name'], 0, 1)) : '';
-      $logo_initials = $first . $last;
-      if ($logo_initials === '') $logo_initials = 'FC';
+$is_logged_in = isset($_SESSION['user_id']);
+$user_id = $is_logged_in ? (int)$_SESSION['user_id'] : 0;
+$user_name = 'User';
+$logo_initials = 'FC';
+$status_dot_color = $is_logged_in ? '#22c55e' : '#ef4444';
+
+// User profile & avatar initials
+if ($is_logged_in) {
+    $u_res = Database::search("SELECT first_name, last_name, email FROM users WHERE id = '$user_id' LIMIT 1");
+    if ($u_res && $u = $u_res->fetch_assoc()) {
+        $user_name = !empty($u['first_name']) ? htmlspecialchars($u['first_name']) : 'User';
+        $first = strtoupper(substr($u['first_name'] ?? 'F', 0, 1));
+        $last = strtoupper(substr($u['last_name'] ?? 'C', 0, 1));
+        $logo_initials = $first . $last;
     }
-  }
-?>
-<html class="no-js" lang="en">
+}
 
+// Authoritative user cart items & total
+$cart_count = 0;
+$cart_subtotal = 0.00;
+$inCart = [];
+
+if ($is_logged_in) {
+    $c_res = Database::search("SELECT id FROM carts WHERE user_id = '$user_id' AND status = 'Active' ORDER BY id DESC LIMIT 1");
+    if ($c_res && $c_row = $c_res->fetch_assoc()) {
+        $cart_id = (int)$c_row['id'];
+        $ci_res = Database::search("
+            SELECT ci.item_id, ci.quantity, ci.price 
+            FROM cart_items ci 
+            WHERE ci.cart_id = '$cart_id'
+        ");
+        if ($ci_res) {
+            while ($ci = $ci_res->fetch_assoc()) {
+                $qty = (float)$ci['quantity'];
+                $pr = (float)$ci['price'];
+                $inCart[(int)$ci['item_id']] = $qty;
+                $cart_subtotal += ($qty * $pr);
+                $cart_count++;
+            }
+        }
+    }
+}
+
+// 1. Fetch categories with item counts
+$categories = [];
+$cat_res = Database::search("
+    SELECT c.id, c.name, c.image_path, COUNT(i.id) AS item_count
+    FROM categories c
+    LEFT JOIN items i ON i.category_id = c.id AND i.status = 'active'
+    GROUP BY c.id, c.name, c.image_path
+    ORDER BY c.id ASC
+");
+if ($cat_res) {
+    while ($cr = $cat_res->fetch_assoc()) {
+        $categories[] = $cr;
+    }
+}
+
+// 2. Fetch Featured Essentials / Deals of the Day (high stock / popular items)
+$featured_res = Database::search("
+    SELECT i.*, COALESCE(c.name, 'Grocery') AS category_name
+    FROM items i
+    LEFT JOIN categories c ON i.category_id = c.id
+    WHERE i.status = 'active'
+    ORDER BY i.stock_quantity DESC, i.id ASC
+    LIMIT 8
+");
+
+// 3. Fetch Daily Grocery & Pantry Staples (diverse mix)
+$staples_res = Database::search("
+    SELECT i.*, COALESCE(c.name, 'Grocery') AS category_name
+    FROM items i
+    LEFT JOIN categories c ON i.category_id = c.id
+    WHERE i.status = 'active' AND i.category_id IN (1, 2, 3, 14, 15, 16)
+    ORDER BY i.id ASC
+    LIMIT 12
+");
+?>
+<!DOCTYPE html>
+<html lang="en">
 <head>
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
-    <title>CEC Fresh-Co Mart</title>
-    <meta name="robots" content="index, follow" />
-    <meta name="description" content="CEC Fresh-Co Mart – Shop fresh vegetables, fruits, and organic groceries online. Quality produce delivered to your door.">
+    <title>Freshcomart – Online Supermarket &amp; Fresh Grocery Delivery</title>
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <!-- Favicon -->
+    <meta name="description" content="Shop fresh vegetables, fruits, dairy, meats, and pantry essentials online at Freshcomart. Cash on delivery and free store pickup in Colombo.">
     <link rel="shortcut icon" type="image/x-icon" href="assets/images/logo/logo-freshco.png">
 
-    <!-- CSS
-	============================================ -->
-    <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="assets/css/vendor/bootstrap.min.css">
-    <!-- FontAwesome -->
-    <link rel="stylesheet" href="assets/css/vendor/font.awesome.min.css">
-    <!-- Ionicons -->
-    <link rel="stylesheet" href="assets/css/vendor/ionicons.min.css">
-    <!-- Slick CSS -->
-    <link rel="stylesheet" href="assets/css/plugins/slick.min.css">
-    <!-- Animation -->
-    <link rel="stylesheet" href="assets/css/plugins/animate.min.css">
-    <!-- jQuery Ui -->
-    <link rel="stylesheet" href="assets/css/plugins/jquery-ui.min.css">
-    <!-- Nice Select -->
-    <link rel="stylesheet" href="assets/css/plugins/nice-select.min.css">
-    <!-- Magnific Popup -->
-    <link rel="stylesheet" href="assets/css/plugins/magnific-popup.css">
+    <!-- Fonts & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
-    <!-- Vendor & Plugins CSS (Please remove the comment from below vendor.min.css & plugins.min.css for better website load performance and remove css files from the above) -->
+    <!-- Freshcomart Design System -->
+    <link rel="stylesheet" href="assets/css/supermarket-ui.css">
 
-    <!-- <link rel="stylesheet" href="assets/css/vendor/vendor.min.css">
-    <link rel="stylesheet" href="assets/css/plugins/plugins.min.css"> -->
-
-    <!-- Main Style CSS (Please use minify version for better website load performance) -->
-    <link rel="stylesheet" href="assets/css/style.css">
-    <!-- <link rel="stylesheet" href="assets/css/style.min.css"> -->
+    <style>
+      .fc-avatar {
+          width: 40px;
+          height: 40px;
+          background: #16a34a;
+          color: #ffffff;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 700;
+          font-size: 14px;
+          position: relative;
+          cursor: pointer;
+      }
+      .fc-status-dot {
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          border: 2px solid #ffffff;
+          position: absolute;
+          bottom: 0;
+          right: 0;
+      }
+      .dropdown-menu.profile-menu {
+          min-width: 220px;
+          border-radius: 12px;
+          box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+          border: 1px solid #e2e8f0;
+          padding: 8px 0;
+      }
+      .dropdown-menu.profile-menu .dropdown-item {
+          padding: 8px 18px;
+          font-weight: 500;
+          font-size: 14px;
+          color: #334155;
+      }
+      .dropdown-menu.profile-menu .dropdown-item:hover {
+          background: #f0fdf4;
+          color: #16a34a;
+      }
+    </style>
 </head>
+<body class="fc-body">
 
-<body>
+    <!-- 1. Top Announcement Bar -->
+    <div class="fc-topbar">
+        <span>
+            🚚 <strong>Cash on Delivery</strong> (Flat Rs. 450 Delivery) &nbsp;|&nbsp; 
+            🏬 <strong>Free In-Store Pickup</strong> Available at Main Branch (Rajagiriya)!
+        </span>
+    </div>
 
-    <div class="home-wrapper home-1">
-        <!-- Header Area Start Here -->
-        <header class="main-header-area">
+    <!-- 2. Sticky Main Header -->
+    <header class="fc-main-header">
+        <div class="container-fluid px-lg-5 py-2">
+            <div class="row align-items-center">
+                <!-- Brand Logo & Store Location Chip -->
+                <div class="col-auto d-flex align-items-center gap-3">
+                    <a href="index.php" class="d-flex align-items-center text-decoration-none">
+                        <img src="assets/images/logo/logo-freshco.png" alt="Freshcomart" height="46">
+                    </a>
+                    <div class="d-none d-md-flex fc-store-chip" title="<?php echo htmlspecialchars($store['address']); ?>">
+                        <i class="bi bi-geo-alt-fill text-success"></i>
+                        <span>Store: <strong><?php echo htmlspecialchars($store['label']); ?></strong> (8:00 AM - 9:00 PM)</span>
+                    </div>
+                </div>
 
-            <!-- Main Header Area Start -->
-            <div class="main-header">
-                <div class="container container-default custom-area">
-                    <div class="row">
-                        <div class="col-lg-12 col-custom">
-                            <div class="row align-items-center">
-                                <div class="col-lg-2 col-xl-2 col-sm-6 col-6 col-custom">
-                                    <div class="header-logo d-flex align-items-center">
-                                        <a href="index.php">
-                                            <img class="img-full" src="assets/images/logo/logo-freshco.png" alt="Header Logo">
-                                        </a>
-                                    </div>
-                                </div>
-                                <div class="col-lg-8 col-xl-7 position-static d-none d-lg-block col-custom">
-                                    <nav class="main-nav d-flex justify-content-center">
-                                        <ul class="nav">
-                                            <li>
-                                                <a class="active" href="index.php">
-                                                    <span class="menu-text"> Home</span>
-                                                </a>
-                                            </li>
-                                            <li>
-                                                <a href="about-us.html">
-                                                    <span class="menu-text"> About</span>
-                                                </a>
-                                            </li>
+                <!-- Desktop / Tablet Live Search Bar -->
+                <div class="col my-2 my-lg-0">
+                    <div class="fc-search-wrapper mx-auto" style="max-width: 640px;">
+                        <form action="product/product.php" method="GET" class="fc-search-group">
+                            <select name="category" id="fcLiveSearchCategory" class="fc-search-category d-none d-sm-block" aria-label="Category filter">
+                                <option value="0">All Items</option>
+                                <?php foreach ($categories as $cat): ?>
+                                    <option value="<?php echo $cat['id']; ?>"><?php echo htmlspecialchars($cat['name']); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <input type="text" name="q" id="fcLiveSearchInput" class="fc-search-input" placeholder="Search fresh vegetables, fruits, dairy, rice, beverages..." autocomplete="off">
+                            <button type="submit" class="fc-search-btn" aria-label="Submit search">
+                                <i class="bi bi-search"></i>
+                                <span class="d-none d-md-inline">Search</span>
+                            </button>
+                        </form>
+                        <!-- Live Search AJAX Results Dropdown -->
+                        <div id="fcLiveSearchDropdown" class="fc-search-dropdown"></div>
+                    </div>
+                </div>
 
-
-                                            <li class="menu-item-has-children">
-                                                <a href="product/product.php">
-                                                    <span class="menu-text"> Products</span>
-                                                </a>
-
-                                            </li>
-                                            <li>
-                                                <a href="contact-us.php">
-                                                    <span class="menu-text">Contact</span>
-                                                </a>
-                                            </li>
-                                            <?php if (isset($_SESSION['user_id'])): ?>
-                                                <li>
-                                                    <a href="product/my-orders.php">
-                                                        <span class="menu-text">My Orders</span>
-                                                    </a>
-                                                </li>
-                                            <?php endif; ?><!-- MT Logo HTML -->
-                                        </ul>
-                                    </nav>    
-                                </div>   
-                               
-
-                               <div class="col-lg-2 col-xl-3 col-sm-6 col-6 col-custom">
-                                     <div class="header-right-area main-nav">
-                                         <?php if (isset($_SESSION['user_id'])): ?>
-                                             <div class="profile-dropdown-wrapper">
-                                                 <div class="mt-logo">
-                                                     <?php echo $logo_initials; ?>
-                                                     <div class="mt-status-dot" style="background: <?php echo $status_dot_color; ?>;"></div>
-                                                 </div>
-                                                 <div class="profile-dropdown-menu">
-                                                     <div class="profile-dropdown-header">
-                                                         <div class="user-name">Hello, <?php echo isset($_SESSION['users']['first_name']) ? htmlspecialchars($_SESSION['users']['first_name']) : 'User'; ?></div>
-                                                         <div class="user-email"><?php echo isset($_SESSION['user_email']) ? htmlspecialchars($_SESSION['user_email']) : ''; ?></div>
-                                                     </div>
-                                                     <a href="profile.php"><i class="fa fa-cog"></i> Edit Profile</a>
-                                                     <a href="product/my-orders.php"><i class="fa fa-history"></i> Order History</a>
-                                                     <a href="login/logout.php" style="border-top: 1px solid #f3f4f6;"><i class="fa fa-sign-out"></i> Logout</a>
-                                                 </div>
-                                             </div>
-                                         <?php else: ?>
-                                             <div class="mt-logo">
-                                                 <?php echo $logo_initials; ?>
-                                                 <div class="mt-status-dot" style="background: <?php echo $status_dot_color; ?>;"></div>
-                                             </div>
-                                         <?php endif; ?>
-                                         <ul class="nav">
-                                             <?php if (!isset($_SESSION['user_id'])): ?>
-                                                 <li class="login-register-wrap d-none d-xl-flex">
-                                                     <span><a href="login/sign.php">Login</a></span>
-                                                     <span><a href="login/register.php">Register</a></span>
-                                                 </li>
-                                             <?php endif; ?>
-                                             <li class="mobile-menu-btn d-lg-none">
-                                                 <a class="off-canvas-btn" href="#">
-                                                     <i class="fa fa-bars"></i>
-                                                 </a>
-                                             </li>
-                                         </ul>
-                                     </div>
-                                 </div>
+                <!-- User Controls & Cart Trigger -->
+                <div class="col-auto d-flex align-items-center gap-3">
+                    <?php if ($is_logged_in): ?>
+                        <div class="dropdown">
+                            <div class="fc-avatar" data-bs-toggle="dropdown" aria-expanded="false" role="button">
+                                <?php echo htmlspecialchars($logo_initials); ?>
+                                <span class="fc-status-dot" style="background-color: <?php echo $status_dot_color; ?>;"></span>
                             </div>
+                            <ul class="dropdown-menu dropdown-menu-end profile-menu">
+                                <li class="px-3 py-2 border-bottom">
+                                    <div class="fw-bold text-success">Hello, <?php echo $user_name; ?></div>
+                                    <small class="text-muted"><?php echo htmlspecialchars($_SESSION['user_email'] ?? ''); ?></small>
+                                </li>
+                                <li><a class="dropdown-item" href="my-account.php"><i class="bi bi-person-gear me-2"></i>My Account &amp; Address</a></li>
+                                <li><a class="dropdown-item" href="product/my-orders.php"><i class="bi bi-bag-check me-2"></i>My Orders</a></li>
+                                <li><a class="dropdown-item" href="product/shopping-cart.php"><i class="bi bi-cart3 me-2"></i>View Cart</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item text-danger" href="login/logout.php"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
+                            </ul>
                         </div>
+                    <?php else: ?>
+                        <div class="d-flex align-items-center gap-2">
+                            <a href="login/sign.php" class="btn btn-outline-success btn-sm rounded-pill px-3 fw-bold">Sign In</a>
+                            <a href="login/register.php" class="btn btn-success btn-sm rounded-pill px-3 fw-bold d-none d-sm-inline-block">Register</a>
+                        </div>
+                    <?php endif; ?>
+
+                    <!-- Mini Cart Drawer Trigger -->
+                    <button type="button" class="btn btn-success rounded-pill px-3 py-2 d-inline-flex align-items-center gap-2 shadow-sm" onclick="openMiniCartDrawer()">
+                        <i class="bi bi-basket2-fill fs-6"></i>
+                        <span class="d-none d-sm-inline fw-bold">Cart</span>
+                        <span class="badge bg-white text-success rounded-pill px-2 py-1 fw-extrabold" id="fcCartBadge"><?php echo $cart_count; ?></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Secondary Quick-Access Category Navigation Bar -->
+        <nav class="fc-quick-catbar" aria-label="Category chips">
+            <div class="container-fluid px-lg-5 d-flex gap-2 align-items-center">
+                <a href="product/product.php" class="fc-cat-chip active">
+                    <i class="bi bi-grid-fill"></i>All Products
+                </a>
+                <?php 
+                $quickIcons = [
+                    1 => 'bi-carrot', 2 => 'bi-apple', 3 => 'bi-cookie', 4 => 'bi-cup-straw',
+                    5 => 'bi-cup-hot', 6 => 'bi-egg', 14 => 'bi-fire', 15 => 'bi-box-seam', 16 => 'bi-droplet'
+                ];
+                foreach ($categories as $cat): 
+                    $icon = $quickIcons[(int)$cat['id']] ?? 'bi-tag';
+                ?>
+                    <a href="product/product.php?category=<?php echo $cat['id']; ?>" class="fc-cat-chip">
+                        <i class="bi <?php echo $icon; ?>"></i><?php echo htmlspecialchars($cat['name']); ?>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container-fluid px-lg-5 py-4">
+        <!-- Section A: Hero Banner -->
+        <section class="fc-hero">
+            <div class="row align-items-center">
+                <div class="col-lg-7">
+                    <span class="fc-hero-tag">
+                        <i class="bi bi-stars"></i> 100% Farm Fresh &amp; Daily Essentials
+                    </span>
+                    <h1>Fresh Groceries Delivered Fast To Your Doorstep</h1>
+                    <p>Order fresh farm vegetables, tropical fruits, premium meats, pantry staples, and dairy. Choose doorstep Cash on Delivery or Free In-Store Pickup in Colombo.</p>
+                    <div class="fc-hero-cta">
+                        <a href="product/product.php" class="fc-btn-hero-primary">
+                            <i class="bi bi-truck"></i> Shop for Delivery
+                        </a>
+                        <a href="product/product.php?pickup=1" class="fc-btn-hero-secondary">
+                            <i class="bi bi-shop"></i> Order for Store Pickup (Free)
+                        </a>
                     </div>
                 </div>
             </div>
-            <!-- Main Header Area End -->
+        </section>
 
-
-            
-            <!-- Sticky Header Start Here-->
-            <div class="main-header header-sticky">
-                <div class="container container-default custom-area">
-                    <div class="row">
-                        <div class="col-lg-12 col-custom">
-                            <div class="row align-items-center">
-                                <div class="col-lg-2 col-xl-2 col-sm-6 col-6 col-custom">
-                                    <div class="header-logo">
-                                        <a href="index.php">
-                                            <img class="img-full" src="assets/images/logo/logo-freshco.png" alt="Header Logo">
-                                        </a>
-                                    </div>
-                                </div>
-                                <div class="col-lg-8 col-xl-7 position-static d-none d-lg-block col-custom">
-                                    <nav class="main-nav d-flex justify-content-center">
-                                        <ul class="nav">
-                                            <li>
-                                                <a class="active" href="index.php">
-                                                    <span class="menu-text"> Home</span>
-                                                    
-                                                </a>
-                                              
-                                            </li>
-
-                                            
-                                            <li>
-                                                <a href="about-us.html">
-                                                    <span class="menu-text"> About</span>
-                                                </a>
-                                            </li>
-
-                                               <li class="menu-item-has-children">
-                                                <a href="product/product.php">
-                                                    <span class="menu-text"> Products</span>
-                                                </a>
-
-                                            </li>
-<style>
-    .menu-item-has-children {
-    position: relative;
-}
-
-.sub-menu {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    background: #fff;
-    width: 200px;
-    padding: 10px 0;
-    list-style: none;
-    display: none;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    z-index: 999;
-}
-
-.sub-menu li a {
-    display: block;
-    padding: 8px 15px;
-    color: #333;
-    text-decoration: none;
-}
-
-.sub-menu li a:hover {
-    background: #f5f5f5;
-    color: #000;
-}
-
-   .menu-item-has-children:hover .sub-menu {
-    display: block;
-   }
-
-</style>                                           
-                                            <li>
-                                                <a href="contact-us.php">
-                                                    <span class="menu-text">Contact</span>
-                                                </a>
-                                            </li>
-                                            <?php if (isset($_SESSION['user_id'])): ?>
-                                                <li>
-                                                    <a href="product/my-orders.php">
-                                                        <span class="menu-text">My Orders</span>
-                                                    </a>
-                                                </li>
-                                            <?php endif; ?>
-                                        </ul>
-
-<!-- Divider Section -->
-
-
-
-<style>
-                                        /* MT Logo CSS */
- .nav{
-    display:flex;
-    align-items:center;
-    gap:30px;
-    list-style:none;
-}
-
-.nav li{
-    display:flex;
-    align-items:center;
-}
-
-/* MT Wrapper spacing control */
-.nav{
-    display:flex;
-    align-items:center;
-    margin-left:90px;
-    margin-right:35px;
-}
-
-/* MT Logo */
-.fc-wrapper{
-    display:flex;
-    align-items:center;
-}
-
-.header-right-area.main-nav {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-}
-
-.mt-logo{
-    margin-left:-110px;
-    width:43px;
-    height:43px;
-    background:#007bff;
-    border-radius:50%;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    position:relative;
-    color:white;
-    font-size:16px;
-    font-weight:bold;
-}
-
-.mt-status-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  position: absolute;
-  top: 0.078em;
-  right: 4px;
-  /* background set dynamically via inline style */
-}
-@media (max-width: 600px) {
-    .mt-logo {
-        width: 32px;
-        height: 32px;
-        font-size: 12px;
-        top: 0.5em;
-    }
-    .mt-status-dot {
-        width: 6px;
-        height: 6px;
-        right: 2px;
-        top: 0.1em;
-    }
-}
-
-/* Profile Dropdown styling */
-.profile-dropdown-wrapper {
-  position: relative;
-  display: inline-block;
-  margin-right: 50px;
-}
-.profile-dropdown-wrapper .mt-logo {
-  margin-right: 0 !important;
-}
-.profile-dropdown-menu {
-  display: none;
-  position: absolute;
-  top: 55px;
-  right: 0;
-  background-color: white;
-  min-width: 220px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-  border-radius: 12px;
-  overflow: hidden;
-  z-index: 1100;
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  font-family: Arial, sans-serif;
-}
-.profile-dropdown-menu.show {
-  display: block;
-  animation: profileFadeIn 0.2s ease;
-}
-@keyframes profileFadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.profile-dropdown-header {
-  padding: 15px 18px;
-  border-bottom: 1px solid #f3f4f6;
-  background-color: #f9fafb;
-}
-.profile-dropdown-header .user-name {
-  font-weight: 700;
-  color: #27b62e;
-  font-size: 14px;
-  margin-bottom: 2px;
-}
-.profile-dropdown-header .user-email {
-  color: #6b7280;
-  font-size: 12px;
-  word-break: break-all;
-}
-.profile-dropdown-menu a {
-  display: flex !important;
-  align-items: center !important;
-  gap: 10px !important;
-  padding: 12px 18px !important;
-  text-decoration: none !important;
-  color: #374151 !important;
-  font-size: 14px !important;
-  font-weight: 600 !important;
-  transition: background 0.2s, color 0.2s !important;
-  border: none !important;
-  background: none !important;
-  width: 100% !important;
-  box-sizing: border-box !important;
-}
-.profile-dropdown-menu a:hover {
-  background-color: #e8f5e9 !important;
-  color: #27b62e !important;
-}
-.profile-dropdown-menu i {
-  font-size: 16px;
-  color: #6b7280;
-  width: 20px;
-  text-align: center;
-}
-.profile-dropdown-menu a:hover i {
-  color: #27b62e;
-}
-.mt-logo {
-  cursor: pointer;
-}
-</style>
-                                    </nav>
-                                </div>
-                                
-                              <div class="col-lg-2 col-xl-3 col-sm-6 col-6 col-custom">
-                                    <div class="header-right-area main-nav">
-                                        <?php if (isset($_SESSION['user_id'])): ?>
-                                            <div class="profile-dropdown-wrapper">
-                                                <div class="mt-logo">
-                                                    <?php echo $logo_initials; ?>
-                                                    <div class="mt-status-dot" style="background: <?php echo $status_dot_color; ?>;"></div>
-                                                </div>
-                                                <div class="profile-dropdown-menu">
-                                                    <div class="profile-dropdown-header">
-                                                        <div class="user-name">Hello, <?php echo isset($_SESSION['users']['first_name']) ? htmlspecialchars($_SESSION['users']['first_name']) : 'User'; ?></div>
-                                                        <div class="user-email"><?php echo isset($_SESSION['user_email']) ? htmlspecialchars($_SESSION['user_email']) : ''; ?></div>
-                                                    </div>
-                                                    <a href="profile.php"><i class="fa fa-cog"></i> Edit Profile</a>
-                                                    <a href="product/my-orders.php"><i class="fa fa-history"></i> Order History</a>
-                                                    <a href="login/logout.php" style="border-top: 1px solid #f3f4f6;"><i class="fa fa-sign-out"></i> Logout</a>
-                                                </div>
-                                            </div>
-                                        <?php else: ?>
-                                            <div class="mt-logo">
-                                                <?php echo $logo_initials; ?>
-                                                <div class="mt-status-dot" style="background: <?php echo $status_dot_color; ?>;"></div>
-                                            </div>
-                                        <?php endif; ?>
-                                        <ul class="nav">
-                                            <?php if (!isset($_SESSION['user_id'])): ?>
-                                                <li class="login-register-wrap d-none d-xl-flex">
-                                                    <span><a href="login/sign.php">Login</a></span>
-                                                    <span><a href="login/register.php">Register</a></span>
-                                                </li>
-                                            <?php endif; ?>
-                                        </ul>
-                                    </div>
-                                </div>
-
-                             </nav>
-                            </div>
-                        </div>
-                    </div>
+        <!-- Section B: Value Proposition & Trust Features -->
+        <section class="fc-trust-strip">
+            <div class="fc-trust-card">
+                <div class="fc-trust-icon"><i class="bi bi-lightning-charge-fill"></i></div>
+                <div class="fc-trust-info">
+                    <h4>Fast Home Delivery</h4>
+                    <p>Flat Rs. 450 island-wide &amp; local Colombo dispatch</p>
                 </div>
             </div>
-            <!-- Sticky Header End Here -->
-            <!-- off-canvas menu start -->
-            <aside class="off-canvas-wrapper" id="mobileMenu">
-                <div class="off-canvas-overlay"></div>
-                <div class="off-canvas-inner-content">
-                    <div class="btn-close-off-canvas">
-                        <i class="fa fa-times"></i>
-                    </div>
-                    <div class="off-canvas-inner">
+            <div class="fc-trust-card">
+                <div class="fc-trust-icon" style="background:#fef3c7; color:#b45309;"><i class="bi bi-shop-window"></i></div>
+                <div class="fc-trust-info">
+                    <h4>Free Click &amp; Collect</h4>
+                    <p>Pick up at Rajagiriya store in as little as 2 hours</p>
+                </div>
+            </div>
+            <div class="fc-trust-card">
+                <div class="fc-trust-icon"><i class="bi bi-shield-check"></i></div>
+                <div class="fc-trust-info">
+                    <h4>100% Quality Guaranteed</h4>
+                    <p>Daily inspected produce sourced directly from farmers</p>
+                </div>
+            </div>
+            <div class="fc-trust-card">
+                <div class="fc-trust-icon" style="background:#e0f2fe; color:#0369a1;"><i class="bi bi-cash-coin"></i></div>
+                <div class="fc-trust-info">
+                    <h4>Cash on Delivery</h4>
+                    <p>Pay cash when delivered or directly at counter</p>
+                </div>
+            </div>
+        </section>
 
-                        <div class="search-box-offcanvas">
-                            <form>
-                                <input type="text" placeholder="Search product...">
-                                <button class="search-btn"><i class="fa fa-search"></i></button>
-                            </form>
+        <!-- Section C: Shop by Category Grid -->
+        <section class="mb-5">
+            <div class="fc-section-head">
+                <h2><i class="bi bi-grid-3x3-gap-fill text-success me-2"></i>Shop by Category</h2>
+                <a href="product/product.php">Explore All <i class="bi bi-arrow-right"></i></a>
+            </div>
+            <div class="fc-cat-grid">
+                <?php foreach ($categories as $cat): 
+                    $catImg = !empty($cat['image_path']) ? $cat['image_path'] : 'assets/images/logo/logo-freshco.png';
+                ?>
+                    <a href="product/product.php?category=<?php echo $cat['id']; ?>" class="fc-cat-card">
+                        <div class="fc-cat-img">
+                            <img src="<?php echo htmlspecialchars($catImg); ?>" alt="<?php echo htmlspecialchars($cat['name']); ?>" onerror="this.src='assets/images/logo/logo-freshco.png'">
                         </div>
-                        <!-- mobile menu start -->
-                        <div class="mobile-navigation">
+                        <div class="title"><?php echo htmlspecialchars($cat['name']); ?></div>
+                        <div class="count"><?php echo (int)$cat['item_count']; ?> items</div>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+        </section>
 
-                            <!-- mobile menu navigation start -->
-                            <nav>
-                                <ul class="mobile-menu">
-                                    <li class="menu-item-has-children"><a href="index.php">Home</a>
-                                       
-                                    </li>
-                                    <li class="menu-item-has-children"><a href="about-us.html">About Us</a>
-                                     
-                                    </li>
-                                    
-                                
-                                    <li><a href="product/product.php">Product</a></li>
-                                    <li><a href="contact-us.php">Contact</a></li>
-                                    <?php if (isset($_SESSION['user_id'])): ?>
-                                        <li><a href="product/my-orders.php">My Orders</a></li>
+        <!-- Section D: Deals of the Day / Featured Essentials -->
+        <section class="mb-5">
+            <div class="fc-section-head">
+                <div>
+                    <h2><i class="bi bi-fire text-warning me-2"></i>Deals of the Day &amp; Featured Essentials</h2>
+                    <small class="text-muted">Fresh picks updated daily for maximum nutrition &amp; savings</small>
+                </div>
+                <a href="product/product.php">View Catalog <i class="bi bi-arrow-right"></i></a>
+            </div>
+
+            <div class="fc-product-grid">
+                <?php 
+                if ($featured_res && $featured_res->num_rows > 0) {
+                    while ($item = $featured_res->fetch_assoc()) {
+                        $itemId = (int)$item['id'];
+                        $stock = (float)$item['stock_quantity'];
+                        $inStock = ($item['status'] === 'active' && $stock > 0);
+                        $itemCartQty = $inCart[$itemId] ?? 0;
+                        $imgPath = !empty($item['image_path']) ? htmlspecialchars($item['image_path']) : 'assets/images/logo/logo-freshco.png';
+                        ?>
+                        <div class="fc-card <?php echo $inStock ? '' : 'out-of-stock'; ?>">
+                            <div class="fc-card-thumb">
+                                <span class="fc-card-badge-stock <?php echo $inStock ? 'in-stock' : 'out-stock'; ?>">
+                                    <?php echo $inStock ? 'In Stock' : 'Out of Stock'; ?>
+                                </span>
+                                <img src="<?php echo $imgPath; ?>" alt="<?php echo htmlspecialchars($item['name']); ?>" loading="lazy" onerror="this.src='assets/images/logo/logo-freshco.png'">
+                            </div>
+                            <div class="fc-card-body">
+                                <span class="fc-card-unit"><?php echo htmlspecialchars($item['unit'] ?: '1 unit'); ?></span>
+                                <h3 class="fc-card-title" title="<?php echo htmlspecialchars($item['name']); ?>">
+                                    <?php echo htmlspecialchars($item['name']); ?>
+                                </h3>
+                                <div class="fc-card-price-row">
+                                    <span class="fc-card-price">Rs. <?php echo number_format((float)$item['price'], 2); ?></span>
+                                </div>
+                                <div class="fc-card-action" id="card-action-<?php echo $itemId; ?>">
+                                    <?php if (!$inStock): ?>
+                                        <button class="fc-btn-add" disabled>Out of Stock</button>
+                                    <?php elseif ($itemCartQty > 0): ?>
+                                        <div class="fc-stepper">
+                                            <button type="button" onclick="updateCartItem(<?php echo $itemId; ?>, -1, this)" aria-label="Decrease">&minus;</button>
+                                            <span class="qty"><?php echo $itemCartQty; ?></span>
+                                            <button type="button" onclick="updateCartItem(<?php echo $itemId; ?>, 1, this)" aria-label="Increase">&plus;</button>
+                                        </div>
+                                    <?php else: ?>
+                                        <button class="fc-btn-add" onclick="updateCartItem(<?php echo $itemId; ?>, 1, this)">
+                                            <i class="bi bi-cart-plus me-1"></i>Add
+                                        </button>
                                     <?php endif; ?>
-                                </ul>
-                            </nav>
-                            <!-- mobile menu navigation end -->
-                        </div>
-                        <!-- mobile menu end -->
-                        <div class="header-top-settings offcanvas-curreny-lang-support">
-                            <!-- mobile menu navigation start -->
-                            <nav>
-                              <ul class="mobile-menu">
-                                
-                                    <li class="menu-item-has-children"><a href="#">My Account</a>
-                                        <ul class="dropdown">
-                                            <?php if (!isset($_SESSION['user_id'])): ?>
-                                                <li><a href="login/sign.php">Login</a></li>
-                                                <li><a href="login/register.php">Register</a></li>
-                                            <?php else: ?>
-                                                <li>
-                                                    <form method="post" style="display:inline;">
-                                                        <button type="submit" name="logout" style="background:none;border:none;padding:0;cursor:pointer;color:inherit;">Logout</button>
-                                                    </form>
-                                                </li>
-                                            <?php endif; ?>
-                                        </ul>
-                                    </li>
-                                    
-                                </ul> 
-                            </nav>
-                            <!-- mobile menu navigation end -->
-                        </div>
-                        <!-- offcanvas widget area start -->
-                        <div class="offcanvas-widget-area">
-                            <div class="top-info-wrap text-left text-black">
-                                <ul>
-                                    <li>
-                                        <i class="fa fa-phone"></i>
-                                        <a href="info@yourdomain.com">+94 77 877 8731</a>
-                                    </li>
-                                    <li>
-                                        <i class="fa fa-envelope"></i>
-                                        <a href="info@yourdomain.com">info@yourdomain.com</a>
-                                    </li>
-                                </ul>
-                            </div>
-                            <div class="off-canvas-widget-social">
-                                <a title="Facebook-f" href="#"><i class="fa fa-facebook-f"></i></a>
-                                <a title="Twitter" href="#"><i class="fa fa-twitter"></i></a>
-                                <a title="Linkedin" href="#"><i class="fa fa-linkedin"></i></a>
-                                <a title="Youtube" href="#"><i class="fa fa-youtube"></i></a>
-                                <a title="Vimeo" href="#"><i class="fa fa-vimeo"></i></a>
+                                </div>
                             </div>
                         </div>
-                        <!-- offcanvas widget area end -->
-                    </div>
-                </div>
-            </aside>
-            <!-- off-canvas menu end -->
-        </header>
-        <!-- Header Area End Here -->
-        <!-- Begin Slider Area One -->
-        <div class="slider-area">
-            <div class="obrien-slider arrow-style" data-slick-options='{
-        "slidesToShow": 1,
-        "slidesToScroll": 1,
-        "infinite": true,
-        "arrows": true,
-        "dots": true,
-        "autoplay" : true,
-        "fade" : true,
-        "autoplaySpeed" : 7000,
-        "pauseOnHover" : false,
-        "pauseOnFocus" : false
-        }' data-slick-responsive='[
-        {"breakpoint":992, "settings": {
-        "slidesToShow": 1,
-        "arrows": false,
-        "dots": true
-        }}
-        ]'>
-                <div class="slide-item slide-1 bg-position slide-bg-1 animation-style-01">
-                    <div class="slider-content">
-                        <h4 class="slider-small-title">Best fruit</h4>
-                        <h2 class="slider-large-title">Fresh vegetables and foods for everyday use</h2>
-                        <div class="slider-btn">
-                            <a class="obrien-button black-btn" href="product/product.php">Shop Now</a>
-                            
-                        </div>
-                    </div>
-                </div>
-                <div class="slide-item slide-2 bg-position slide-bg-1 animation-style-01">
-                   <div class="slider-content">
-                        <h4 class="slider-small-title">Best Vegetables & Fruits</h4>
-                       <h2 class="slider-large-title">Natural Organic</h2>
-                        <div class="slider-btn">
-                           <a class="obrien-button black-btn" href="product/product.php">Shop Now</a>
-                        </div>
-                    </div>
-                </div>
+                    <?php }
+                } ?>
+            </div>
+        </section>
 
-             
+        <!-- Section E: Promotional Supermarket Callout Banners -->
+        <section class="fc-promo-split">
+            <div class="fc-promo-banner pickup-banner">
+                <h3><i class="bi bi-shop me-2"></i>Save Time – Order Online &amp; Pick Up In-Store</h3>
+                <p>No delivery fees! Collect your pre-packed order at our dedicated supermarket pickup counter in as little as 2 hours.</p>
+                <a href="product/product.php?pickup=1">Schedule Store Pickup <i class="bi bi-arrow-right ms-1"></i></a>
+            </div>
+            <div class="fc-promo-banner delivery-banner">
+                <h3><i class="bi bi-truck me-2"></i>Fresh Produce Delivered to Your Doorstep</h3>
+                <p>Enjoy island-wide flat-rate delivery with complete peace of mind. Pay cash when your grocery basket arrives at your door.</p>
+                <a href="product/product.php">Order Home Delivery <i class="bi bi-arrow-right ms-1"></i></a>
+            </div>
+        </section>
+
+        <!-- Section F: Daily Grocery & Pantry Staples Tabbed View -->
+        <section class="mb-5">
+            <div class="fc-section-head">
+                <div>
+                    <h2><i class="bi bi-basket-fill text-success me-2"></i>Daily Grocery &amp; Pantry Staples</h2>
+                    <small class="text-muted">High quality kitchen essentials for your family</small>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="fc-tab-nav">
+                <button type="button" class="fc-tab-btn active" onclick="filterHomeStaples('all', this)">All Staples</button>
+                <button type="button" class="fc-tab-btn" onclick="filterHomeStaples('1,2', this)">Fresh Produce</button>
+                <button type="button" class="fc-tab-btn" onclick="filterHomeStaples('15', this)">Pantry &amp; Rice</button>
+                <button type="button" class="fc-tab-btn" onclick="filterHomeStaples('16', this)">Dairy &amp; Milk</button>
+                <button type="button" class="fc-tab-btn" onclick="filterHomeStaples('14', this)">Meat &amp; Seafood</button>
+                <button type="button" class="fc-tab-btn" onclick="filterHomeStaples('3,4', this)">Snacks &amp; Biscuits</button>
+            </div>
+
+            <div class="fc-product-grid" id="homeStaplesGrid">
+                <?php 
+                if ($staples_res && $staples_res->num_rows > 0) {
+                    while ($item = $staples_res->fetch_assoc()) {
+                        $itemId = (int)$item['id'];
+                        $stock = (float)$item['stock_quantity'];
+                        $inStock = ($item['status'] === 'active' && $stock > 0);
+                        $itemCartQty = $inCart[$itemId] ?? 0;
+                        $imgPath = !empty($item['image_path']) ? htmlspecialchars($item['image_path']) : 'assets/images/logo/logo-freshco.png';
+                        ?>
+                        <div class="fc-card <?php echo $inStock ? '' : 'out-of-stock'; ?>" data-category="<?php echo $item['category_id']; ?>">
+                            <div class="fc-card-thumb">
+                                <span class="fc-card-badge-stock <?php echo $inStock ? 'in-stock' : 'out-stock'; ?>">
+                                    <?php echo $inStock ? 'In Stock' : 'Out of Stock'; ?>
+                                </span>
+                                <img src="<?php echo $imgPath; ?>" alt="<?php echo htmlspecialchars($item['name']); ?>" loading="lazy" onerror="this.src='assets/images/logo/logo-freshco.png'">
+                            </div>
+                            <div class="fc-card-body">
+                                <span class="fc-card-unit"><?php echo htmlspecialchars($item['unit'] ?: '1 unit'); ?></span>
+                                <h3 class="fc-card-title" title="<?php echo htmlspecialchars($item['name']); ?>">
+                                    <?php echo htmlspecialchars($item['name']); ?>
+                                </h3>
+                                <div class="fc-card-price-row">
+                                    <span class="fc-card-price">Rs. <?php echo number_format((float)$item['price'], 2); ?></span>
+                                </div>
+                                <div class="fc-card-action" id="card-action-<?php echo $itemId; ?>">
+                                    <?php if (!$inStock): ?>
+                                        <button class="fc-btn-add" disabled>Out of Stock</button>
+                                    <?php elseif ($itemCartQty > 0): ?>
+                                        <div class="fc-stepper">
+                                            <button type="button" onclick="updateCartItem(<?php echo $itemId; ?>, -1, this)" aria-label="Decrease">&minus;</button>
+                                            <span class="qty"><?php echo $itemCartQty; ?></span>
+                                            <button type="button" onclick="updateCartItem(<?php echo $itemId; ?>, 1, this)" aria-label="Increase">&plus;</button>
+                                        </div>
+                                    <?php else: ?>
+                                        <button class="fc-btn-add" onclick="updateCartItem(<?php echo $itemId; ?>, 1, this)">
+                                            <i class="bi bi-cart-plus me-1"></i>Add
+                                        </button>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        </div>
+                    <?php }
+                } ?>
+            </div>
+        </section>
+    </main>
+
+    <!-- Offcanvas Mini-Cart Drawer -->
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="miniCartOffcanvas" aria-labelledby="miniCartLabel" style="width: 380px;">
+        <div class="offcanvas-header border-bottom">
+            <h5 class="offcanvas-title fw-bold text-success" id="miniCartLabel">
+                <i class="bi bi-basket2 me-2"></i>Your Grocery Basket
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body" id="miniCartItemsContainer">
+            <div class="text-center py-5 text-muted">
+                <div class="spinner-border text-success" role="status"></div>
+                <div class="mt-2">Loading your basket...</div>
             </div>
         </div>
-        <style>
-            .slider-content * {
-                color: #fff !important;
-          }
-
-            /* Slide 1 */
-.slide-1 {
-    background-image: url('assets/images/slider/10.jpeg');
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-}
-
-/* Slide 2 */
-.slide-2 {
-    background-image: url('assets/images/slider/11.jpeg');
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-}
-
-/* Category cards premium hover style */
-.category-card-hover {
-    transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.25s ease, border-color 0.25s ease;
-    cursor: pointer;
-    border: 1px solid rgba(0, 0, 0, 0.08) !important;
-    border-radius: 15px !important;
-}
-.category-card-hover:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 20px rgba(39, 182, 46, 0.15) !important;
-    border-color: #27b62e !important;
-}
-
-        </style>
-        <!-- Slider Area One End Here -->
-        <!-- Feature Area Start Here -->
-        <div class="feature-area">
-            <div class="container container-default custom-wrapper">
-                <div class="row">
-                    <div class="col-xl-6 col-lg-5 col-md-12 col-custom">
-                        <div class="feature-content-wrapper">
-                            <h2 class="title">Important to eat fruit</h2>
-                            <p class="desc-content">Healthy food plays a vital role in maintaining overall health and well-being. A balanced diet made from fresh, natural ingredients helps the body function properly and supports a healthy lifestyle.</p>
-                            <p class="desc-content">Foods such as fruits, vegetables, whole grains, and locally sourced products provide essential nutrients that boost energy levels, strengthen the immune system, and improve digestion. Regular consumption of healthy food also helps reduce the risk of long-term health issues.</p>
-                            <p class="desc-content"> By choosing high-quality and carefully selected foods, individuals can support both physical and mental wellness. Making healthy food a part of daily life is an important step toward long-term health and a better quality of life.</p>
-                        </div>
-                    </div>
-                    <div class="col-xl-6 col-lg-7 col-md-12 col-custom">
-                        <div class="feature-image">
-                            <img src="assets/images/feature/coll.jpg" alt="Obrien Feature">
-                        </div>
-                    </div>
-                </div>
+        <div class="offcanvas-footer p-3 border-top bg-light" id="miniCartFooter" style="display:none;">
+            <div class="d-flex justify-content-between mb-2">
+                <span class="fw-semibold">Items Subtotal:</span>
+                <span class="fw-bold text-dark fs-5" id="miniCartSubtotal">Rs. 0.00</span>
             </div>
-        </div>
-        <!-- Feature Area End Here -->
-        <!-- Shop by category Area Start Here -->
-        <div class="product-area">
-            <div class="container container-default custom-area">
-                <div class="row">
-                    <div class="col-lg-5 m-auto text-center col-custom">
-                        <div class="section-content">
-                            <h2 class="title-1 text-uppercase">
-                                Shop By Category
-                            </h2>
-                        </div>
-                    </div>
-                </div>
-
-            <div class="container mt-4">
-                <div class="row 
-                        row-cols-1 
-                        row-cols-sm-3 
-                        row-cols-md-5 
-                        row-cols-lg-6 
-                        g-3 
-                        justify-content-center">
-                <div class="col">
-                    <a href="product/product.php?category=1" class="text-decoration-none text-dark">
-                        <div class="card text-center h-100 p-2 category-card-hover">
-                            <img src="assets/images/shopCategory/vegetable.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
-                            <div class="card-body">
-                                <p class="card-text">Vegetables</p>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-                <div class="col">
-                    <a href="product/product.php?category=2" class="text-decoration-none text-dark">
-                        <div class="card text-center h-100 p-2 category-card-hover">
-                            <img src="assets/images/shopCategory/fruits.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
-                            <div class="card-body">
-                                <p class="card-text">Fruits</p>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-                <div class="col">
-                    <a href="product/product.php?category=3" class="text-decoration-none text-dark">
-                        <div class="card text-center h-100 p-2 category-card-hover">
-                            <img src="assets/images/shopCategory/snack.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
-                            <div class="card-body">
-                                <p class="card-text">Snacks</p>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-                <div class="col">
-                    <a href="product/product.php?category=13" class="text-decoration-none text-dark">
-                        <div class="card text-center h-100 p-2 category-card-hover">
-                            <img src="assets/images/shopCategory/bread.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
-                            <div class="card-body">
-                                <p class="card-text">Bakery</p>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-                <div class="col">
-                    <a href="product/product.php?category=4" class="text-decoration-none text-dark">
-                        <div class="card text-center h-100 p-2 category-card-hover">
-                            <img src="assets/images/shopCategory/biscuit.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
-                            <div class="card-body">
-                                <p class="card-text">Biscuits</p>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-                <div class="col">
-                    <a href="product/product.php?category=5" class="text-decoration-none text-dark">
-                        <div class="card text-center h-100 p-2 category-card-hover">
-                            <img src="assets/images/shopCategory/coffee.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
-                            <div class="card-body">
-                                <p class="card-text">Coffee</p>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-                <div class="col">
-                    <a href="product/product.php?category=6" class="text-decoration-none text-dark">
-                        <div class="card text-center h-100 p-2 category-card-hover">
-                            <img src="assets/images/shopCategory/eggs.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
-                            <div class="card-body">
-                                <p class="card-text">Eggs</p>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-                <div class="col">
-                    <a href="product/product.php?category=7" class="text-decoration-none text-dark">
-                        <div class="card text-center h-100 p-2 category-card-hover">
-                            <img src="assets/images/shopCategory/waterBottle.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
-                            <div class="card-body">
-                                <p class="card-text">Water</p>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-                <div class="col">
-                    <a href="product/product.php?category=8" class="text-decoration-none text-dark">
-                        <div class="card text-center h-100 p-2 category-card-hover">
-                            <img src="assets/images/shopCategory/tea-bag.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
-                            <div class="card-body">
-                                <p class="card-text">Tea</p>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-                 <div class="col">
-                    <a href="product/product.php?category=9" class="text-decoration-none text-dark">
-                        <div class="card text-center h-100 p-2 category-card-hover">
-                            <img src="assets/images/shopCategory/cheese.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
-                            <div class="card-body">
-                                <p class="card-text">Cheese</p>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-                <div class="col">
-                    <a href="product/product.php?category=10" class="text-decoration-none text-dark">
-                        <div class="card text-center h-100 p-2 category-card-hover">
-                            <img src="assets/images/shopCategory/yoghurt.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
-                            <div class="card-body">
-                                <p class="card-text">Yoghurts & Curd</p>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-                <div class="col">
-                    <a href="product/product.php?category=11" class="text-decoration-none text-dark">
-                        <div class="card text-center h-100 p-2 category-card-hover">
-                            <img src="assets/images/shopCategory/snack.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
-                            <div class="card-body">
-                                <p class="card-text">Desserts</p>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-                <div class="col">
-                    <a href="product/product.php?category=12" class="text-decoration-none text-dark">
-                        <div class="card text-center h-100 p-2 category-card-hover">
-                            <img src="assets/images/shopCategory/beverages.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
-                            <div class="card-body">
-                                <p class="card-text">Beverages</p>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-                <div class="col">
-                    <a href="product/product.php?category=14" class="text-decoration-none text-dark">
-                        <div class="card text-center h-100 p-2 category-card-hover">
-                            <img src="assets/images/shopCategory/meat.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
-                            <div class="card-body">
-                                <p class="card-text">Meat & Seafood</p>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-                <div class="col">
-                    <a href="product/product.php?category=15" class="text-decoration-none text-dark">
-                        <div class="card text-center h-100 p-2 category-card-hover">
-                            <img src="assets/images/shopCategory/pantry.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
-                            <div class="card-body">
-                                <p class="card-text">Pantry Staples</p>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-                <div class="col">
-                    <a href="product/product.php?category=16" class="text-decoration-none text-dark">
-                        <div class="card text-center h-100 p-2 category-card-hover">
-                            <img src="assets/images/shopCategory/dairy.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
-                            <div class="card-body">
-                                <p class="card-text">Dairy Staples</p>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-                <div class="col">
-                    <a href="product/product.php?category=17" class="text-decoration-none text-dark">
-                        <div class="card text-center h-100 p-2 category-card-hover">
-                            <img src="assets/images/shopCategory/frozen.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
-                            <div class="card-body">
-                                <p class="card-text">Frozen Foods</p>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-                <div class="col">
-                    <a href="product/product.php?category=18" class="text-decoration-none text-dark">
-                        <div class="card text-center h-100 p-2 category-card-hover">
-                            <img src="assets/images/shopCategory/household.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
-                            <div class="card-body">
-                                <p class="card-text">Cleaning Goods</p>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-                <div class="col">
-                    <a href="product/product.php?category=19" class="text-decoration-none text-dark">
-                        <div class="card text-center h-100 p-2 category-card-hover">
-                            <img src="assets/images/shopCategory/personal.png" class="card-img-top mx-auto" style="width:100px;height:100px;object-fit:contain;">
-                            <div class="card-body">
-                                <p class="card-text">Personal Care</p>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-                </div>
-            </div>
-        </div>
-        <br><br>
-        <!-- Product Area End Here -->
-        <!-- Banner Fullwidth Area Start Here -->
-        <div class="banner-fullwidth-area">
-            <div class="container custom-wrapper">
-                <div class="row">
-                    <div class="col-md-5 col-lg-6 text-center col-custom">
-                        <div class="banner-thumb h-100 d-flex justify-content-center align-items-center">
-                            <img src="assets/images/banner/thumb/cop.jpg" alt="Banner Thumb">
-                        </div>
-                    </div>
-                  <div class="col-md-7 col-lg-6 text-center justify-content-center col-custom">
-                        <div class="banner-flash-content d-flex flex-column align-items-center justify-content-center h-100">
-                            <h2 class="deal-head text-uppercase">We are offering flash deals</h2>
-                            <h3 class="deal-title text-uppercase">Call Now</h3>
-                            <a href="contact-us.php" class="obrien-button primary-btn"> +94 77 877 8731</a>
-                            
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <style>
-        .newsletter-area {
-    background-image: url('assets/images/logo/logo-freshco.png');
-    background-repeat: no-repeat;
-    background-position: left;
-    background-size: 800px auto; /* size eka adu kala */
-    filter: brightness(90%);
-}
-
-            </style><br>
-        <!-- Banner Fullwidth Area End Here -->
-        <!-- Banner Area Start Here -->
-        <div class="product-area">
-            <div class="container container-default custom-area">
-                <div class="row">
-                    <div class="col-lg-5 m-auto text-center col-custom">
-                        <div class="section-content">
-                            <h2 class="title-1 text-uppercase">
-                                <a href="bakery.html" style="color: inherit; text-decoration: none;">
-                                    Best Bakery Item
-                                </a>
-                            </h2>
-                            
-                            <div class="desc-content">
-                                <p>All best-selling bakery items are now available for you. Enjoy freshly baked products anytime, anywhere. Shop now for the best quality bakery items.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-lg-12 product-wrapper col-custom">
-                        <div class="product-slider" data-slick-options='{
-                        "slidesToShow": 4,
-                        "slidesToScroll": 1,
-                        "infinite": true,
-                        "arrows": false,
-                        "dots": false
-                        }' data-slick-responsive='[
-                        {"breakpoint": 1200, "settings": {
-                        "slidesToShow": 3
-                        }},
-                        {"breakpoint": 992, "settings": {
-                        "slidesToShow": 2
-                        }},
-                        {"breakpoint": 576, "settings": {
-                        "slidesToShow": 1
-                        }}
-                        ]'>
-                            <div class="single-item">
-                                <div class="single-product position-relative">
-                                    <div class="product-image">
-                                        <a class="d-block" href="bakery.html">
-                                            <img src="assets/images/product/bakery/3.jpg" alt="" class="product-image-1 w-100">
-                                            <img src="assets/images/product/.webp" alt="" class="product-image-2 position-absolute w-100">
-                                        </a>
-                                    </div>
-                                    <div class="product-content">
-                                        
-                                        <div class="product-title">
-                                            <h4 class="title-2"> <a href="#">Muffin</a></h4>
-                                        </div>
-                                        <div class="price-box">
-                                            <span class="regular-price ">Rs 80.00</span>
-                                            <span class="old-price"><del>Rs 90.00</del></span>
-                                        </div>
-                                    </div>
-                                    <div class="add-action d-flex position-absolute">
-                                        <a href="#" title="Add To cart">
-                                            <i class="ion-bag"></i>
-                                        </a>
-                                        <a href="#" title="Compare">
-                                            <i class="ion-ios-loop-strong"></i>
-                                        </a>
-                                        <a href="#" title="Add To Wishlist">
-                                            <i class="ion-ios-heart-outline"></i>
-                                        </a>
-                                        <a href="#" data-bs-toggle="modal" title="Quick View">
-                                            <i class="ion-eye"></i>
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="single-item">
-                                <div class="single-product position-relative">
-                                    <div class="product-image">
-                                        <a class="d-block" href="bakery.html">
-                                            <img src="assets/images/product/bakery/8.jpg" alt="" class="product-image-1 w-100">
-                                            <img src="assets/images/product/.jpg" alt="" class="product-image-2 position-absolute w-100">
-                                        </a>
-                                    </div>
-                                    <div class="product-content">
-                                       
-                                        <div class="product-title">
-                                            <h4 class="title-2"> <a href="bakery.html">biscuits</a></h4>
-                                        </div>
-                                        <div class="price-box">
-                                            <span class="regular-price ">Rs 80.00</span>
-                                            <span class="old-price"><del>Rs 90.00</del></span>
-                                        </div>
-                                    </div>
-                                    <div class="add-action d-flex position-absolute">
-                                        <a href="#" title="Add To cart">
-                                            <i class="ion-bag"></i>
-                                        </a>
-                                        <a href="#" title="Compare">
-                                            <i class="ion-ios-loop-strong"></i>
-                                        </a>
-                                        <a href="#" title="Add To Wishlist">
-                                            <i class="ion-ios-heart-outline"></i>
-                                        </a>
-                                        <a href="#" data-bs-toggle="modal" title="Quick View">
-                                            <i class="ion-eye"></i>
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="single-item">
-                                <div class="single-product position-relative">
-                                    <div class="product-image">
-                                        <a class="d-block" href="bakery.html">
-                                            <img src="assets/images/product/bakery/12.jpg" alt="" class="product-image-1 w-100">
-                                            <img src="assets/images/product/.png" alt="" class="product-image-2 position-absolute w-100">
-                                        </a>
-                                    </div>
-                                    <div class="label-product">
-                                        <span class="label-sale position-absolute text-uppercase text-white text-center d-block">Soldout</span>
-                                    </div>
-                                    <div class="product-content">
-                                        
-                                        <div class="product-title">
-                                            <h4 class="title-2"> <a href="bakery.html">jam bun</a></h4>
-                                        </div>
-                                        <div class="price-box">
-                                            <span class="regular-price ">Rs 80.00</span>
-                                            <span class="old-price"><del>Rs 90.00</del></span>
-                                        </div>
-                                    </div>
-                                    <div class="add-action d-flex position-absolute">
-                                        <a href="#" title="Add To cart">
-                                            <i class="ion-bag"></i>
-                                        </a>
-                                        <a href="#" title="Compare">
-                                            <i class="ion-ios-loop-strong"></i>
-                                        </a>
-                                        <a href="#" title="Add To Wishlist">
-                                            <i class="ion-ios-heart-outline"></i>
-                                        </a>
-                                        <a href="#" data-bs-toggle="modal" title="Quick View">
-                                            <i class="ion-eye"></i>
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="single-item">
-                                <div class="single-product position-relative">
-                                    <div class="product-image">
-                                        <a class="d-block" href="bakery.html">
-                                            <img src="assets/images/product/bakery/11.jpg" alt="" class="product-image-1 w-100">
-                                            <img src="assets/images/product/.jpg" alt="" class="product-image-2 position-absolute w-100">
-                                        </a>
-                                    </div>
-                                    <div class="product-content">
-                                       
-                                        <div class="product-title">
-                                            <h4 class="title-2"> <a href="bakery.html">croissants</a></h4>
-                                        </div>
-                                        <div class="price-box">
-                                            <span class="regular-price ">Rs 80.00</span>
-                                            <span class="old-price"><del>Rs 90.00</del></span>
-                                        </div>
-                                    </div>
-                                    <div class="add-action d-flex position-absolute">
-                                        <a href="#" title="Add To cart">
-                                            <i class="ion-bag"></i>
-                                        </a>
-                                        <a href="#" title="Compare">
-                                            <i class="ion-ios-loop-strong"></i>
-                                        </a>
-                                        <a href="#" title="Add To Wishlist">
-                                            <i class="ion-ios-heart-outline"></i>
-                                        </a>
-                                        <a href="#" data-bs-toggle="modal" title="Quick View">
-                                            <i class="ion-eye"></i>
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="single-item">
-                                <div class="single-product position-relative">
-                                    <div class="product-image">
-                                        <a class="d-block" href="bakery.html">
-                                            <img src="assets/images/product/bakery/16.jpg" alt="" class="product-image-1">
-                                            <img src="assets/images/product/.jpg" alt="" class="product-image-2 position-absolute top-0 left-0">
-                                        </a>
-                                    </div>
-                                    <div class="product-content">
-                                       
-                                        <div class="product-title">
-                                            <h4 class="title-2"> <a href="bakery.html">croissants</a></h4>
-                                        </div>
-                                        <div class="price-box">
-                                            <span class="regular-price ">Rs 80.00</span>
-                                            <span class="old-price"><del>Rs 90.00</del></span>
-                                        </div>
-                                    </div>
-                                    <div class="add-action d-flex position-absolute">
-                                        <a href="#" title="Add To cart">
-                                            <i class="ion-bag"></i>
-                                        </a>
-                                        <a href="#" title="Compare">
-                                            <i class="ion-ios-loop-strong"></i>
-                                        </a>
-                                        <a href="#" title="Add To Wishlist">
-                                            <i class="ion-ios-heart-outline"></i>
-                                        </a>
-                                        <a href="#" data-bs-toggle="modal" title="Quick View">
-                                            <i class="ion-eye"></i>
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            </div>
-            </div>
-        </div>
-        
-        <br><br>
-        <!-- Banner Area End Here -->
-     
-        <!-- Newslatter Area Start Here -->
-        <div class="newsletter-area">
-            <div class="container container-default h-100 custom-area">
-                <div class="row h-100">
-                    <div class="col-lg-8 col-xl-5 offset-xl-6 offset-lg-3 col-custom">
-                        <div class="newsletter-content text-center d-flex flex-column align-items-center justify-content-center h-100">
-                            <div class="section-content">
-                               <!-- <h4 class="title-4 text-uppercase">Guaranteed <span>lowest</span>prices in the city</h4>--> 
-                                <h2 class="title-3 text-uppercase">We guarantee the lowest prices in the city.</h2>
-                              <!--  <p class="desc-content">Subscribe our newsletter and all latest news of our <br>latest product, promotion and offers</p>-->
-                            </div>
-                          <!-- <div class="newsletter-form-wrap ml-auto mr-auto">
-                                <form id="mc-form" class="mc-form d-flex position-relative">
-                                    <input type="email" id="mc-email" class="form-control email-box" placeholder="email@example.com" name="EMAIL">
-                                    <button id="mc-submit" class="btn primary-btn obrien-button newsletter-btn position-absolute" type="submit">Subscribe</button>
-                                </form>--> 
-                                <!-- mailchimp-alerts Start -->
-                               <!-- <div class="mailchimp-alerts text-centre">
-                                    <div class="mailchimp-submitting"></div>--><!-- mailchimp-submitting end -->
-                                    <div class="mailchimp-success text-success"></div><!-- mailchimp-success end -->
-                                    <div class="mailchimp-error text-danger"></div><!-- mailchimp-error end -->
-                                </div>
-                                <!-- mailchimp-alerts end -->
-                            </div> 
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <!-- Newslatter Area End Here -->
-
-        <!-- Support Area Start Here -->
-        <div class="support-area">
-            <div class="container container-default custom-area">
-                <div class="row">
-                    <div class="col-lg-12 col-custom">
-                        <div class="support-wrapper d-flex">
-                            <div class="support-content">
-                                <h1 class="title">Contact Us</Canvas></h1>
-                                <p class="desc-content">Call our sales person for more information</p>
-                            </div>
-                            <div class="support-button d-flex align-items-center">
-                                <a class="obrien-button primary-btn" href="contact-us.php">+94 77 877 8731 </a>
-                                
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <!-- Support Area End Here -->
-        <!-- Footer Area Start Here -->
-        <footer class="footer-area">
-            <div class="footer-widget-area">
-                <div class="container container-default custom-area">
-                    <div class="row">
-                        <div class="col-12 col-sm-12 col-md-12 col-lg-3 col-custom">
-                            <div class="single-footer-widget m-0">
-                                <div class="footer-logo">
-                                    <a href="index.php">
-                                        <img src="assets/images/logo/logo-freshco.png" alt="Logo Image">
-                                    </a>
-                                </div>
-                                <p class="desc-content">Fresh-Co Mart offers fresh vegetables, quality foods, and bakery items for your daily nutrition</p>
-                                <div class="social-links">
-                                    <ul class="d-flex">
-                                        <li>
-                                            <a class="border rounded-circle" href="#" title="Facebook">
-                                                <i class="fa fa-facebook-f"></i>
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a class="border rounded-circle" href="#" title="Twitter">
-                                                <i class="fa fa-twitter"></i>
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a class="border rounded-circle" href="#" title="Linkedin">
-                                                <i class="fa fa-linkedin"></i>
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a class="border rounded-circle" href="#" title="Youtube">
-                                                <i class="fa fa-youtube"></i>
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a class="border rounded-circle" href="#" title="Vimeo">
-                                                <i class="fa fa-vimeo"></i>
-                                            </a>
-                                        </li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-12 col-sm-6 col-md-6 col-lg-2 col-custom">
-                            <div class="single-footer-widget">
-                                <h2 class="widget-title">Information</h2>
-                                <ul class="widget-list">
-                                    <li><a href="about-us.html">Our Company</a></li>
-                                    <li><a href="contact-us.php">Contact Us</a></li>
-                                    <li><a href="about-us.html">Our Services</a></li>
-                                    <li><a href="about-us.html">Why We?</a></li>
-                                    <li><a href="about-us.html">Careers</a></li>
-                                </ul>
-                            </div>
-                        </div>
-                        <div class="col-12 col-sm-6 col-md-6 col-lg-2 col-custom">
-                            <div class="single-footer-widget">
-                                <h2 class="widget-title">Quicklink</h2>
-                                <ul class="widget-list">
-                                    <li><a href="about-us.html">About</a></li>
-                                    <li><a href="#">Blog</a></li>
-                                    <li><a href="#">Shop</a></li>
-                                    <li><a href="#">Cart</a></li>
-                                    <li><a href="contact-us.php">Contact</a></li>
-                                </ul>
-                            </div>
-                        </div>
-                        <div class="col-12 col-sm-6 col-md-6 col-lg-2 col-custom">
-                            <div class="single-footer-widget">
-                                <h2 class="widget-title">Support</h2>
-                                <ul class="widget-list">
-                                    <li><a href="#">Online Support</a></li>
-                                    <li><a href="#">Shipping Policy</a></li>
-                                    <li><a href="#">Return Policy</a></li>
-                                    <li><a href="#">Privacy Policy</a></li>
-                                    <li><a href="#">Terms of Service</a></li>
-                                </ul>
-                            </div>
-                        </div>
-                        <div class="col-12 col-sm-6 col-md-6 col-lg-3 col-custom">
-                            <div class="single-footer-widget">
-                                <h2 class="widget-title">See Information</h2>
-                                <div class="widget-body">
-                                    <address>No.423, Nawala Road, Rajagiriya.Sri Lanka..<br>Phone: +94 77 877 8731 |+94-11-2078246<br>Email:  info@cec.lk | md@cec.lk</address>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="footer-copyright-area">
-                <div class="container custom-area">
-                    <div class="row">
-                        <div class="col-12 text-center col-custom">
-                            <div class="copyright-content">
-                                <p>© 2026 CEC Fresh-Co Mart. All Rights Reserved..</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </footer>
-        <!-- Footer Area End Here -->
-    </div>
-
-    <!-- Modal Area Start Here -->
-    <div class="modal fade obrien-modal" id="exampleModalCenter" tabindex="-1" role="dialog" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered" role="document">
-            <div class="modal-content">
-                <button type="button" class="close close-button" data-bs-dismiss="modal" aria-label="Close">
-                    <span class="close-icon" aria-hidden="true">x</span>
-                </button>
-                <div class="modal-body">
-                    <div class="container-fluid">
-                        <div class="row">
-                            <div class="col-lg-6 col-md-6 text-center">
-                                <div class="product-image">
-                                    <img src="assets/images/product/1.jpg" alt="Product Image">
-                                </div>
-                            </div>
-                            <div class="col-lg-6 col-md-6">
-                                <div class="modal-product">
-                                    <div class="product-content">
-                                        <div class="product-title">
-                                            <h4 class="title">Product dummy name</h4>
-                                        </div>
-                                        <div class="price-box">
-                                            <span class="regular-price ">Rs 80.00</span>
-                                            <span class="old-price"><del>Rs 90.00</del></span>
-                                        </div>
-                                        <div class="product-rating">
-                                            <i class="fa fa-star"></i>
-                                            <i class="fa fa-star"></i>
-                                            <i class="fa fa-star"></i>
-                                            <i class="fa fa-star-o"></i>
-                                            <i class="fa fa-star-o"></i>
-                                            <span>1 Review</span>
-                                        </div>
-                                        <p class="desc-content">we denounce with righteous indignation and dislike men who are so beguiled and demoralized by the charms of pleasure of the moment, so blinded by desire, that they cannot foresee the pain and trouble that are bound to ensue; and equal blame bel...</p>
-                                        <form class="d-flex flex-column w-100" action="#">
-                                            <div class="form-group">
-                                                <select class="form-control nice-select w-100">
-                                                    <option>S</option>
-                                                    <option>M</option>
-                                                    <option>L</option>
-                                                    <option>XL</option>
-                                                    <option>XXL</option>
-                                                </select>
-                                            </div>
-                                        </form>
-                                        <div class="quantity-with_btn">
-                                            <div class="quantity">
-                                                <div class="cart-plus-minus">
-                                                    <input class="cart-plus-minus-box" value="0" type="text">
-                                                    <div class="dec qtybutton">-</div>
-                                                    <div class="inc qtybutton">+</div>
-                                                </div>
-                                            </div>
-                                            <div class="add-to_cart">
-                                                <a class="btn obrien-button primary-btn" href="cart.html">Add to cart</a>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <p class="small text-muted mb-3">Taxes &amp; delivery options calculated at checkout.</p>
+            <div class="d-grid gap-2">
+                <a href="proceed.php" class="btn btn-success fw-bold py-2 rounded-pill">
+                    <i class="bi bi-lock me-1"></i>Proceed to Checkout
+                </a>
+                <a href="product/shopping-cart.php" class="btn btn-outline-secondary btn-sm rounded-pill">
+                    View Full Cart Details
+                </a>
             </div>
         </div>
     </div>
-    <!-- Modal Area End Here -->
 
-    <!-- Scroll to Top Start -->
-    <a class="scroll-to-top" href="#">
-        <i class="ion-chevron-up"></i>
-    </a>
-    <!-- Scroll to Top End -->
+    <!-- Section G: Modern Supermarket Footer -->
+    <footer class="fc-footer">
+        <div class="container-fluid px-lg-5">
+            <div class="row g-4">
+                <div class="col-lg-4 col-md-6">
+                    <img src="assets/images/logo/logo-freshco.png" alt="Freshcomart Logo" height="42" class="mb-3">
+                    <p class="small text-muted">
+                        Freshcomart is Colombo's premier online supermarket, delivering fresh farm produce, groceries, and daily household essentials straight to your door or ready for fast in-store pickup.
+                    </p>
+                    <div class="small text-light mt-2">
+                        <div><i class="bi bi-geo-alt text-success me-2"></i><?php echo htmlspecialchars($store['address']); ?></div>
+                        <div class="mt-1"><i class="bi bi-clock text-success me-2"></i>Open Daily: 8:00 AM – 9:00 PM</div>
+                        <div class="mt-1"><i class="bi bi-telephone text-success me-2"></i>Hotline: +94 11 234 5678</div>
+                    </div>
+                </div>
+                <div class="col-lg-2 col-md-3 col-6">
+                    <h5>Quick Links</h5>
+                    <ul class="list-unstyled">
+                        <li class="mb-2"><a href="index.php">Home</a></li>
+                        <li class="mb-2"><a href="product/product.php">Shop Catalog</a></li>
+                        <li class="mb-2"><a href="about-us.html">About Us</a></li>
+                        <li class="mb-2"><a href="contact-us.php">Contact Us</a></li>
+                        <li class="mb-2"><a href="my-account.php">My Account</a></li>
+                    </ul>
+                </div>
+                <div class="col-lg-3 col-md-3 col-6">
+                    <h5>Categories</h5>
+                    <ul class="list-unstyled">
+                        <li class="mb-2"><a href="product/product.php?category=1">Vegetables &amp; Greens</a></li>
+                        <li class="mb-2"><a href="product/product.php?category=2">Fresh Fruits</a></li>
+                        <li class="mb-2"><a href="product/product.php?category=16">Dairy &amp; Eggs</a></li>
+                        <li class="mb-2"><a href="product/product.php?category=14">Meat &amp; Seafood</a></li>
+                        <li class="mb-2"><a href="product/product.php?category=15">Pantry Staples</a></li>
+                    </ul>
+                </div>
+                <div class="col-lg-3 col-md-12">
+                    <h5>Fulfillment &amp; Payment</h5>
+                    <p class="small text-muted">We provide two convenient payment and collection channels:</p>
+                    <div class="d-flex flex-column gap-2">
+                        <div class="p-2 border rounded border-secondary bg-dark small text-light">
+                            <i class="bi bi-truck text-success me-2"></i>Cash on Delivery (Flat Rs. 450)
+                        </div>
+                        <div class="p-2 border rounded border-secondary bg-dark small text-light">
+                            <i class="bi bi-shop text-warning me-2"></i>Free In-Store Pickup (Rajagiriya)
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="fc-footer-bottom">
+                <p class="mb-0">&copy; <?php echo date('Y'); ?> Freshcomart Supermarket (CEC Web). All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
 
-    <!-- JS
-============================================ -->
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-    <!-- jQuery JS -->
-    <script src="assets/js/vendor/jquery-3.6.0.min.js"></script>
-    <!-- jQuery Migrate JS -->
-    <script src="assets/js/vendor/jquery-migrate-3.3.2.min.js"></script>
-    <!-- Modernizer JS -->
-    <script src="assets/js/vendor/modernizr-2.8.3.min.js"></script>
-    <!-- Bootstrap JS -->
-    <script src="assets/js/vendor/bootstrap.bundle.min.js"></script>
-    <!-- Slick Slider JS -->
-    <script src="assets/js/plugins/slick.min.js"></script>
-    <!-- Countdown JS -->
-    <script src="assets/js/plugins/jquery.countdown.min.js"></script>
-    <!-- Ajax JS -->
-    <script src="assets/js/plugins/jquery.ajaxchimp.min.js"></script>
-    <!-- Jquery Nice Select JS -->
-    <script src="assets/js/plugins/jquery.nice-select.min.js"></script>
-    <!-- Jquery Ui JS -->
-    <script src="assets/js/plugins/jquery-ui.min.js"></script>
-    <!-- jquery magnific popup js -->
-    <script src="assets/js/plugins/jquery.magnific-popup.min.js"></script>
+    <!-- Global Base Path for JS -->
+    <script>window.FC_BASE = '';</script>
+    <script src="assets/js/supermarket-store.js"></script>
 
-    <!-- Main JS -->
-    <script src="assets/js/main.js"></script>
+    <script>
+        // Mini Cart Offcanvas Drawer Loader
+        function openMiniCartDrawer() {
+            var offcanvasEl = document.getElementById('miniCartOffcanvas');
+            var bsOffcanvas = new bootstrap.Offcanvas(offcanvasEl);
+            bsOffcanvas.show();
 
-<script>
-// Set status dot color based on online/offline
-function updateStatusDot() {
-    var dot = document.getElementById('mtStatusDot');
-    if (dot) {
-        <?php if (isset($_SESSION['user_id'])): ?>
-            dot.style.background = navigator.onLine ? 'GreenYellow' : 'orange';
-            dot.title = navigator.onLine ? 'Online' : 'Connection Offline';
-        <?php else: ?>
-            dot.style.background = 'red';
-            dot.title = 'Logged Out';
-        <?php endif; ?>
-    }
-}
-window.addEventListener('online', updateStatusDot);
-window.addEventListener('offline', updateStatusDot);
-window.addEventListener('DOMContentLoaded', updateStatusDot);
+            var container = document.getElementById('miniCartItemsContainer');
+            var footer = document.getElementById('miniCartFooter');
+            var subtotalEl = document.getElementById('miniCartSubtotal');
 
-// Profile dropdown toggle
-(function() {
-	const dropdowns = document.querySelectorAll(".profile-dropdown-wrapper");
-	dropdowns.forEach(wrapper => {
-		const logo = wrapper.querySelector(".mt-logo");
-		const menu = wrapper.querySelector(".profile-dropdown-menu");
-		
-		logo.addEventListener("click", function(e) {
-			e.stopPropagation();
-			menu.classList.toggle("show");
-		});
-	});
+            fetch('product/miniCart.php')
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                    if (!data.items || data.items.length === 0) {
+                        container.innerHTML = '<div class="text-center py-5 text-muted">' +
+                            '<i class="bi bi-basket3 fs-1 text-secondary d-block mb-2"></i>' +
+                            '<span class="fw-semibold">Your grocery basket is empty.</span>' +
+                            '<div class="mt-3"><a href="product/product.php" class="btn btn-success btn-sm rounded-pill px-3">Start Shopping</a></div>' +
+                            '</div>';
+                        footer.style.display = 'none';
+                        return;
+                    }
 
-	// Close dropdown when clicking outside
-	document.addEventListener("click", function() {
-		document.querySelectorAll(".profile-dropdown-menu").forEach(menu => {
-			menu.classList.remove("show");
-		});
-	});
-})();
-</script>
+                    var html = '<div class="list-group list-group-flush">';
+                    data.items.forEach(function(item) {
+                        var imgPath = item.image ? item.image : 'assets/images/logo/logo-freshco.png';
+                        html += '<div class="list-group-item px-0 py-3 d-flex align-items-center gap-3">' +
+                                '<img src="' + imgPath + '" alt="' + item.name + '" width="54" height="54" class="rounded border object-fit-contain p-1" onerror="this.src=\'assets/images/logo/logo-freshco.png\'">' +
+                                '<div class="flex-grow-1">' +
+                                    '<div class="fw-semibold small text-truncate" style="max-width:180px;">' + item.name + '</div>' +
+                                    '<div class="text-muted small">Qty: ' + item.qty + (item.unit ? ' &middot; ' + item.unit : '') + '</div>' +
+                                '</div>' +
+                                '<div class="fw-bold text-success text-end small">Rs. ' + item.line_total + '</div>' +
+                            '</div>';
+                    });
+                    html += '</div>';
+
+                    container.innerHTML = html;
+                    subtotalEl.textContent = 'Rs. ' + data.subtotal;
+                    footer.style.display = 'block';
+
+                    // Synchronize header badges
+                    var count = data.items.length;
+                    document.querySelectorAll('#fcCartBadge').forEach(function(b) { b.textContent = count; });
+                })
+                .catch(function(err) {
+                    container.innerHTML = '<div class="text-danger py-4 text-center">Unable to load cart. Please try again.</div>';
+                });
+        }
+    </script>
 </body>
-
 </html>
