@@ -12,7 +12,7 @@ $orders_rs = Database::search("
     INNER JOIN users u ON o.user_id = u.id
     INNER JOIN order_items oi ON o.id = oi.order_id
     INNER JOIN items i ON oi.item_id = i.id
-    WHERE o.order_status = 'delivered'
+    WHERE o.order_status IN ('delivered', 'collected')
     ORDER BY o.created_at DESC
 ");
 

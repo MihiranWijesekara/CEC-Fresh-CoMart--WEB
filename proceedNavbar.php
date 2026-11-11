@@ -33,13 +33,9 @@ if (session_status() === PHP_SESSION_NONE) {
       $cart_count = 0;
     }
 
-    if ($cart_count > 0) {
-      $can_access_cart = true;
-      $cart_disabled_reason = '';
-    } else {
-      $can_access_cart = false;
-      $cart_disabled_reason = 'Your cart is empty';
-    }
+    // Always allow logged-in users to access the cart page
+    $can_access_cart = true;
+    $cart_disabled_reason = '';
   }
 ?>
 <!doctype html>

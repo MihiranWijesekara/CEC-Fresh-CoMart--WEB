@@ -276,8 +276,16 @@ if ($orders_rs && $orders_rs->num_rows > 0) {
         margin-top: 100px;
       }
     </style>
+    <link rel="stylesheet" href="../assets/css/custom-ui.css" />
+    <style>
+      body.fc-store .orders-section { margin-top: calc(var(--fc-header-h) + var(--fc-catbar-h) + 24px); }
+      @media (max-width: 991.98px) { body.fc-store .orders-section { margin-top: 150px; } }
+      body.fc-store .orders-container { border-radius: var(--fc-radius); }
+      .badge-status.status-ready { background: #fef3c7; color: #d97706; }
+      .badge-status.status-collected { background: #dcfce7; color: #16a34a; }
+    </style>
   </head>
-  <body>
+  <body class="fc-store">
     <!-- Navbar Placeholder -->
     <div id="navbar" class="navbar-container"></div>
     
@@ -323,7 +331,13 @@ if ($orders_rs && $orders_rs->num_rows > 0) {
                       } else if ($status === 'delivered') {
                           $status_label = 'Delivered';
                           $status_icon = 'bi-house-check';
-                      } else if ($status === 'cancelled') {
+                      } else if ($status === 'ready') {
+                           $status_label = 'Ready for Pickup';
+                           $status_icon = 'bi-bag-check';
+                       } else if ($status === 'collected') {
+                           $status_label = 'Collected';
+                           $status_icon = 'bi-check2-all';
+                       } else if ($status === 'cancelled') {
                           $status_label = 'Cancelled';
                           $status_icon = 'bi-x-circle';
                       }

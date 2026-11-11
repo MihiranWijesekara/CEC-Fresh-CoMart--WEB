@@ -360,24 +360,58 @@ $isLoggedIn = isset($_SESSION['user_id']);
         font-size: 0.9rem;
       }
     </style>
+    <!-- Freshcomart design system (loaded last so it wins over the page styles above) -->
+    <link rel="stylesheet" href="../assets/css/custom-ui.css" />
+    <style>
+      .main-content { padding: calc(var(--fc-header-h) + var(--fc-catbar-h) + 28px) 20px 60px; display: block; }
+      @media (max-width: 991.98px) { .main-content { padding-top: 150px; padding-left: 12px; padding-right: 12px; } }
+    </style>
   </head>
-  <body>
-    <?php 
-        $category = isset($_GET['category']) ? intval($_GET['category']) : 0;
+  <body class="fc-store">
+    <?php
+        // category may be a single id ("2") or a comma separated group ("1,2" = Fruits & Veg)
+        $catIds = [];
+        if (isset($_GET['category'])) {
+            foreach (explode(',', (string)$_GET['category']) as $c) {
+                $c = intval($c);
+                if ($c > 0 && !in_array($c, $catIds)) { $catIds[] = $c; }
+            }
+        }
+        $searchQ = isset($_GET['q']) ? trim((string)$_GET['q']) : '';
 
-        if ($category > 0) {
-            $ItemRs = Database::search("SELECT * FROM `items` WHERE `category_id` = $category");
-        } else {
-            $ItemRs = Database::search("SELECT * FROM `items`");
+        $where = [];
+        if (!empty($catIds)) {
+            $where[] = "`category_id` IN (" . implode(',', $catIds) . ")";
+        }
+        if ($searchQ !== '') {
+            Database::setUpConnection();
+            $safeQ = Database::$connection->real_escape_string($searchQ);
+            $where[] = "`name` LIKE '%$safeQ%'";
+        }
+        $sql = "SELECT * FROM `items`" . (empty($where) ? '' : ' WHERE ' . implode(' AND ', $where));
+        $ItemRs = Database::search($sql);
+
+        // quantity already in the shopper's cart (drives the initial "- qty +" stepper state)
+        $inCart = [];
+        if ($isLoggedIn) {
+            $uidc = (int)$_SESSION['user_id'];
+            $cq = Database::search("SELECT ci.item_id, ci.quantity FROM cart_items ci INNER JOIN carts c ON c.id = ci.cart_id WHERE c.user_id='$uidc' AND c.status='Active'");
+            if ($cq) { while ($r = $cq->fetch_assoc()) { $inCart[(int)$r['item_id']] = (float)$r['quantity']; } }
         }
     ?>
-    
+
     <!-- Navbar -->
     <div id="navbar" class="navbar-container"></div>
 
     <!-- Product Grid -->
     <div class="main-content">
-      <div class="card-container">
+      <div class="fc-page-head">
+        <div>
+          <h1><?php echo $searchQ !== '' ? 'Results for “' . htmlspecialchars($searchQ) . '”' : 'Fresh Products'; ?></h1>
+          <p><?php echo $ItemRs ? (int)$ItemRs->num_rows : 0; ?> items available</p>
+        </div>
+      </div>
+      <div class="fc-grid card-container" id="productGrid">
         <?php
         if ($ItemRs && $ItemRs->num_rows > 0) {
           while ($row = $ItemRs->fetch_assoc()) {
@@ -390,34 +424,56 @@ $isLoggedIn = isset($_SESSION['user_id']);
             $isActive = ($status === 'active');
             $stock_qty = isset($row['stock_quantity']) ? (int)$row['stock_quantity'] : 0;
             $isInStock = ($isActive && $stock_qty > 0);
+            $isBulk = (bool)Database::isBulkItem($row['category_id'], $row['unit']);
+            // optional compare-at price (only rendered when such a column exists and is higher)
+            $oldPrice = null;
+            foreach (['old_price', 'original_price', 'compare_price'] as $k) {
+              if (isset($row[$k]) && (float)$row[$k] > (float)$row['price']) { $oldPrice = (float)$row[$k]; break; }
+            }
+            $cartQty = $inCart[(int)$row['id']] ?? 0;
+            $showStepper = (!$isBulk && $cartQty > 0);
           ?>
-          <div class="product-card">
-            <div class="product-img-wrapper">
-              <img src="../<?php echo $img; ?>" alt="<?php echo $name; ?>" />
+          <article class="fc-product <?php echo $isInStock ? '' : 'is-out'; ?>" data-name="<?php echo strtolower($name); ?>">
+            <div class="fc-product-img">
+              <?php if ($oldPrice) { ?><span class="fc-product-tag">-<?php echo round((1 - (float)$price / $oldPrice) * 100); ?>%</span><?php } ?>
+              <img src="../<?php echo $img; ?>" alt="<?php echo $name; ?>" loading="lazy" />
+              <?php if (!$isInStock) { ?><div class="fc-out-overlay"><span>Out of Stock</span></div><?php } ?>
             </div>
-            <div class="card-body">
-              <h5 class="card-title"><?php echo $name; ?></h5>
-              
-              <div class="card-meta">
-                <span class="badge-unit"><?php echo $unit; ?></span>
+            <div class="fc-product-body">
+              <h3 class="fc-product-title"><?php echo $name; ?></h3>
+              <span class="fc-unit"><?php echo $unit; ?></span>
+
+              <div class="fc-price-row">
+                <span class="fc-price">Rs. <?php echo number_format((float)$price, 2); ?></span>
+                <?php if ($oldPrice) { ?><span class="fc-price-old">Rs. <?php echo number_format($oldPrice, 2); ?></span><?php } ?>
+              </div>
+
+              <div class="fc-stock-row">
                 <?php if ($isInStock) { ?>
-                  <span class="badge-status in-stock"><i class="bi bi-check2-circle me-1"></i>In Stock</span>
+                  <span class="fc-pill in"><i class="bi bi-check-circle-fill"></i>In Stock</span>
                 <?php } else { ?>
-                  <span class="badge-status out-of-stock"><i class="bi bi-x-circle me-1"></i>Out of Stock</span>
+                  <span class="fc-pill out"><i class="bi bi-x-circle-fill"></i>Out of Stock</span>
                 <?php } ?>
               </div>
-              
-              <div class="price-tag">Rs. <?php echo number_format((float)$price, 2); ?></div>
-              
-              <button class="btn-add" onclick="checkLogin('<?php echo $id; ?>', '<?php echo $price; ?>', '<?php echo $unit; ?>', <?php echo $row['category_id']; ?>)" <?php if (!$isInStock) echo 'disabled'; ?>>
-                <i class="bi bi-cart-plus-fill"></i> Add to Cart
-              </button>
+
+              <div class="fc-add-wrap <?php echo $showStepper ? 'is-stepper' : ''; ?>" data-id="<?php echo $id; ?>" data-price="<?php echo $price; ?>" data-unit="<?php echo $unit; ?>" data-cat="<?php echo (int)$row['category_id']; ?>" data-bulk="<?php echo $isBulk ? 1 : 0; ?>" data-qty="<?php echo $showStepper ? (int)round($cartQty) : 0; ?>">
+                <button type="button" class="fc-add-btn" onclick="fcAdd(this)" <?php if (!$isInStock) echo 'disabled'; ?>>
+                  <i class="bi bi-plus-lg"></i> <?php echo $isInStock ? 'Add' : 'Unavailable'; ?>
+                </button>
+                <div class="fc-stepper" role="group" aria-label="Quantity for <?php echo $name; ?>">
+                  <button type="button" onclick="fcStep(this, -1)" aria-label="Decrease quantity"><i class="bi bi-dash-lg"></i></button>
+                  <span class="count" aria-live="polite"><?php echo $showStepper ? (int)round($cartQty) : 0; ?></span>
+                  <button type="button" onclick="fcStep(this, 1)" aria-label="Increase quantity"><i class="bi bi-plus-lg"></i></button>
+                </div>
+              </div>
             </div>
-          </div>
+          </article>
           <?php }
         } else { ?>
-          <div class="text-center py-5 w-100 grid-column-span-all">
-            <p class="text-muted">No products found in this category.</p>
+          <div class="fc-empty">
+            <i class="bi bi-basket"></i>
+            <p>No products found<?php echo $searchQ !== '' ? ' for “' . htmlspecialchars($searchQ) . '”' : ' in this category'; ?>.</p>
+            <a class="fc-btn fc-btn-primary" href="product.php">Browse all products</a>
           </div>
         <?php } ?>
       </div>
@@ -675,6 +731,57 @@ $isLoggedIn = isset($_SESSION['user_id']);
       function closePopup() {
         document.getElementById("popupOverlay").style.display = "none";
       }
+
+      // ---- "+ Add" → "- qty +" stepper (uses the existing productProcess.php endpoint) ----
+      function fcPost(wrap, delta, done) {
+        var fd = new FormData();
+        fd.append('item_id', wrap.dataset.id);
+        fd.append('quantity', delta);
+        fd.append('price', parseFloat(wrap.dataset.price) * Math.abs(delta));
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', './productProcess.php', true);
+        xhr.onreadystatechange = function () {
+          if (xhr.readyState !== 4) return;
+          var ok = xhr.status === 200 && /^Item/.test(xhr.responseText.trim());
+          done(ok, xhr.responseText.trim());
+        };
+        xhr.send(fd);
+      }
+
+      function fcRender(wrap, qty) {
+        wrap.dataset.qty = qty;
+        wrap.querySelector('.count').textContent = qty;
+        wrap.classList.toggle('is-stepper', qty > 0);
+        if (typeof window.refreshMiniCart === 'function') window.refreshMiniCart(false);
+      }
+
+      function fcAdd(btn) {
+        var wrap = btn.closest('.fc-add-wrap');
+        if (!isLoggedIn) { openPopup(); return; }
+        if (wrap.dataset.bulk === '1') {
+          // weight-based items keep the existing weight/package picker
+          checkLogin(wrap.dataset.id, wrap.dataset.price, wrap.dataset.unit, wrap.dataset.cat);
+          return;
+        }
+        btn.disabled = true;
+        fcPost(wrap, 1, function (ok, msg) {
+          btn.disabled = false;
+          if (ok) { fcRender(wrap, 1); showToast('Added to cart', 'success'); }
+          else { showToast(msg || 'Error adding to cart.', 'error'); }
+        });
+      }
+
+      function fcStep(btn, delta) {
+        var wrap = btn.closest('.fc-add-wrap');
+        var stepBtns = wrap.querySelectorAll('.fc-stepper button');
+        var qty = parseInt(wrap.dataset.qty || '0', 10);
+        stepBtns.forEach(function (b) { b.disabled = true; });
+        fcPost(wrap, delta, function (ok, msg) {
+          stepBtns.forEach(function (b) { b.disabled = false; });
+          if (ok) { fcRender(wrap, Math.max(0, qty + delta)); }
+          else { showToast(msg || 'Could not update cart.', 'error'); }
+        });
+      }
       
       // Update preview when weight option changes
       document.addEventListener('DOMContentLoaded', function() {
@@ -707,6 +814,7 @@ $isLoggedIn = isset($_SESSION['user_id']);
           if (xhr.readyState === 4) {
             if (xhr.status === 200) {
               showToast('Added to cart successfully!', 'success');
+              if (typeof window.refreshMiniCart === 'function') window.refreshMiniCart(false);
             } else {
               showToast('Error adding to cart.', 'error');
               console.error('Error adding to cart:', xhr.statusText);

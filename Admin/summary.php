@@ -1,6 +1,7 @@
 <?php
 require 'adminAuth.php';
 require '../connection.php';
+require 'orderHelpers.php';
 
 // Category map
 $categories = [
@@ -78,6 +79,9 @@ $status_breakdown_rs = Database::search("
     FROM orders 
     GROUP BY order_status
 ");
+
+// 5. Orders by purchase method
+$method_rs = Database::search("SELECT order_method, COUNT(id) AS total_count, COALESCE(SUM(total_amount),0) AS total_value FROM orders GROUP BY order_method");
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -164,8 +168,8 @@ $status_breakdown_rs = Database::search("
                               $count = (int)$s_row['total_count'];
                               ?>
                               <div class="col-6 mb-3">
-                                  <div class="p-3 border rounded-3 bg-light">
-                                      <p class="text-uppercase text-muted fw-semibold mb-1" style="font-size: 0.8rem;"><?php echo $status_name; ?></p>
+                                  <div class="p-3 border rounded-3 bg-light text-start">
+                                      <p class="mb-2"><?php echo fc_status_badge($s_row['status'] ?: 'pending'); ?></p>
                                       <h3 class="fw-bold mb-0 text-dark"><?php echo $count; ?></h3>
                                   </div>
                               </div>
@@ -181,6 +185,29 @@ $status_breakdown_rs = Database::search("
           
           <!-- Right Column: Top Products & Recent Sign-ups -->
           <div class="col-lg-6">
+              <div class="summary-card">
+                  <h4 class="fw-bold mb-4"><i class="bi bi-bag-check-fill text-warning me-2"></i>Orders by Purchase Method</h4>
+                  <div class="row g-3">
+                      <?php
+                      $methods = ['delivery' => [0, 0.0], 'pickup' => [0, 0.0]];
+                      if ($method_rs) {
+                          while ($m = $method_rs->fetch_assoc()) {
+                              $k = fc_order_method($m['order_method']);
+                              $methods[$k][0] += (int)$m['total_count'];
+                              $methods[$k][1] += (float)$m['total_value'];
+                          }
+                      }
+                      foreach ($methods as $k => $v) { ?>
+                          <div class="col-6">
+                              <div class="p-3 border rounded-3 bg-light">
+                                  <p class="mb-2"><?php echo fc_method_badge($k); ?></p>
+                                  <h3 class="fw-bold mb-0 text-dark"><?php echo $v[0]; ?></h3>
+                                  <small class="text-muted">Rs. <?php echo number_format($v[1], 2); ?></small>
+                              </div>
+                          </div>
+                      <?php } ?>
+                  </div>
+              </div>
               <div class="summary-card">
                   <h4 class="fw-bold mb-4"><i class="bi bi-star-fill text-warning me-2"></i>Top 5 Best Selling Products</h4>
                   <div class="table-responsive">

@@ -12,6 +12,9 @@ $user_id = $_SESSION['user_id'];
 $fName = isset($_POST['firstName']) ? trim($_POST['firstName']) : '';
 $lName = isset($_POST['lastName']) ? trim($_POST['lastName']) : '';
 $phone = isset($_POST['phone']) ? trim($_POST['phone']) : '';
+$streetAddress1 = isset($_POST['streetAddress1']) ? trim($_POST['streetAddress1']) : '';
+$streetAddress2 = isset($_POST['streetAddress2']) ? trim($_POST['streetAddress2']) : '';
+$town = isset($_POST['town']) ? trim($_POST['town']) : '';
 $currentPassword = isset($_POST['currentPassword']) ? $_POST['currentPassword'] : '';
 $newPassword = isset($_POST['newPassword']) ? $_POST['newPassword'] : '';
 $confirmPassword = isset($_POST['confirmPassword']) ? $_POST['confirmPassword'] : '';
@@ -30,6 +33,14 @@ if (empty($phone)) {
 }
 if (!preg_match('/^(?:0|\+94|94)?[1-9][0-9]{8}$/', $phone)) {
     echo "Please enter a valid Sri Lankan phone number.";
+    exit();
+}
+if (empty($streetAddress1)) {
+    echo "Please enter your street address.";
+    exit();
+}
+if (empty($town)) {
+    echo "Please enter your town/city.";
     exit();
 }
 
@@ -73,11 +84,21 @@ if (!empty($newPassword) || !empty($confirmPassword) || !empty($currentPassword)
     $update_password = true;
 }
 
+// Escape all fields for SQL safety
+Database::setUpConnection();
+$db = Database::$connection;
+$fName_esc = $db->real_escape_string($fName);
+$lName_esc = $db->real_escape_string($lName);
+$phone_esc = $db->real_escape_string($phone);
+$streetAddress1_esc = $db->real_escape_string($streetAddress1);
+$streetAddress2_esc = $db->real_escape_string($streetAddress2);
+$town_esc = $db->real_escape_string($town);
+
 // Perform update query
 if ($update_password) {
-    Database::iud("UPDATE users SET first_name = '$fName', last_name = '$lName', phone_number = '$phone', password = '$hashed_new_password' WHERE id = '$user_id'");
+    Database::iud("UPDATE users SET first_name = '$fName_esc', last_name = '$lName_esc', phone_number = '$phone_esc', street_address1 = '$streetAddress1_esc', street_address2 = '$streetAddress2_esc', town = '$town_esc', password = '$hashed_new_password' WHERE id = '$user_id'");
 } else {
-    Database::iud("UPDATE users SET first_name = '$fName', last_name = '$lName', phone_number = '$phone' WHERE id = '$user_id'");
+    Database::iud("UPDATE users SET first_name = '$fName_esc', last_name = '$lName_esc', phone_number = '$phone_esc', street_address1 = '$streetAddress1_esc', street_address2 = '$streetAddress2_esc', town = '$town_esc' WHERE id = '$user_id'");
 }
 
 // Refresh user session data

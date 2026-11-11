@@ -34,7 +34,46 @@ $streetAddress1 = $db->real_escape_string(trim($_POST['streetAddress1'] ?? ''));
 $streetAddress2 = $db->real_escape_string(trim($_POST['streetAddress2'] ?? ''));
 $town           = $db->real_escape_string(trim($_POST['town']           ?? ''));
 
-$delivery_fee = (float)($_POST['delivery_fee'] ?? 0);
+$store = require __DIR__ . '/storeConfig.php';
+
+// Purchase method: 'delivery' (COD) or 'pickup' (pay / collect in store)
+$order_method   = (($_POST['order_method'] ?? 'delivery') === 'pickup') ? 'pickup' : 'delivery';
+$payment_method = ($order_method === 'pickup') ? 'store' : 'cod';
+$instructions   = $db->real_escape_string(mb_substr(trim($_POST['instructions'] ?? ''), 0, 500));
+
+// Delivery fee is decided server-side: free for pickup, configured fee for delivery
+$delivery_fee = ($order_method === 'pickup') ? 0.0 : (float)$store['delivery_fee'];
+
+$pickup_code = null;
+$pickup_date = null;
+$pickup_slot = null;
+if ($order_method === 'pickup') {
+    $slot_in = trim($_POST['pickup_slot'] ?? '');
+    $date_in = trim($_POST['pickup_date'] ?? '');
+
+    if (!in_array($slot_in, $store['pickup_slots'], true)) {
+        die("Please choose a valid pickup time slot.");
+    }
+    $allowed_dates = [];
+    for ($d = 0; $d < (int)$store['pickup_days']; $d++) {
+        $allowed_dates[] = (new DateTime("+$d day", new DateTimeZone('Asia/Colombo')))->format('Y-m-d');
+    }
+    if (!in_array($date_in, $allowed_dates, true)) {
+        die("Please choose a valid pickup date.");
+    }
+    $pickup_date = $date_in;
+    $pickup_slot = $db->real_escape_string($slot_in);
+
+    // Unique, easy-to-read pickup code (no 0/O/1/I)
+    $alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    do {
+        $pickup_code = '';
+        for ($i = 0; $i < 6; $i++) {
+            $pickup_code .= $alphabet[random_int(0, strlen($alphabet) - 1)];
+        }
+        $dup = Database::search("SELECT id FROM orders WHERE pickup_code='$pickup_code' LIMIT 1");
+    } while ($dup && $dup->num_rows > 0);
+}
 
 // Arrays sent from JS with [] suffix
 $item_ids    = $_POST['item_id']    ?? [];
@@ -108,12 +147,19 @@ $created_at = $date->format("Y-m-d H:i:s");
 // ─────────────────────────────────────────────
 // 5. Insert Order
 // ─────────────────────────────────────────────
+$pc_sql = $pickup_code === null ? 'NULL' : "'$pickup_code'";
+$pd_sql = $pickup_date === null ? 'NULL' : "'$pickup_date'";
+$ps_sql = $pickup_slot === null ? 'NULL' : "'$pickup_slot'";
 $order_sql = "INSERT INTO orders
                 (order_number, user_id, total_amount, delivery_fee,
-                 street_address1, street_address2, town, created_at)
+                 street_address1, street_address2, town, created_at,
+                 order_method, payment_method, payment_status,
+                 pickup_code, pickup_date, pickup_slot, delivery_instructions)
               VALUES
                 ('', '$user_id', '$total_amount', '$delivery_fee',
-                 '$streetAddress1', '$streetAddress2', '$town', '$created_at')";
+                 '$streetAddress1', '$streetAddress2', '$town', '$created_at',
+                 '$order_method', '$payment_method', 'Unpaid',
+                 $pc_sql, $pd_sql, $ps_sql, '$instructions')";
 Database::iud($order_sql);
 
 $order_id_rs = Database::search("SELECT LAST_INSERT_ID() AS oid");

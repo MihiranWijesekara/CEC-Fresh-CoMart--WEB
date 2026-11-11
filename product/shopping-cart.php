@@ -197,8 +197,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_item_id'])) {
         margin-top: 150px;
       }
     </style>
+    <link rel="stylesheet" href="../assets/css/custom-ui.css" />
+    <style>
+      body.fc-store > .container { margin-top: calc(var(--fc-header-h) + var(--fc-catbar-h) + 16px); }
+      @media (max-width: 991.98px) { body.fc-store > .container { margin-top: 150px; } }
+      body.fc-store .qty-btn { width: 44px; height: 44px; border-radius: 8px; background: #fff; border-color: var(--fc-border); }
+      body.fc-store .qty-btn:hover { background: var(--fc-primary-soft); }
+      body.fc-store .remove-btn { min-width: 44px; min-height: 44px; color: var(--fc-danger); }
+      body.fc-store .total-box { background: var(--fc-primary-dark); border-radius: var(--fc-radius-sm); }
+      body.fc-store .summary-box { background: var(--fc-bg); border: 1px solid var(--fc-border); }
+      body.fc-store { background: var(--fc-bg); }
+      body.fc-store footer { background: #0f172a; margin-top: 60px; }
+      @media (max-width: 767.98px) { .product-table { font-size: .85rem; } .product-table td, .product-table th { padding: 8px !important; } }
+    </style>
   </head>
-  <body>
+  <body class="fc-store">
     <?php 
         $subTotal = 0;
         $itemCount = 0;
@@ -347,6 +360,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cart_item_id'])) {
         </div>
       </div>
     </div>
+
+    <?php if ($itemCount > 0) { ?>
+    <!-- Mobile sticky checkout bar -->
+    <div class="fc-sticky-checkout">
+      <div style="flex:1">
+        <div style="font-size:.72rem;color:#64748b;font-weight:600;text-transform:uppercase">Total</div>
+        <div id="fcStickyTotal" style="font-weight:800;color:#0f172a">Rs. <?php echo number_format($grandTotal, 2); ?></div>
+      </div>
+      <a class="fc-btn fc-btn-primary" href="../proceed.php">Checkout <i class="fa-solid fa-arrow-right"></i></a>
+    </div>
+    <script>
+      (function () {
+        var g = document.getElementById('grandTotal'), s = document.getElementById('fcStickyTotal');
+        if (g && s) new MutationObserver(function () { s.textContent = g.textContent; }).observe(g, { childList: true, characterData: true, subtree: true });
+      })();
+    </script>
+    <?php } ?>
 
     <!-- Footer -->
     <footer>© 2026 CEC Fresh-Co Mart. All Rights Reserved.</footer>

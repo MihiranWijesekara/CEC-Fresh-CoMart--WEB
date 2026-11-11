@@ -1,6 +1,7 @@
 <?php
 require 'adminAuth.php';
 require '../connection.php';
+require 'orderHelpers.php';
 
 // Fetch Statistics
 $sales_rs = Database::search("SELECT COALESCE(SUM(total_amount), 0) AS total FROM orders");
@@ -20,7 +21,8 @@ $pending_orders = $pending_rs ? (int)$pending_rs->fetch_assoc()['total'] : 0;
 
 // Fetch Recent 5 Orders
 $recent_orders_rs = Database::search("
-    SELECT o.id, o.order_number, u.first_name, u.last_name, o.total_amount, o.order_status, o.created_at 
+    SELECT o.id, o.order_number, u.first_name, u.last_name, o.total_amount, o.order_status, o.created_at,
+           o.order_method, o.payment_status
     FROM orders o 
     INNER JOIN users u ON o.user_id = u.id 
     ORDER BY o.created_at DESC 
@@ -170,13 +172,15 @@ $recent_orders_rs = Database::search("
         <div class="recent-orders-card">
             <h4 class="fw-bold mb-4">Recent Orders Log</h4>
             <div class="table-responsive">
-                <table class="table align-middle table-hover">
+                <table class="table fc-admin-table align-middle table-hover">
                     <thead>
-                        <tr style="border-bottom: 2px solid #e3e6ed;">
+                        <tr>
                             <th class="py-3">Order Number</th>
                             <th class="py-3">Customer</th>
                             <th class="py-3">Amount</th>
-                            <th class="py-3">Date & Time</th>
+                            <th class="py-3">Method</th>
+                            <th class="py-3">Payment</th>
+                            <th class="py-3">Date &amp; Time</th>
                             <th class="py-3">Status</th>
                             <th class="py-3 text-center">Action</th>
                         </tr>
@@ -185,17 +189,16 @@ $recent_orders_rs = Database::search("
                         <?php if ($recent_orders_rs && $recent_orders_rs->num_rows > 0) {
                             while ($order = $recent_orders_rs->fetch_assoc()) {
                                 $status = $order['order_status'] ? $order['order_status'] : 'pending';
-                                $statusClass = 'status-' . $status;
                                 ?>
                                 <tr style="border-bottom: 1px solid #f1f3f7;">
                                     <td class="fw-bold">#<?php echo htmlspecialchars($order['order_number'] ?: str_pad($order['id'], 5, '0', STR_PAD_LEFT)); ?></td>
                                     <td><?php echo htmlspecialchars($order['first_name'] . ' ' . $order['last_name']); ?></td>
                                     <td class="fw-semibold">Rs. <?php echo number_format((float)$order['total_amount'], 2); ?></td>
+                                    <td><?php echo fc_method_badge($order['order_method'] ?? 'delivery'); ?></td>
+                                    <td><?php echo fc_payment_badge($order['payment_status'] ?? 'Unpaid'); ?></td>
                                     <td class="text-muted"><?php echo date("F d, Y h:i A", strtotime($order['created_at'])); ?></td>
                                     <td>
-                                        <span class="badge-status <?php echo $statusClass; ?>">
-                                            <?php echo $status; ?>
-                                        </span>
+                                        <?php echo fc_status_badge($status, $order['order_method'] ?? 'delivery'); ?>
                                     </td>
                                     <td class="text-center">
                                         <a href="order.php" class="btn btn-outline-primary btn-sm px-3 rounded-pill">Manage</a>
@@ -204,7 +207,7 @@ $recent_orders_rs = Database::search("
                             <?php }
                         } else { ?>
                             <tr>
-                                <td colspan="6" class="text-center py-4 text-muted">No orders found in database.</td>
+                                <td colspan="8" class="text-center py-4 text-muted">No orders found in database.</td>
                             </tr>
                         <?php } ?>
                     </tbody>

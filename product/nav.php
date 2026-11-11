@@ -1,12 +1,21 @@
 <?php
-  require '../connection.php';
-  session_start();
+  // Header fragment. Works two ways:
+  //  1. fetched by product pages (fetch("nav.php")) – default base "../"
+  //  2. included by root pages (e.g. proceed.php) after setting $FC_BASE = '' and $FC_EMBED = true
+  if (!isset($FC_BASE)) { $FC_BASE = '../'; }
+  $FC_EMBED = isset($FC_EMBED) && $FC_EMBED;
+  $P = $FC_BASE . 'product/';
+
+  require_once __DIR__ . '/../connection.php';
+  if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+  }
+  $store = require __DIR__ . '/../storeConfig.php';
 
   $cart_count = 0;
   $can_access_cart = false;
   $cart_disabled_reason = 'Login required';
   $is_logged_in = isset($_SESSION['user_id']);
-
 
   // Set status dot color based on session
   $status_dot_color = isset($_SESSION['user_id']) ? 'GreenYellow' : 'red';
@@ -27,7 +36,7 @@
   if (isset($_SESSION['user_id'])) {
     $user_id = $_SESSION['user_id'];
     $cart_rs = Database::search("SELECT * FROM carts WHERE user_id='$user_id' AND status='Active'");
-    
+
     if ($cart_rs && $cart_rs->num_rows > 0) {
       $cart_data = $cart_rs->fetch_assoc();
       $cart_id = $cart_data['id'];
@@ -38,997 +47,176 @@
       $cart_count = 0;
     }
 
-    if ($cart_count > 0) {
-      $can_access_cart = true;
-      $cart_disabled_reason = '';
-    } else {
-      $can_access_cart = false;
-      $cart_disabled_reason = 'Your cart is empty';
-    }
+    // Always allow logged-in users to access the cart page
+    $can_access_cart = true;
+    $cart_disabled_reason = '';
   }
+
+  // Category catalogue (ids match items.category_id)
+  $all_categories = [
+    1 => ['Vegetables', 'fa-carrot'], 2 => ['Fruits', 'fa-apple-whole'], 3 => ['Snacks', 'fa-cookie-bite'],
+    4 => ['Biscuits', 'fa-cookie'], 5 => ['Coffee', 'fa-mug-hot'], 6 => ['Eggs', 'fa-egg'],
+    7 => ['Water', 'fa-bottle-water'], 8 => ['Tea', 'fa-mug-saucer'], 9 => ['Cheese', 'fa-cheese'],
+    10 => ['Yoghurts & Curd', 'fa-ice-cream'], 11 => ['Desserts', 'fa-cake-candles'], 12 => ['Beverages', 'fa-glass-water'],
+    13 => ['Bakery', 'fa-bread-slice'], 14 => ['Meat & Seafood', 'fa-drumstick-bite'], 15 => ['Pantry Staples', 'fa-bowl-rice'],
+    16 => ['Dairy Staples', 'fa-cow'], 17 => ['Frozen Foods', 'fa-snowflake'], 18 => ['Household & Cleaning', 'fa-soap'],
+    19 => ['Personal Care & Baby', 'fa-baby-carriage'],
+  ];
+  // Quick-access bar: label, icon, comma separated category ids
+  $quick_bar = [
+    ['Fruits & Veg', 'fa-carrot', '1,2'],
+    ['Dairy', 'fa-cow', '16,9,10,6'],
+    ['Meat', 'fa-drumstick-bite', '14'],
+    ['Beverages', 'fa-glass-water', '12,5,8,7'],
+    ['Pantry', 'fa-bowl-rice', '15,3,4'],
+    ['Household', 'fa-soap', '18'],
+  ];
+  $q_value = isset($_GET['q']) ? htmlspecialchars($_GET['q']) : '';
 ?>
-<!doctype html>
-<html>
-  <head>
-    <title>Navbar Design</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+<link rel="stylesheet" href="<?php echo $FC_BASE; ?>assets/css/custom-ui.css" />
+<style>
+  /* status dot + profile menu helpers (kept from previous header) */
+  .fc-header .mt-status-dot { width: 9px; height: 9px; border-radius: 50%; position: absolute; }
+  .profile-dropdown-wrapper { position: relative; display: inline-block; }
+  .profile-dropdown-menu { display: none; position: absolute; right: 0; background: #fff; min-width: 230px; box-shadow: 0 10px 30px rgba(15,23,42,.15); border-radius: 12px; overflow: hidden; z-index: 1100; border: 1px solid #e2e8f0; font-family: Inter, system-ui, sans-serif; }
+  .profile-dropdown-menu.show { display: block; animation: fcFade .2s ease; }
+  .profile-dropdown-header { padding: 14px 18px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; }
+  .profile-dropdown-header .user-name { font-weight: 700; color: #15803d; font-size: 14px; }
+  .profile-dropdown-header .user-email { color: #64748b; font-size: 12px; word-break: break-all; }
+  .profile-dropdown-menu a { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 18px; text-decoration: none; color: #334155; font-size: 14px; font-weight: 600; }
+  .profile-dropdown-menu a:hover { background: #f0fdf4; color: #15803d; }
+  .profile-dropdown-menu i { width: 18px; text-align: center; color: #64748b; }
+</style>
 
-    <!-- Font Awesome -->
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
-    />
+<!-- ============ Sticky header ============ -->
+<header class="fc-header" role="banner">
+  <button class="fc-menu-toggle" type="button" onclick="openSidebar()" aria-label="Open menu"><i class="fas fa-bars"></i></button>
 
-    <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-      body {
-        margin: 0;
-        font-family: Arial, sans-serif;
-      }
+  <a class="fc-logo" href="<?php echo $FC_BASE; ?>index.php" aria-label="Freshcomart home">
+    <img src="<?php echo $FC_BASE; ?>assets/images/logo/logo-freshco.png" alt="Freshcomart" />
+  </a>
 
-      /* MT Logo */
-      .fc-wrapper {
-        display: flex;
-        align-items: center;
-      }
+  <button class="fc-store-select" type="button" title="Pickup &amp; delivery store" aria-label="Selected store: <?php echo htmlspecialchars($store['label']); ?>">
+    <i class="fa-solid fa-location-dot"></i>
+    <span><small>Store</small><strong>Store: <?php echo htmlspecialchars($store['label']); ?></strong></span>
+  </button>
 
-      .mt-logo {
-        /* margin-top: 20px; */
-        margin-right: 50px;
-        width: 43px;
-        height: 43px;
-        background: #007bff;
-        border-radius: 50%;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        position: relative;
-        color: white;
-        font-size: 16px;
-        font-weight: bold;
-      }
+  <form class="fc-search" id="fcSearch" action="<?php echo $P; ?>product.php" method="get" role="search">
+    <select name="category" aria-label="Search category">
+      <option value="0">All Categories</option>
+      <?php foreach ($all_categories as $cid => $c): ?>
+        <option value="<?php echo $cid; ?>"><?php echo htmlspecialchars($c[0]); ?></option>
+      <?php endforeach; ?>
+    </select>
+    <input type="search" name="q" id="fcSearchInput" value="<?php echo $q_value; ?>" placeholder="Search for fruits, milk, rice…" autocomplete="off" aria-label="Search products" />
+    <button type="button" class="fc-search-clear" id="fcSearchClear" aria-label="Clear search"><i class="fas fa-xmark"></i></button>
+    <button type="submit" class="fc-search-submit" aria-label="Search"><i class="fas fa-magnifying-glass"></i><span class="d-none d-xl-inline">Search</span></button>
+  </form>
 
-      .mt-status-dot {
-        width: 9px;
-        height: 9px;
-        border-radius: 50%;
-        position: absolute;
-        top: 0.05em;
-        right: 4px;
-        /* background set dynamically via inline style */
-      }
-      @media (max-width: 600px) {
-        .mt-logo {
-          width: 32px;
-          height: 32px;
-          font-size: 12px;
-          top: 0.5em;
-        }
-        .mt-status-dot {
-          width: 6px;
-          height: 6px;
-          right: 2px;
-          top: 0.1em;
-          /* background set dynamically via inline style */
-        }
-      }
-
-      /* Desktop Navbar */
-      .navbar {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 15px 45px;
-        background-color: #27b62e;
-        width: 100%;
-        box-sizing: border-box;
-      }
-
-      .nav-left {
-        display: flex;
-        align-items: center;
-        gap: 20px;
-      }
-
-      .nav-left img {
-        height: 50px;
-      }
-
-      /* Dropdown */
-      .dropdown {
-        position: relative;
-      }
-
-      .dropbtn {
-        background: white;
-        color: #2e7d32;
-        padding: 8px 18px;
-        border-radius: 25px;
-        border: none;
-        cursor: pointer;
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
-
-      .dropdown-content {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 6px;
-        position: absolute;
-        top: 50px;
-        left: 0;
-        background-color: white;
-        width: 480px;
-        max-height: 80vh;
-        overflow-y: auto;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-        border-radius: 15px;
-        padding: 12px;
-        z-index: 1000;
-        border: 1px solid rgba(0, 0, 0, 0.05);
-        visibility: hidden;
-        opacity: 0;
-        transform: translateY(10px);
-        transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
-      }
-
-      .dropdown-content.show {
-        visibility: visible;
-        opacity: 1;
-        transform: translateY(0);
-      }
-
-      .dropdown-content a {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 10px 14px;
-        text-decoration: none;
-        color: #4b5563;
-        font-weight: 500;
-        font-size: 0.95rem;
-        border-radius: 8px;
-        transition: all 0.2s ease;
-      }
-
-      .dropdown-content a:hover {
-        background-color: #e8f5e9;
-        color: #2e7d32;
-        transform: translateX(4px);
-      }
-
-      .dropdown-content a[data-category="All"] {
-        grid-column: span 2;
-        border-bottom: 1px solid #f1f3f5;
-        font-weight: 600;
-        margin-bottom: 4px;
-        border-radius: 8px;
-      }
-
-      /* Rotate icon */
-      .rotate {
-        transform: rotate(180deg);
-        transition: 0.3s;
-      }
-
-      /* Search */
-      .search-bar {
-        display: flex;
-        align-items: center;
-      }
-
-      .search-bar input {
-        padding: 8px;
-        width: 250px;
-        border-radius: 5px 0 0 5px;
-        border: none;
-        outline: none;
-      }
-
-      .search-bar button {
-        padding: 8px 12px;
-        border: none;
-        background-color: #247a2a;
-        color: white;
-        border-radius: 0 5px 5px 0;
-        cursor: pointer;
-      }
-
-      /* Right Side */
-      .nav-right {
-        display: flex;
-        align-items: center;
-        gap: 15px;
-      }
-
-      .login-btn,
-      .signup-btn {
-        padding: 8px 18px;
-        border-radius: 25px;
-        text-decoration: none;
-        font-weight: 600;
-        font-size: 14px;
-        transition: all 0.3s ease;
-      }
-
-      .login-btn {
-        background: white;
-        color: #2e7d32;
-        border: 2px solid white;
-      }
-
-      .login-btn:hover {
-        background: transparent;
-        color: white;
-      }
-
-      .signup-btn {
-        background: #ff9800;
-        color: white;
-      }
-
-      .signup-btn:hover {
-        background: #e68900;
-        transform: translateY(-2px);
-      }
-
-      .cart-btn {
-        font-size: 25px;
-        text-decoration: none;
-        color: rgb(254, 254, 254);
-        transition: transform 0.3s ease;
-      }
-
-      /* Mobile menu toggle button */
-      .mobile-menu-toggle {
-        display: none;
-        background: none;
-        border: none;
-        color: white;
-        font-size: 24px;
-        cursor: pointer;
-        padding: 8px;
-      }
-
-      /* Mobile Sidebar Menu */
-      .mobile-sidebar {
-        position: fixed;
-        top: 0;
-        right: -100%;
-        width: 280px;
-        height: 100vh;
-        background-color: #1a1a1a;
-        box-shadow: -2px 0 10px rgba(0, 0, 0, 0.3);
-        z-index: 9999;
-        transition: right 0.3s ease;
-        overflow-y: auto;
-      }
-
-      .mobile-sidebar.open {
-        right: 0;
-      }
-
-      .mobile-sidebar-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 20px;
-        background-color: #27b62e;
-      }
-
-      .mobile-sidebar-header h3 {
-        color: white;
-        font-size: 18px;
-      }
-
-      .close-sidebar {
-        background: none;
-        border: none;
-        color: white;
-        font-size: 24px;
-        cursor: pointer;
-      }
-
-      .mobile-menu {
-        padding: 20px;
-      }
-
-      .mobile-menu-item {
-        margin-bottom: 15px;
-      }
-
-      .mobile-menu-item a,
-      .mobile-menu-item button {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        width: 100%;
-        padding: 12px 15px;
-        background: #2a2a2a;
-        color: white;
-        text-decoration: none;
-        border: none;
-        border-radius: 8px;
-        font-size: 15px;
-        cursor: pointer;
-        transition: background 0.3s;
-      }
-
-      .mobile-menu-item a:hover,
-      .mobile-menu-item button:hover {
-        background: #27b62e;
-      }
-
-      .mobile-category-list {
-        display: none;
-        margin-top: 10px;
-        padding-left: 15px;
-      }
-
-      .mobile-category-list.show {
-        display: block;
-      }
-
-      .mobile-category-list a {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 10px 15px;
-        color: #ccc;
-        text-decoration: none;
-        font-size: 14px;
-        border-left: 2px solid #27b62e;
-        margin-bottom: 5px;
-        transition: all 0.3s;
-      }
-
-      .mobile-category-list a:hover {
-        color: white;
-        background: #2a2a2a;
-      }
-
-      /* Overlay */
-      .overlay {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 9998;
-      }
-
-      .overlay.show {
-        display: block;
-      }
-
-      /* Category icon colors */
-      .veg {
-        color: #4caf50;
-      }
-      .fruit {
-        color: #ff5252;
-      }
-      .snack {
-        color: #ff9800;
-      }
-      .biscuit {
-        color: #a1887f;
-      }
-      .coffee {
-        color: #6d4c41;
-      }
-      .egg {
-        color: #fbc02d;
-      }
-      .water {
-        color: #2196f3;
-      }
-      .tea {
-        color: #8bc34a;
-      }
-      .cheese {
-        color: #ffca28;
-      }
-      .yoghurt {
-        color: #ba68c8;
-      }
-      .dessert {
-        color: #e91e63;
-      }
-      .beverage {
-        color: #00bcd4;
-      }
-      .bakery {
-        color: #d7ccc8;
-      }
-      .meat {
-        color: #ef5350;
-      }
-      .pantry {
-        color: #ffca28;
-      }
-      .dairy {
-        color: #90caf9;
-      }
-      .frozen {
-        color: #00e5ff;
-      }
-      .household {
-        color: #66bb6a;
-      }
-      .personal {
-        color: #f48fb1;
-      }
-
-      /* Mobile Responsive */
-      @media screen and (max-width: 968px) {
-        .navbar {
-          padding: 12px 20px;
-        }
-
-        /* Hide desktop elements */
-        .dropdown,
-        .search-bar,
-        .login-btn,
-        .signup-btn {
-          display: none;
-        }
-
-        /* Show mobile menu toggle */
-        .mobile-menu-toggle {
-          display: block;
-        }
-
-        .logo {
-          height: 40px;
-        }
-
-        .nav-left {
-          gap: 0;
-        }
-
-        .nav-right {
-          display: flex;
-          align-items: center;
-          gap: 15px;
-        }
-
-        .cart-btn {
-          font-size: 22px;
-        }
-
-        /* Mobile search in sidebar */
-        .mobile-search {
-          margin-bottom: 20px;
-        }
-
-        .mobile-search input {
-          width: 100%;
-          padding: 12px;
-          border: none;
-          border-radius: 8px;
-          outline: none;
-          background: #2a2a2a;
-          color: white;
-          font-size: 14px;
-        }
-
-        .mobile-search input::placeholder {
-          color: #999;
-        }
-
-        .mobile-search button {
-          display: none;
-        }
-      }
-
-      @media screen and (max-width: 480px) {
-        .mobile-sidebar {
-          width: 100%;
-          right: -100%;
-        }
-
-        .navbar {
-          padding: 10px 15px;
-        }
-      }
-
-      /* Profile Dropdown styling */
-      .profile-dropdown-wrapper {
-        position: relative;
-        display: inline-block;
-        margin-right: 50px;
-      }
-      .profile-dropdown-wrapper .mt-logo {
-        margin-right: 0 !important;
-      }
-      .profile-dropdown-menu {
-        display: none;
-        position: absolute;
-        top: 55px;
-        right: 0;
-        background-color: white;
-        min-width: 220px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-        border-radius: 12px;
-        overflow: hidden;
-        z-index: 1100;
-        border: 1px solid rgba(0, 0, 0, 0.06);
-        font-family: Arial, sans-serif;
-      }
-      .profile-dropdown-menu.show {
-        display: block;
-        animation: profileFadeIn 0.2s ease;
-      }
-      @keyframes profileFadeIn {
-        from { opacity: 0; transform: translateY(8px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-      .profile-dropdown-header {
-        padding: 15px 18px;
-        border-bottom: 1px solid #f3f4f6;
-        background-color: #f9fafb;
-      }
-      .profile-dropdown-header .user-name {
-        font-weight: 700;
-        color: #27b62e;
-        font-size: 14px;
-        margin-bottom: 2px;
-      }
-      .profile-dropdown-header .user-email {
-        color: #6b7280;
-        font-size: 12px;
-        word-break: break-all;
-      }
-      .profile-dropdown-menu a {
-        display: flex !important;
-        align-items: center !important;
-        gap: 10px !important;
-        padding: 12px 18px !important;
-        text-decoration: none !important;
-        color: #374151 !important;
-        font-size: 14px !important;
-        font-weight: 600 !important;
-        transition: background 0.2s, color 0.2s !important;
-        border: none !important;
-        background: none !important;
-        width: 100% !important;
-        box-sizing: border-box !important;
-      }
-      .profile-dropdown-menu a:hover {
-        background-color: #e8f5e9 !important;
-        color: #27b62e !important;
-      }
-      .profile-dropdown-menu i {
-        font-size: 16px;
-        color: #6b7280;
-        width: 20px;
-        text-align: center;
-      }
-      .profile-dropdown-menu a:hover i {
-        color: #27b62e;
-      }
-      .mt-logo {
-        cursor: pointer;
-      }
-    </style>
-  </head>
-
-  <body>
-    <!-- Overlay -->
-    <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
-
-    <!-- Mobile Sidebar -->
-    <div class="mobile-sidebar" id="mobileSidebar">
-      <div class="mobile-sidebar-header">
-        <h3>Menu</h3>
-        <button class="close-sidebar" onclick="closeSidebar()">
-          <i class="fas fa-times"></i>
-        </button>
+  <div class="fc-actions">
+    <?php if ($is_logged_in): ?>
+      <a href="<?php echo $P; ?>my-orders.php" class="fc-pill-link hide-sm"><i class="fas fa-bag-shopping"></i>My Orders</a>
+      <div class="profile-dropdown-wrapper">
+        <div class="fc-avatar mt-logo" role="button" tabindex="0" aria-label="Account menu">
+          <?php echo htmlspecialchars($logo_initials); ?>
+          <div class="mt-status-dot" id="mtStatusDot" style="background: <?php echo $status_dot_color; ?>;"></div>
+        </div>
+        <div class="profile-dropdown-menu">
+          <div class="profile-dropdown-header">
+            <div class="user-name">Hello, <?php echo isset($_SESSION['users']['first_name']) ? htmlspecialchars($_SESSION['users']['first_name']) : 'User'; ?></div>
+            <div class="user-email"><?php echo isset($_SESSION['user_email']) ? htmlspecialchars($_SESSION['user_email']) : ''; ?></div>
+          </div>
+          <a href="<?php echo $FC_BASE; ?>profile.php"><i class="fas fa-user-cog"></i> Edit Profile</a>
+          <a href="<?php echo $P; ?>my-orders.php"><i class="fas fa-history"></i> Order History</a>
+          <a href="<?php echo $FC_BASE; ?>login/logout.php" style="border-top: 1px solid #e2e8f0;"><i class="fas fa-sign-out-alt"></i> Logout</a>
+        </div>
       </div>
+    <?php else: ?>
+      <a href="<?php echo $FC_BASE; ?>login/sign.php" class="fc-pill-link login-btn">Login</a>
+      <a href="<?php echo $FC_BASE; ?>login/register.php" class="fc-pill-link primary signup-btn hide-sm">Sign Up</a>
+    <?php endif; ?>
 
-      <div class="mobile-menu">
-        <!-- Mobile Search -->
-        <div class="mobile-search">
-          <input type="text" placeholder="Search products..." />
-        </div>
+    <?php if ($can_access_cart): ?>
+      <a href="<?php echo $P; ?>shopping-cart.php" class="fc-cart-trigger cart-btn" id="fcCartTrigger" aria-label="Open cart" aria-haspopup="dialog">
+        <i class="fa-solid fa-cart-shopping"></i><span class="label">Cart</span>
+        <span class="fc-cart-badge" id="fcCartBadge"><?php echo $cart_count; ?></span>
+      </a>
+    <?php else: ?>
+      <a href="<?php echo $FC_BASE; ?>login/sign.php" class="fc-cart-trigger cart-btn" title="<?php echo htmlspecialchars($cart_disabled_reason); ?>">
+        <i class="fa-solid fa-cart-shopping"></i><span class="label">Cart</span>
+      </a>
+    <?php endif; ?>
+  </div>
+</header>
 
-        <!-- Category Dropdown -->
-        <div class="mobile-menu-item">
-          <button onclick="toggleMobileCategories()">
-            <i class="fas fa-th-large"></i>
-            <span>Categories</span>
-            <i
-              class="fas fa-angle-down"
-              id="mobileCategoryArrow"
-              style="margin-left: auto"
-            ></i>
-          </button>
-          <div class="mobile-category-list" id="mobileCategoryList">
-            <a href="#" data-category="All" data-id="0"><i class="fa-solid fa-list"></i> All Items</a>
-            <a href="#" data-category="Vegetables" data-id="1"
-              ><i class="fa-solid fa-carrot veg"></i> Vegetables</a
-            >
-            <a href="#" data-category="Fruits" data-id="2"
-              ><i class="fa-solid fa-apple-whole fruit"></i> Fruits</a
-            >
-            <a href="#" data-category="Snacks" data-id="3"
-              ><i class="fa-solid fa-cookie-bite snack"></i> Snacks</a
-            >
-            <a href="#" data-category="Biscuits" data-id="4"
-              ><i class="fa-solid fa-cookie biscuit"></i> Biscuits</a
-            >
-            <a href="#" data-category="Coffee" data-id="5"
-              ><i class="fa-solid fa-mug-hot coffee"></i> Coffee</a
-            >
-            <a href="#" data-category="Eggs" data-id="6"
-              ><i class="fa-solid fa-egg egg"></i> Eggs</a
-            >
-            <a href="#" data-category="Water" data-id="7"
-              ><i class="fa-solid fa-bottle-water water"></i> Water</a
-            >
-            <a href="#" data-category="Tea" data-id="8"
-              ><i class="fa-solid fa-mug-saucer tea"></i> Tea</a
-            >
-            <a href="#" data-category="Cheese" data-id="9"
-              ><i class="fa-solid fa-cheese cheese"></i> Cheese</a
-            >
-            <a href="#" data-category="Yoghurts & Curd" data-id="10"
-              ><i class="fa-solid fa-ice-cream yoghurt"></i> Yoghurts & Curd</a
-            >
-            <a href="#" data-category="Desserts" data-id="11"
-              ><i class="fa-solid fa-cake-candles dessert"></i> Desserts</a
-            >
-            <a href="#" data-category="Beverages" data-id="12"
-              ><i class="fa-solid fa-glass-water beverage"></i> Beverages</a
-            >
-            <a href="#" data-category="Bakery" data-id="13"
-              ><i class="fa-solid fa-bread-slice bakery"></i> Bakery</a
-            >
-            <a href="#" data-category="Meat & Seafood" data-id="14"
-              ><i class="fa-solid fa-drumstick-bite meat"></i> Meat & Seafood</a
-            >
-            <a href="#" data-category="Pantry Staples" data-id="15"
-              ><i class="fa-solid fa-bowl-rice pantry"></i> Pantry Staples</a
-            >
-            <a href="#" data-category="Dairy Staples" data-id="16"
-              ><i class="fa-solid fa-cow dairy"></i> Dairy Staples</a
-            >
-            <a href="#" data-category="Frozen Foods" data-id="17"
-              ><i class="fa-solid fa-snowflake frozen"></i> Frozen Foods</a
-            >
-            <a href="#" data-category="Household & Cleaning" data-id="18"
-              ><i class="fa-solid fa-soap household"></i> Household & Cleaning</a
-            >
-            <a href="#" data-category="Personal Care" data-id="19"
-              ><i class="fa-solid fa-baby-carriage personal"></i> Personal Care & Baby</a
-            >
-          </div>
-        </div>
+<!-- ============ Secondary category bar ============ -->
+<nav class="fc-catbar" aria-label="Shop by category">
+  <div class="fc-catbar-inner" id="fcCatbar">
+    <a href="<?php echo $P; ?>product.php" data-cats="" class="active"><i class="fa-solid fa-store"></i>All</a>
+    <?php foreach ($quick_bar as $q): ?>
+      <a href="<?php echo $P; ?>product.php?category=<?php echo $q[2]; ?>" data-cats="<?php echo $q[2]; ?>"><i class="fa-solid <?php echo $q[1]; ?>"></i><?php echo htmlspecialchars($q[0]); ?></a>
+    <?php endforeach; ?>
+  </div>
+</nav>
 
-        <?php if (!$is_logged_in): ?>
-          <!-- Login -->
-          <div class="mobile-menu-item">
-            <a href="../login/sign.php">
-              <i class="fas fa-user"></i>
-              <span>Login</span>
-            </a>
-          </div>
+<!-- ============ Mini-cart drawer ============ -->
+<div class="fc-scrim" id="fcScrim"></div>
+<aside class="fc-drawer" id="fcDrawer" role="dialog" aria-modal="true" aria-label="Shopping cart"
+       data-endpoint="<?php echo $P; ?>miniCart.php" data-checkout="<?php echo $FC_BASE; ?>proceed.php" data-cart="<?php echo $P; ?>shopping-cart.php" data-base="<?php echo $FC_BASE; ?>">
+  <div class="fc-drawer-head">
+    <h3><i class="fa-solid fa-basket-shopping me-2" style="color:#16a34a"></i>Your Cart <span id="fcDrawerCount" style="color:#64748b;font-weight:500"></span></h3>
+    <button class="fc-drawer-close" type="button" id="fcDrawerClose" aria-label="Close cart"><i class="fas fa-xmark"></i></button>
+  </div>
+  <div class="fc-drawer-body" id="fcDrawerBody"><div class="fc-drawer-empty"><i class="fa-solid fa-spinner fa-spin"></i>Loading…</div></div>
+  <div class="fc-drawer-foot" id="fcDrawerFoot" style="display:none">
+    <div class="fc-drawer-sub"><span>Subtotal</span><span id="fcDrawerSubtotal">Rs. 0.00</span></div>
+    <div class="fc-drawer-note">Delivery fee &amp; pickup options are chosen at checkout.</div>
+    <a class="fc-btn fc-btn-primary" id="fcDrawerCheckout" href="<?php echo $FC_BASE; ?>proceed.php"><i class="fa-solid fa-lock"></i> Checkout</a>
+    <a class="fc-btn fc-btn-outline" href="<?php echo $P; ?>shopping-cart.php">View full cart</a>
+  </div>
+</aside>
 
-          <!-- Sign Up -->
-          <div class="mobile-menu-item">
-            <a href="../login/register.php">
-              <i class="fas fa-user-plus"></i>
-              <span>Sign Up</span>
-            </a>
-          </div>
-        <?php endif; ?>
-
-        <!-- Cart -->
-        <div class="mobile-menu-item">
-          <?php if ($can_access_cart): ?>
-            <a href="../product/shopping-cart.php">
-              <i class="fas fa-shopping-cart"></i>
-              <span>Shopping Cart</span>
-              <span class="cart-count"><?php echo $cart_count; ?></span>
-            </a>
-          <?php else: ?>
-            <button type="button" disabled title="<?php echo $cart_disabled_reason; ?>">
-              <i class="fas fa-shopping-cart"></i>
-              <span>Shopping Cart</span>
-            </button>
-          <?php endif; ?>
-        </div>
-
-        <?php if ($is_logged_in): ?>
-          <!-- My Orders -->
-          <div class="mobile-menu-item">
-            <a href="../product/my-orders.php">
-              <i class="fas fa-shopping-bag"></i>
-              <span>My Orders</span>
-            </a>
-          </div>
-        <?php endif; ?>
-      </div>
+<!-- ============ Mobile sidebar (burger menu) ============ -->
+<div class="fc-scrim" id="overlay" onclick="closeSidebar()"></div>
+<aside class="fc-mobile-sidebar" id="mobileSidebar" aria-label="Menu">
+  <div class="head">
+    <h3>Menu</h3>
+    <button class="close-sidebar" type="button" onclick="closeSidebar()" aria-label="Close menu" style="border:0;background:none"><i class="fas fa-times"></i></button>
+  </div>
+  <nav>
+    <a href="<?php echo $FC_BASE; ?>index.php"><i class="fas fa-house"></i> Home</a>
+    <?php if (!$is_logged_in): ?>
+      <a href="<?php echo $FC_BASE; ?>login/sign.php"><i class="fas fa-user"></i> Login</a>
+      <a href="<?php echo $FC_BASE; ?>login/register.php"><i class="fas fa-user-plus"></i> Sign Up</a>
+    <?php else: ?>
+      <a href="<?php echo $P; ?>my-orders.php"><i class="fas fa-bag-shopping"></i> My Orders</a>
+      <a href="<?php echo $FC_BASE; ?>profile.php"><i class="fas fa-user-cog"></i> Edit Profile</a>
+    <?php endif; ?>
+    <a href="<?php echo $P; ?>shopping-cart.php"><i class="fas fa-cart-shopping"></i> Shopping Cart <span class="fc-cart-badge ms-auto cart-count"><?php echo $cart_count; ?></span></a>
+    <div class="section-title">Categories</div>
+    <div class="mobile-category-list show" id="mobileCategoryList">
+      <a href="<?php echo $P; ?>product.php" data-category="All" data-id="0"><i class="fa-solid fa-list"></i> All Items</a>
+      <?php foreach ($all_categories as $cid => $c): ?>
+        <a href="<?php echo $P; ?>product.php?category=<?php echo $cid; ?>" data-category="<?php echo htmlspecialchars($c[0]); ?>" data-id="<?php echo $cid; ?>"><i class="fa-solid <?php echo $c[1]; ?>" style="color:#16a34a"></i> <?php echo htmlspecialchars($c[0]); ?></a>
+      <?php endforeach; ?>
     </div>
+    <?php if ($is_logged_in): ?>
+      <a href="<?php echo $FC_BASE; ?>login/logout.php" style="margin-top:8px;border-top:1px solid #e2e8f0"><i class="fas fa-sign-out-alt"></i> Logout</a>
+    <?php endif; ?>
+  </nav>
+</aside>
 
-    <style>
-      /* Mobile Menu Full Width */
+<!-- ============ Mobile bottom action bar ============ -->
+<nav class="fc-bottombar" aria-label="Quick actions">
+  <a href="<?php echo $FC_BASE; ?>index.php"><i class="fas fa-house"></i>Home</a>
+  <a href="<?php echo $P; ?>product.php"><i class="fas fa-store"></i>Shop</a>
+  <button type="button" onclick="openSidebar()"><i class="fas fa-table-cells-large"></i>Categories</button>
+  <a href="<?php echo $P; ?>shopping-cart.php" id="fcBottomCart"><i class="fas fa-cart-shopping"></i>Cart<span class="fc-cart-badge fc-cart-badge-mirror"><?php echo $cart_count; ?></span></a>
+  <a href="<?php echo $is_logged_in ? $FC_BASE . 'proceed.php' : $FC_BASE . 'login/sign.php'; ?>" style="color:#15803d"><i class="fas fa-circle-check"></i>Checkout</a>
+</nav>
 
-      .mobile-menu {
-        padding: 15px;
-      }
-
-      /* Search Box */
-      .mobile-search input {
-        width: 90%;
-        height: 45px;
-        padding: 0 12px;
-        border-radius: 8px;
-        border: 1px solid #dbd5d5;
-        font-size: 15px;
-        box-sizing: border-box;
-        margin-bottom: 10px;
-      }
-
-      /* Menu Items (Buttons + Links) */
-      .mobile-menu-item button,
-      .mobile-menu-item a {
-        width: 90%;
-        height: 45px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 0 12px;
-        border-radius: 8px;
-        border: none;
-        background-color: #f0ecec;
-        text-decoration: none;
-        color: #333;
-        font-size: 15px;
-        box-sizing: border-box;
-        margin-bottom: 10px;
-        cursor: pointer;
-      }
-
-      /* Hover Effect */
-      /*.mobile-menu-item button:hover,
-.mobile-menu-item a:hover {
-  background-color: #c78888;
-}*/
-
-      /* Category List Links */
-      .mobile-category-list a {
-        width: 70%;
-        height: 40px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 0 20px;
-        text-decoration: none;
-        color: #a71313;
-        font-size: 14px;
-        box-sizing: border-box;
-      }
-
-      /* Arrow Rotate Animation */
-      .rotate {
-        transform: rotate(180deg);
-        transition: 0.3s;
-      }
-
-      /* Show/Hide Category */
-      .mobile-category-list {
-        display: none;
-      }
-
-      .mobile-category-list.show {
-        display: block;
-      }
-    </style>
-
-    <div class="navbar">
-      <!-- Left Side -->
-      <div class="nav-left">
-        <a href="../index.php">
-          <img src="../assets/images/logo/logo-freshco.png" alt="Header Logo" />
-        </a>
-        <div class="dropdown">
-          <button class="dropbtn" onclick="toggleDropdown()">
-            Category <i class="fa fa-angle-down" id="arrowIcon"></i>
-          </button>
-          <div class="dropdown-content" id="categoryMenu">
-            <a href="#" data-category="All" data-id="0"><i class="fa-solid fa-list"></i> All Items</a>
-            <a href="#" data-category="Vegetables" data-id="1"
-              ><i class="fa-solid fa-carrot veg"></i> Vegetables</a
-            >
-            <a href="#" data-category="Fruits" data-id="2"
-              ><i class="fa-solid fa-apple-whole fruit"></i> Fruits</a
-            >
-            <a href="#" data-category="Snacks" data-id="3"
-              ><i class="fa-solid fa-cookie-bite snack"></i> Snacks</a
-            >
-            <a href="#" data-category="Biscuits" data-id="4"
-              ><i class="fa-solid fa-cookie biscuit"></i> Biscuits</a
-            >
-            <a href="#" data-category="Coffee" data-id="5"
-              ><i class="fa-solid fa-mug-hot coffee"></i> Coffee</a
-            >
-            <a href="#" data-category="Eggs" data-id="6"
-              ><i class="fa-solid fa-egg egg"></i> Eggs</a
-            >
-            <a href="#" data-category="Water" data-id="7"
-              ><i class="fa-solid fa-bottle-water water"></i> Water</a
-            >
-            <a href="#" data-category="Tea" data-id="8"
-              ><i class="fa-solid fa-mug-saucer tea"></i> Tea</a
-            >
-            <a href="#" data-category="Cheese" data-id="9"
-              ><i class="fa-solid fa-cheese cheese"></i> Cheese</a
-            >
-            <a href="#" data-category="Yoghurts & Curd" data-id="10"
-              ><i class="fa-solid fa-ice-cream yoghurt"></i> Yoghurts & Curd</a
-            >
-            <a href="#" data-category="Desserts" data-id="11"
-              ><i class="fa-solid fa-cake-candles dessert"></i> Desserts</a
-            >
-            <a href="#" data-category="Beverages" data-id="12"
-              ><i class="fa-solid fa-glass-water beverage"></i> Beverages</a
-            >
-            <a href="#" data-category="Bakery" data-id="13"
-              ><i class="fa-solid fa-bread-slice bakery"></i> Bakery</a
-            >
-            <a href="#" data-category="Meat & Seafood" data-id="14"
-              ><i class="fa-solid fa-drumstick-bite meat"></i> Meat & Seafood</a
-            >
-            <a href="#" data-category="Pantry Staples" data-id="15"
-              ><i class="fa-solid fa-bowl-rice pantry"></i> Pantry Staples</a
-            >
-            <a href="#" data-category="Dairy Staples" data-id="16"
-              ><i class="fa-solid fa-cow dairy"></i> Dairy Staples</a
-            >
-            <a href="#" data-category="Frozen Foods" data-id="17"
-              ><i class="fa-solid fa-snowflake frozen"></i> Frozen Foods</a
-            >
-            <a href="#" data-category="Household & Cleaning" data-id="18"
-              ><i class="fa-solid fa-soap household"></i> Household & Cleaning</a
-            >
-            <a href="#" data-category="Personal Care" data-id="19"
-              ><i class="fa-solid fa-baby-carriage personal"></i> Personal Care & Baby</a
-            >
-          </div>
-
-          <style>
-            /* Align items */
-
-            .dropdown-content a {
-              display: flex;
-              align-items: center;
-              gap: 10px;
-            }
-
-            /* Individual Colors */
-            .veg {
-              color: #4caf50;
-            } /* Green */
-            .fruit {
-              color: #ff5252;
-            } /* Red */
-            .snack {
-              color: #ff9800;
-            } /* Orange */
-            .biscuit {
-              color: #a1887f;
-            } /* Brown */
-            .coffee {
-              color: #6d4c41;
-            } /* Dark Brown */
-            .egg {
-              color: #fbc02d;
-            } /* Yellow */
-            .water {
-              color: #2196f3;
-            } /* Blue */
-            .tea {
-              color: #8bc34a;
-            } /* Light Green */
-            .cheese {
-              color: #ffca28;
-            } /* Cheese Yellow */
-            .yoghurt {
-              color: #ba68c8;
-            } /* Purple */
-            .dessert {
-              color: #e91e63;
-            } /* Pink */
-            .beverage {
-              color: #00bcd4;
-            } /* Cyan/Teal */
-            .bakery {
-              color: #d7ccc8;
-            } /* Light Brown */
-            .meat {
-              color: #ef5350;
-            } /* Red */
-            .pantry {
-              color: #ffca28;
-            } /* Yellow-Orange */
-            .dairy {
-              color: #90caf9;
-            } /* Soft Blue */
-            .frozen {
-              color: #00e5ff;
-            } /* Cyan */
-            .household {
-              color: #66bb6a;
-            } /* Green */
-            .personal {
-              color: #f48fb1;
-            } /* Soft Pink */
-          </style>
-        </div>
-
-        <div class="search-bar">
-          <input type="text" placeholder="Search products..." />
-          <button>Search</button>
-        </div>
-      </div>
-
-      <!-- Right Side -->
-      <div class="nav-right">
-        <?php if ($is_logged_in): ?>
-          <div class="profile-dropdown-wrapper">
-            <div class="mt-logo">
-              <?php echo $logo_initials; ?>
-              <div class="mt-status-dot" id="mtStatusDot" style="background: <?php echo $status_dot_color; ?>;"></div>
-            </div>
-            <div class="profile-dropdown-menu">
-              <div class="profile-dropdown-header">
-                <div class="user-name">Hello, <?php echo isset($_SESSION['users']['first_name']) ? htmlspecialchars($_SESSION['users']['first_name']) : 'User'; ?></div>
-                <div class="user-email"><?php echo isset($_SESSION['user_email']) ? htmlspecialchars($_SESSION['user_email']) : ''; ?></div>
-              </div>
-              <a href="../profile.php"><i class="fas fa-user-cog"></i> Edit Profile</a>
-              <a href="my-orders.php"><i class="fas fa-history"></i> Order History</a>
-              <a href="../login/logout.php" style="border-top: 1px solid #f3f4f6;"><i class="fas fa-sign-out-alt"></i> Logout</a>
-            </div>
-          </div>
-          <a href="my-orders.php" class="btn btn-outline-light btn-sm rounded-pill px-3 fw-bold me-2" style="font-size: 14px; border: 2px solid white; text-decoration: none;">
-            <i class="fas fa-shopping-bag me-1"></i>My Orders
-          </a>
-        <?php else: ?>
-          <div class="mt-logo">
-            <?php echo $logo_initials; ?>
-            <div class="mt-status-dot" id="mtStatusDot" style="background: <?php echo $status_dot_color; ?>;"></div>
-          </div>
-          <a href="../login/sign.php" class="login-btn">Login</a>
-          <a href="../login/register.php" class="signup-btn">Sign Up</a>
-        <?php endif; ?>
-        <?php if ($can_access_cart): ?>
-          <a href="../product/shopping-cart.php" class="cart-btn">
-            <i class="fa-solid fa-cart-shopping"></i>
-          </a>
-        <?php else: ?>
-          <span class="cart-btn" aria-disabled="true" title="<?php echo $cart_disabled_reason; ?>">
-            <i class="fa-solid fa-cart-shopping"></i>
-          </span>
-        <?php endif; ?>
-
-        <!-- Mobile Menu Toggle -->
-        <button class="mobile-menu-toggle" onclick="openSidebar()">
-          <i class="fas fa-bars"></i>
-        </button>
-      </div>
-    </div>
-
-    <!-- JavaScript -->
-    <script src="navBar.js"></script>
-  </body>
-</html>
+<?php if ($FC_EMBED): ?>
+  <script src="<?php echo $P; ?>navBar.js"></script>
+<?php endif; ?>

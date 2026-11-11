@@ -1,5 +1,3 @@
-
-
 <?php
 session_start();
 if (!isset($_SESSION['user_id'])) {
@@ -12,6 +10,7 @@ if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 require_once 'connection.php';
+$store = require 'storeConfig.php';
 $user_id = $_SESSION['user_id'];
 $cart_rs = Database::search("SELECT id FROM carts WHERE user_id='$user_id' AND status='Active' LIMIT 1");
 $cart_has_items = false;
@@ -43,98 +42,25 @@ if (!$cart_has_items) {
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
       rel="stylesheet"
     />
-
+    <link rel="stylesheet" href="assets/css/custom-ui.css" />
     <style>
-      body {
-        margin: 0;
-        font-family: Arial, sans-serif;
-        background-color: #f5f5f5;
-      }
-
-      .navbar-container {
-        width: 100%;
-        /* position: fixed; */
-        /* top: 0; */
-        z-index: 1000;
-      }
-
-      /* Breadcrumb */
-      .breadcrumbs-area {
-        background-color: #fff;
-        padding: 20px 45px;
-        margin-bottom: 20px;
-      }
-      .breadcrumbs-area .breadcrumb-content h3.title-3 {
-        font-size: 48px;
-        color: #ffffff;
-        font-weight: bold;
-      }
-
-      /* Checkout Section */
-      .checkout-area {
-        padding: 20px 45px;
-      }
-      .card {
-        border-radius: 10px;
-      }
-
-      /* Payment option */
-      .payment-label {
-        display: block;
-        padding: 10px 15px;
-        border: 1px solid #ccc;
-        border-radius: 5px;
-        cursor: pointer;
-        background-color: #f9f9f9;
-        margin-bottom: 10px;
-        transition: all 0.3s ease;
-      }
-      .payment-label input {
-        margin-right: 10px;
-      }
-      .payment-label:hover {
-        background-color: #e9e9e9;
-      }
-      .payment-label.selected {
-        border-color: green;
-        background-color: #d4f7d4;
-      }
-
-      footer {
-        background-color: #212529;
-        color: white;
-        text-align: center;
-        padding: 15px 0;
-        margin-top: 40px;
-      }
+      body.fc-store { padding-top: calc(var(--fc-header-h) + var(--fc-catbar-h)); }
+      @media (max-width: 991.98px) { body.fc-store { padding-top: 112px; } }
+      footer { background-color: #0f172a; color: white; text-align: center; padding: 18px 0; margin-top: 40px; }
     </style>
   </head>
-  <body>
-    <!-- Navbar -->
-    <?php include 'proceedNavbar.php'; ?>
-
-    <!-- Breadcrumb -->
-    <div
-      class="breadcrumbs-area"
-      style="
-        background-image: url(&quot;assets/images/brand-logo/proceedPage1.jpeg&quot;);
-        background-size: cover;
-        background-position: center;
-        padding: 120px 0;
-      "
-    >
-      <div class="container text-center">
-        <div class="breadcrumb-content">
-          <h3 class="title-3"><b>Proceed Checkout</b></h3>
-        </div>
-      </div>
+  <body class="fc-store">
+    <!-- Header -->
+    <div id="navbar" class="navbar-container">
+      <?php $FC_BASE = ''; $FC_EMBED = true; include 'product/nav.php'; ?>
     </div>
+
     <?php
     $user_id = (int)$_SESSION['user_id'];
     $user_rs = Database::search("SELECT * FROM users WHERE id='$user_id'");
     $user_data = $user_rs->fetch_assoc();
 
-    $delivery_charge = 450;
+    $delivery_charge = (float)$store['delivery_fee'];
     $subtotal = 0;
     $total = 0;
     $order_items = [];
@@ -144,7 +70,7 @@ if (!$cart_has_items) {
       $cart_data = $cart_rs->fetch_assoc();
       $cart_id = (int)$cart_data['id'];
 
-      $order_item_rs = Database::search("SELECT ci.quantity, ci.price AS line_price, i.name FROM cart_items ci INNER JOIN items i ON ci.item_id = i.id WHERE ci.cart_id='$cart_id'");
+      $order_item_rs = Database::search("SELECT ci.quantity, ci.price AS line_price, i.name, i.unit, i.category_id FROM cart_items ci INNER JOIN items i ON ci.item_id = i.id WHERE ci.cart_id='$cart_id'");
 
       while ($order_item = $order_item_rs->fetch_assoc()) {
         $order_items[] = $order_item;
@@ -153,137 +79,183 @@ if (!$cart_has_items) {
     }
 
     $total = $subtotal + $delivery_charge;
+
+    // Pickup dates (today + next days)
+    $tzc = new DateTimeZone('Asia/Colombo');
+    $pickup_dates = [];
+    for ($d = 0; $d < (int)$store['pickup_days']; $d++) {
+      $dt = new DateTime("+$d day", $tzc);
+      $pickup_dates[$dt->format('Y-m-d')] = ($d === 0 ? 'Today' : ($d === 1 ? 'Tomorrow' : $dt->format('l'))) . ' – ' . $dt->format('d M Y');
+    }
     ?>
+
     <!-- Checkout -->
-    <div id="msgdiv" style="display:none;"></div>
-    <div class="checkout-area">
-      <div class="container">
-        <div class="row g-4">
-          <!-- Billing Details -->
-          <div class="col-lg-7">
-            <h4>Billing Details</h4>
-            <br />
-            <form id="checkoutForm" action="place.html">
-              <div class="row g-3">
-                <div class="col-md-6">
-                  <label>First Name</label>
-                  <input type="text" class="form-control" value="<?php echo $user_data['first_name']; ?>" readonly required />
-                </div>
-                <div class="col-md-6">
-                  <label>Last Name</label>
-                  <input type="text" class="form-control" value = "<?php echo $user_data['last_name'] ?>"  readonly required/>
-                  
-                </div>
-              </div>
+    <div id="msgdiv" style="display:none; max-width:1180px; margin:16px auto 0;"></div>
+    <div class="fc-checkout">
+      <h1>Checkout</h1>
+      <p class="sub">Choose how you'd like to receive your groceries.</p>
 
-              <div class="mb-3">
-                <label>Street Address</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  id = "streetAddress1"
-                  placeholder="House number and street name"
-                  required
-                />
-              </div>
-
-              <div class="mb-3">
-                <label>Street Address</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  id = "streetAddress2"
-                  placeholder="Apartment, suite, unit etc. (optional)"
-                />
-              </div>
-
-              <div class="mb-3">
-                <label>Town</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  id = "town"
-                  required
-                />
-              </div>
-
-              <div class="mb-3">
-                <label>Phone</label>
-                <input type="tel" class="form-control" value = "<?php  echo $user_data['phone_number'] ?>" readonly required/>
-              </div>
-
-              <div class="mb-3">
-                <label>Email</label>
-                <input type="email" class="form-control" value = "<?php  echo $user_data['email'] ?>" readonly required/>
-              </div>
-
-              <div id="shippingAddress" style="display: none">
-                <div class="mb-3">
-                  <label>Shipping Address *</label>
-                  <input type="text" class="form-control" />
-                </div>
-              </div>
-
-              <div class="mb-3">
-                <label>Order notes (optional)</label>
-                <textarea
-                  class="form-control"
-                  rows="3"
-                  placeholder="Notes about your order"
-                ></textarea>
-              </div>
-            </form>
+      <div class="row g-4">
+        <!-- Left: purchase method -->
+        <div class="col-lg-7">
+          <div class="fc-segment" role="tablist" aria-label="Purchase method">
+            <button type="button" class="active" data-method="delivery" role="tab" aria-selected="true">
+              <i class="fa-solid fa-truck-fast"></i>
+              <span>Home Delivery<small>Cash on Delivery</small></span>
+            </button>
+            <button type="button" data-method="pickup" role="tab" aria-selected="false">
+              <i class="fa-solid fa-store"></i>
+              <span>Store Pickup<small>Pay / Collect in Store</small></span>
+            </button>
           </div>
 
-          <!-- Order Summary -->
-          <div class="col-lg-5">
-            <div class="card p-4">
-              <h4>Your Order</h4>
-              <table class="table">
-                <?php if (!empty($order_items)) { ?>
-                <?php foreach ($order_items as $order_item) { ?>
-                <tr>
-                  <td><?php echo htmlspecialchars($order_item['name']); ?> × <?php echo (int)$order_item['quantity']; ?></td>
-                  <td class="text-end">Rs.<?php echo number_format((float)$order_item['line_price'], 2); ?></td>
-                </tr>
-                <?php } ?>
-                <?php } else { ?>
-                <tr>
-                  <td>Your cart is empty</td>
-                  <td class="text-end">Rs.0.00</td>
-                </tr>
-                <?php } ?>
-                <tr>
-                  <td>Subtotal</td>
-                  <td class="text-end">Rs.<?php echo number_format($subtotal, 2); ?></td>
-                </tr>
-                <tr>
-                  <td>Delivery Charge</td>
-                  <td class="text-end">Rs.<?php echo number_format($delivery_charge, 2); ?></td>
-                </tr>
-                <tr class="fw-bold">
-                  <td>Total</td>
-                  <td class="text-end">Rs.<?php echo number_format($total, 2); ?></td>
-                </tr>
-              </table>
+          <form id="checkoutForm" action="place.html" onsubmit="return false;">
+            <!-- TAB A: Home delivery -->
+            <div class="fc-panel active" id="panel-delivery" role="tabpanel">
+              <div class="fc-card fc-section">
+                <h2><i class="fa-solid fa-location-dot text-success"></i> Delivery details</h2>
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label>First Name</label>
+                    <input type="text" class="form-control" value="<?php echo htmlspecialchars($user_data['first_name']); ?>" readonly required />
+                  </div>
+                  <div class="col-md-6">
+                    <label>Last Name</label>
+                    <input type="text" class="form-control" value="<?php echo htmlspecialchars($user_data['last_name']); ?>" readonly required />
+                  </div>
+                  <div class="col-12">
+                    <label for="streetAddress1">Street Address</label>
+                    <input type="text" class="form-control" id="streetAddress1" placeholder="House number and street name" value="<?php echo htmlspecialchars($user_data['street_address1'] ?? ''); ?>" required />
+                  </div>
+                  <div class="col-12">
+                    <label for="streetAddress2">Apartment, suite, unit (optional)</label>
+                    <input type="text" class="form-control" id="streetAddress2" placeholder="Apartment, suite, unit etc. (optional)" value="<?php echo htmlspecialchars($user_data['street_address2'] ?? ''); ?>" />
+                  </div>
+                  <div class="col-md-6">
+                    <label for="town">Town</label>
+                    <input type="text" class="form-control" id="town" value="<?php echo htmlspecialchars($user_data['town'] ?? ''); ?>" required />
+                  </div>
+                  <div class="col-md-6">
+                    <label>Phone number</label>
+                    <input type="tel" class="form-control" value="<?php echo htmlspecialchars($user_data['phone_number']); ?>" readonly required />
+                  </div>
+                  <div class="col-12">
+                    <label>Email</label>
+                    <input type="email" class="form-control" value="<?php echo htmlspecialchars($user_data['email']); ?>" readonly required />
+                  </div>
+                  <div class="col-12">
+                    <label for="deliveryInstructions">Delivery instructions (optional)</label>
+                    <textarea class="form-control" id="deliveryInstructions" rows="3" maxlength="500" placeholder="Gate code, landmarks, preferred time…"></textarea>
+                  </div>
+                </div>
+                <div class="mt-3 d-flex align-items-center gap-2 flex-wrap">
+                  <span class="fc-fee-chip fee"><i class="fa-solid fa-truck"></i> Delivery fee: Rs. <?php echo number_format($delivery_charge, 2); ?></span>
+                  <small class="text-muted">Pay cash to the rider on arrival.</small>
+                </div>
+              </div>
+            </div>
 
-              <div class="mb-3 payment-option">
-                <label class="payment-label selected">
-                  <input type="radio" name="payment" value="cod" checked /> Cash
-                  on Delivery
+            <!-- TAB B: Store pickup -->
+            <div class="fc-panel" id="panel-pickup" role="tabpanel">
+              <div class="fc-card fc-section">
+                <h2><i class="fa-solid fa-store" style="color:#d97706"></i> Pickup location</h2>
+                <div class="fc-store-card">
+                  <i class="fa-solid fa-location-dot"></i>
+                  <div>
+                    <strong>Freshcomart – <?php echo htmlspecialchars($store['label']); ?></strong>
+                    <span><?php echo htmlspecialchars($store['address']); ?></span>
+                    <span><i class="fa-regular fa-clock me-1"></i><?php echo htmlspecialchars($store['hours']); ?> &middot; <i class="fa-solid fa-phone me-1"></i><?php echo htmlspecialchars($store['phone']); ?></span>
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <label for="pickupDate">Pickup date</label>
+                  <select class="form-select" id="pickupDate">
+                    <?php foreach ($pickup_dates as $val => $label): ?>
+                      <option value="<?php echo $val; ?>"><?php echo htmlspecialchars($label); ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
+
+                <label class="d-block mb-2">Pickup time slot</label>
+                <div class="fc-slots" id="pickupSlots">
+                  <?php foreach ($store['pickup_slots'] as $i => $slot): ?>
+                    <label class="fc-slot">
+                      <input type="radio" name="pickupSlot" value="<?php echo htmlspecialchars($slot); ?>" <?php echo $i === 0 ? 'checked' : ''; ?> />
+                      <span><?php echo htmlspecialchars($slot); ?></span>
+                    </label>
+                  <?php endforeach; ?>
+                </div>
+
+                <div class="mt-3">
+                  <label for="pickupNotes">Notes for the store team (optional)</label>
+                  <textarea class="form-control" id="pickupNotes" rows="2" maxlength="500" placeholder="e.g. someone else will collect – name &amp; NIC"></textarea>
+                </div>
+
+                <div class="mt-3 d-flex align-items-center gap-2 flex-wrap">
+                  <span class="fc-fee-chip free"><i class="fa-solid fa-tag"></i> Delivery fee: Rs. 0.00 / Free</span>
+                  <small class="text-muted">You'll get a pickup code after placing the order.</small>
+                </div>
+              </div>
+            </div>
+
+            <!-- Payment tiles -->
+            <div class="fc-card fc-section">
+              <h2><i class="fa-regular fa-credit-card text-success"></i> Payment method</h2>
+              <div class="fc-pay-tiles" role="radiogroup" aria-label="Payment method">
+                <label class="fc-pay-tile">
+                  <input type="radio" name="payment" value="cod" checked />
+                  <span class="tile">
+                    <span class="ico"><i class="fa-solid fa-money-bill-wave"></i></span>
+                    <span><strong>Cash on Delivery</strong><small>Pay the rider when it arrives</small></span>
+                    <span class="tick"><i class="fa-solid fa-check"></i></span>
+                  </span>
+                </label>
+                <label class="fc-pay-tile">
+                  <input type="radio" name="payment" value="store" />
+                  <span class="tile">
+                    <span class="ico"><i class="fa-solid fa-cash-register"></i></span>
+                    <span><strong>Pay at Store Counter</strong><small>Pay when you collect your order</small></span>
+                    <span class="tick"><i class="fa-solid fa-check"></i></span>
+                  </span>
                 </label>
               </div>
-
-              <button
-                type="button"
-                onclick = "placeOrder()"
-                form="checkoutForm"
-                class="btn btn-success w-100"
-              >
-                Place Order
-              </button>
             </div>
-          </div>
+          </form>
+        </div>
+
+        <!-- Right: sticky order summary -->
+        <div class="col-lg-5">
+          <aside class="fc-card fc-summary" aria-label="Order summary">
+            <h2>Order Summary</h2>
+            <div class="fc-summary-items">
+              <?php if (!empty($order_items)) { foreach ($order_items as $order_item) { ?>
+                <div class="fc-summary-item">
+                  <span class="nm"><?php echo htmlspecialchars($order_item['name']); ?> <em>× <?php echo htmlspecialchars((string)Database::formatQuantity($order_item['quantity'], $order_item['unit'], $order_item['category_id'])); ?></em></span>
+                  <span class="pr">Rs. <?php echo number_format((float)$order_item['line_price'], 2); ?></span>
+                </div>
+              <?php } } else { ?>
+                <div class="fc-summary-item"><span class="nm">Your cart is empty</span><span class="pr">Rs. 0.00</span></div>
+              <?php } ?>
+            </div>
+
+            <div class="fc-line"><span>Subtotal</span><span>Rs. <?php echo number_format($subtotal, 2); ?></span></div>
+            <div class="fc-line">
+              <span id="sumFeeLabel">Delivery fee</span>
+              <span id="sumFee">Rs. <?php echo number_format($delivery_charge, 2); ?></span>
+            </div>
+            <div class="fc-line total"><span>Total payable</span><span id="sumTotal">Rs. <?php echo number_format($total, 2); ?></span></div>
+
+            <button
+              type="button"
+              onclick = "placeOrder()"
+              form="checkoutForm"
+              class="fc-btn fc-btn-primary fc-place-btn"
+            >
+              <i class="fa-solid fa-lock"></i> Place Order
+            </button>
+            <p class="fc-secure-note"><i class="fa-solid fa-shield-halved me-1"></i>Your order details are kept secure.</p>
+          </aside>
         </div>
       </div>
     </div>
@@ -315,23 +287,44 @@ if (!$cart_has_items) {
         }
       ?>;
 
-      function toggleAddress() {
-        const check = document.getElementById("shipDifferent");
-        const box = document.getElementById("shippingAddress");
-        box.style.display = check.checked ? "block" : "none";
+      // Purchase-method state read by placeOrder() in script.js
+      window.orderMethod = 'delivery';
+      window.storeInfo = <?php echo json_encode(['address' => $store['address'], 'town' => $store['town']]); ?>;
+      var BASE_FEE = <?php echo json_encode($delivery_charge); ?>;
+      var SUBTOTAL = <?php echo json_encode($subtotal); ?>;
+
+      function money(n) { return 'Rs. ' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+      function setMethod(method) {
+        window.orderMethod = method;
+        var isPickup = method === 'pickup';
+        document.querySelectorAll('.fc-segment button').forEach(function (b) {
+          var on = b.dataset.method === method;
+          b.classList.toggle('active', on);
+          b.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+        document.getElementById('panel-delivery').classList.toggle('active', !isPickup);
+        document.getElementById('panel-pickup').classList.toggle('active', isPickup);
+
+        // payment tile follows the tab
+        var pay = document.querySelector('input[name="payment"][value="' + (isPickup ? 'store' : 'cod') + '"]');
+        if (pay) pay.checked = true;
+
+        // fee + totals
+        window.deliveryFee = isPickup ? 0 : BASE_FEE;
+        window.totalAmount = SUBTOTAL + window.deliveryFee;
+        document.getElementById('sumFee').innerHTML = isPickup ? '<span class="fc-free-badge">Rs. 0.00 / Free</span>' : money(BASE_FEE);
+        document.getElementById('sumFeeLabel').textContent = isPickup ? 'Delivery fee (pickup)' : 'Delivery fee';
+        document.getElementById('sumTotal').textContent = money(window.totalAmount);
       }
 
-      // Highlight selected payment
-      const labels = document.querySelectorAll(".payment-label");
-      labels.forEach((label) => {
-        label.addEventListener("click", () => {
-          labels.forEach((l) => l.classList.remove("selected"));
-          label.classList.add("selected");
-          label.querySelector("input").checked = true;
-        });
+      document.querySelectorAll('.fc-segment button').forEach(function (b) {
+        b.addEventListener('click', function () { setMethod(b.dataset.method); });
       });
-
-      // Navbar is now included via PHP (proceedNavbar.php)
+      // clicking a payment tile switches the tab as well
+      document.querySelectorAll('input[name="payment"]').forEach(function (r) {
+        r.addEventListener('change', function () { setMethod(r.value === 'store' ? 'pickup' : 'delivery'); });
+      });
     </script>
   </body>
 </html>

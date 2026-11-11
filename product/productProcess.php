@@ -48,12 +48,23 @@ if ($existing_item_rs && $existing_item_rs->num_rows > 0) {
     $new_price = $new_qty * $unit_price; // recalculate total price from unit price
     $cart_item_id = (int)$existing['id'];
 
+    // Stepper "-" support: a negative quantity that empties the line removes it.
+    if ($quantity < 0 && $new_qty <= 0.0001) {
+        Database::iud("DELETE FROM cart_items WHERE id='$cart_item_id'");
+        echo "Item removed from cart.";
+        exit();
+    }
+
     Database::iud(
         "UPDATE cart_items SET quantity='$new_qty', price='$new_price', updated_at='$d'
          WHERE id='$cart_item_id'"
     );
     echo "Item quantity updated successfully!";
 } else {
+    if ($quantity <= 0) {
+        echo "Nothing to add.";
+        exit();
+    }
     $total_price = $quantity * $unit_price;
     Database::iud(
         "INSERT INTO cart_items (cart_id, item_id, quantity, price, created_at)

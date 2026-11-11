@@ -14,6 +14,28 @@
                     Database::$connection->query("ALTER TABLE `users` ADD COLUMN `is_admin` TINYINT(1) DEFAULT 0");
                     Database::$connection->query("UPDATE `users` SET `is_admin` = 1 WHERE `email` = 'achintha@gmail.com'");
                 }
+
+                // Self-healing migration: purchase-method columns on orders (additive, nullable/defaulted,
+                // so existing rows and existing INSERTs keep working).
+                $orderCols = [
+                    'order_method'          => "VARCHAR(20) NOT NULL DEFAULT 'delivery'",
+                    'payment_method'        => "VARCHAR(20) NOT NULL DEFAULT 'cod'",
+                    'payment_status'        => "VARCHAR(20) NOT NULL DEFAULT 'Unpaid'",
+                    'pickup_code'           => "VARCHAR(12) NULL",
+                    'pickup_date'           => "DATE NULL",
+                    'pickup_slot'           => "VARCHAR(40) NULL",
+                    'delivery_instructions' => "VARCHAR(500) NULL",
+                ];
+                $existingCols = [];
+                $colRs = Database::$connection->query("SHOW COLUMNS FROM `orders`");
+                if ($colRs) {
+                    while ($cr = $colRs->fetch_assoc()) { $existingCols[$cr['Field']] = true; }
+                    foreach ($orderCols as $col => $def) {
+                        if (!isset($existingCols[$col])) {
+                            Database::$connection->query("ALTER TABLE `orders` ADD COLUMN `$col` $def");
+                        }
+                    }
+                }
             }
         }
 

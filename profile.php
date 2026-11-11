@@ -14,6 +14,9 @@
       $last_name = htmlspecialchars($user_row['last_name']);
       $email = htmlspecialchars($user_row['email']);
       $phone_number = htmlspecialchars($user_row['phone_number']);
+      $street_address1 = htmlspecialchars($user_row['street_address1'] ?? '');
+      $street_address2 = htmlspecialchars($user_row['street_address2'] ?? '');
+      $town = htmlspecialchars($user_row['town'] ?? '');
   } else {
       header("Location: login/sign.php");
       exit();
@@ -253,6 +256,26 @@
                   </div>
                 </div>
 
+                <!-- Section: Address Details -->
+                <div class="form-section-title mt-5">
+                  <i class="bi bi-geo-alt-fill"></i> Address Details
+                </div>
+                
+                <div class="mb-4">
+                  <label for="streetAddress1" class="form-label">Street Address (Line 1)</label>
+                  <input type="text" class="form-control" id="streetAddress1" value="<?php echo $street_address1; ?>" placeholder="House number and street name" required />
+                </div>
+
+                <div class="mb-4">
+                  <label for="streetAddress2" class="form-label">Street Address (Line 2)</label>
+                  <input type="text" class="form-control" id="streetAddress2" value="<?php echo $street_address2; ?>" placeholder="Apartment, suite, unit etc. (optional)" />
+                </div>
+
+                <div class="mb-4">
+                  <label for="town" class="form-label">Town / City</label>
+                  <input type="text" class="form-control" id="town" value="<?php echo $town; ?>" placeholder="Town or City name" required />
+                </div>
+
                 <!-- Section: Security & Password -->
                 <div class="form-section-title mt-5">
                   <i class="bi bi-shield-lock-fill"></i> Change Password
@@ -311,6 +334,9 @@
           const fName = document.getElementById("firstName").value.trim();
           const lName = document.getElementById("lastName").value.trim();
           const phone = document.getElementById("phone").value.trim();
+          const streetAddress1 = document.getElementById("streetAddress1").value.trim();
+          const streetAddress2 = document.getElementById("streetAddress2").value.trim();
+          const town = document.getElementById("town").value.trim();
           const currentPassword = document.getElementById("currentPassword").value;
           const newPassword = document.getElementById("newPassword").value;
           const confirmPassword = document.getElementById("confirmPassword").value;
@@ -318,8 +344,8 @@
           const alertBox = document.getElementById("alertBox");
           alertBox.style.display = "none";
 
-          if (!fName || !lName || !phone) {
-              showMsg("First name, Last name, and Phone number are required.", false);
+          if (!fName || !lName || !phone || !streetAddress1 || !town) {
+              showMsg("First name, Last name, Phone number, Street Address, and Town/City are required.", false);
               return;
           }
 
@@ -356,6 +382,9 @@
           f.append("firstName", fName);
           f.append("lastName", lName);
           f.append("phone", phone);
+          f.append("streetAddress1", streetAddress1);
+          f.append("streetAddress2", streetAddress2);
+          f.append("town", town);
           f.append("currentPassword", currentPassword);
           f.append("newPassword", newPassword);
           f.append("confirmPassword", confirmPassword);
