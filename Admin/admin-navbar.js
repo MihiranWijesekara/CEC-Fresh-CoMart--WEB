@@ -169,7 +169,7 @@ export function initAdminNavbar(activePage = '') {
     </nav>
   `;
 
-  const container = document.getElementById('adminNavbarContainer');
+  const container = document.getElementById('adminNavbarContainer') || document.getElementById('adminNavbarMount');
   if (container) {
     container.innerHTML = navHtml;
   } else {
@@ -275,22 +275,36 @@ export function fcStatusBadge(status, method = 'cod', extraClass = '') {
 export function fcNextAction(status, method = 'cod') {
   const s = String(status || 'pending').toLowerCase();
   const pickup = fcOrderMethod(method) === 'pickup';
+  let tuple = null;
+  let btnClass = 'btn-success';
   switch (s) {
     case 'pending':
-      return ['processing', 'Accept', 'accept', 'bi-arrow-right-short'];
+      tuple = ['processing', 'Accept & Pack', 'accept', 'bi-box-seam'];
+      btnClass = 'btn-info text-dark';
+      break;
     case 'processing':
-      return pickup
-        ? ['ready_for_pickup', 'Mark Ready', 'ready', 'bi-box-seam']
-        : ['shipped', 'Mark Shipped', 'ready', 'bi-truck'];
+      tuple = pickup
+        ? ['ready_for_pickup', 'Mark Ready for Pickup', 'ready', 'bi-bag-check']
+        : ['shipped', 'Dispatch Delivery', 'ready', 'bi-truck'];
+      btnClass = 'btn-primary';
+      break;
     case 'ready_for_pickup':
     case 'ready':
     case 'shipped':
-      return pickup
-        ? ['collected', 'Mark Collected', 'done', 'bi-bag-check']
-        : ['delivered', 'Mark Delivered', 'done', 'bi-check-lg'];
+      tuple = pickup
+        ? ['collected', 'Complete Pickup', 'done', 'bi-check2-circle']
+        : ['delivered', 'Mark Delivered', 'done', 'bi-check2-circle'];
+      btnClass = 'btn-success';
+      break;
     default:
       return null;
   }
+  tuple.next_status = tuple[0];
+  tuple.label = tuple[1];
+  tuple.action_key = tuple[2];
+  tuple.icon = tuple[3];
+  tuple.btn_class = btnClass;
+  return tuple;
 }
 
 // Auto-initialize if script is included directly with data-auto-init

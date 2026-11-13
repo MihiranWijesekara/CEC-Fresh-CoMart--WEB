@@ -192,8 +192,15 @@
 
         const urlParams = new URLSearchParams(window.location.search);
         const initialSearch = urlParams.get('search') || '';
+        const initialFilter = (urlParams.get('filter') || '').toLowerCase();
         if (initialSearch) {
             document.getElementById('orderSearchInput').value = initialSearch;
+        }
+        if (initialFilter === 'cod' || initialFilter === 'pickup') {
+            currentMethod = initialFilter;
+            document.getElementById('tab-all').className = 'filter-tab';
+            document.getElementById('tab-cod').className = 'filter-tab' + (initialFilter === 'cod' ? ' active-cod' : '');
+            document.getElementById('tab-pickup').className = 'filter-tab' + (initialFilter === 'pickup' ? ' active-pickup' : '');
         }
 
         function escapeHtml(str) {
@@ -437,7 +444,8 @@
                     const payStatus = btn.dataset.pay || undefined;
                     btn.disabled = true;
                     try {
-                        await updateOrderStatusAdmin(oid, { status: nextStatus, payment_status: payStatus });
+                        const res = await updateOrderStatusAdmin(oid, { status: nextStatus, payment_status: payStatus });
+                        if (res && res.ok === false) throw new Error(res.message);
                         showAlert(`Order updated to "${nextStatus.replace(/_/g, ' ')}"!`, 'success');
                         await loadOrders();
                         await refreshAdminNavBadges();
@@ -453,7 +461,8 @@
                     const oid = btn.dataset.id;
                     btn.disabled = true;
                     try {
-                        await updateOrderStatusAdmin(oid, { payment_status: 'paid' });
+                        const res = await updateOrderStatusAdmin(oid, { payment_status: 'paid' });
+                        if (res && res.ok === false) throw new Error(res.message);
                         showAlert('Payment status marked as PAID!', 'success');
                         await loadOrders();
                         await refreshAdminNavBadges();
@@ -486,7 +495,8 @@
             const confirmBtn = document.getElementById('confirmCancelOrderBtn');
             confirmBtn.disabled = true;
             try {
-                await cancelOrderWithStockRestore(oid, 'Admin');
+                const res = await cancelOrderWithStockRestore(oid, 'Admin');
+                if (res && res.ok === false) throw new Error(res.message);
                 bootstrap.Modal.getInstance(document.getElementById('cancelOrderModal'))?.hide();
                 showAlert('Order cancelled and item quantities restored to stock!', 'success');
                 await loadOrders();

@@ -81,13 +81,13 @@ export function parseUnitToGrams(unitStr) {
   const m = String(unitStr || "").trim().match(/^([0-9.]+)\s*(kg|g|l|ml)$/i);
   if (m) {
     const val = parseFloat(m[1]);
-    const unit = m[2].toLowerCase();
-    if (unit === "kg" || unit === "l") {
-      return { baseVal: val * 1000, type: unit === "kg" ? "weight" : "volume" };
+    const metric = m[2].toLowerCase();
+    if (metric === "kg" || metric === "l") {
+      return { val, metric, baseVal: val * 1000, type: metric === "kg" ? "weight" : "volume" };
     }
-    return { baseVal: val, type: unit === "g" ? "weight" : "volume" };
+    return { val, metric, baseVal: val, type: metric === "g" ? "weight" : "volume" };
   }
-  return { baseVal: 1000, type: "weight" };
+  return { val: 1, metric: "units", baseVal: 1, type: "unit" };
 }
 
 export function formatQuantity(qty, unitStr, catId) {
@@ -260,7 +260,13 @@ export function waitForAuthUser() {
         return;
       }
       const profile = await getUserProfile(user.uid, user.email);
-      resolve({ user, profile });
+      resolve({
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName || (profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() : ""),
+        user,
+        profile
+      });
     });
   });
 }
@@ -304,62 +310,83 @@ export async function getUserProfile(uid, fallbackEmail = "") {
   }
 }
 
+function mapFirebaseAuthError(err, fallbackMsg) {
+  const code = (err && err.code) ? String(err.code) : "";
+  if (code === "auth/email-already-in-use") return "An account with this email already exists.";
+  if (code === "auth/invalid-email") return "Please enter a valid email address.";
+  if (code === "auth/weak-password") return "Password must be at least 8 characters.";
+  if (code === "auth/user-not-found" || code === "auth/wrong-password" || code === "auth/invalid-credential") {
+    return "Invalid email or password.";
+  }
+  if (code === "auth/too-many-requests") return "Too many attempts. Please wait a moment and try again.";
+  return (err && err.message) ? err.message : fallbackMsg;
+}
+
 export async function registerCustomer({ firstName, lastName, email, phoneNumber, password, confirmPassword }) {
-  const fn = String(firstName || "").trim();
-  const ln = String(lastName || "").trim();
-  const em = String(email || "").trim();
-  const ph = String(phoneNumber || "").trim();
-  const pw = String(password || "");
-  const cpw = String(confirmPassword || "");
+  try {
+    const fn = String(firstName || "").trim();
+    const ln = String(lastName || "").trim();
+    const em = String(email || "").trim();
+    const ph = String(phoneNumber || "").trim();
+    const pw = String(password || "");
+    const cpw = String(confirmPassword || "");
 
-  if (!fn) throw new Error("Please Enter Your First Name.");
-  if (!ln) throw new Error("Please Enter Your Last Name.");
-  if (!em) throw new Error("Please Enter Your Email.");
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) throw new Error("Please enter a valid email address.");
-  if (!ph) throw new Error("Please Enter Your Phone Number.");
-  if (!/^(?:0|\+94|94)?[1-9][0-9]{8}$/.test(ph)) throw new Error("Please enter a valid Sri Lankan phone number.");
-  if (!pw) throw new Error("Please Enter Your Password.");
-  if (pw.length < 8) throw new Error("Password must be at least 8 characters.");
-  if (!cpw) throw new Error("Please Confirm Your Password.");
-  if (pw !== cpw) throw new Error("Password and confirm password do not match.");
+    if (!fn) return { ok: false, message: "Please Enter Your First Name." };
+    if (!ln) return { ok: false, message: "Please Enter Your Last Name." };
+    if (!em) return { ok: false, message: "Please Enter Your Email." };
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) return { ok: false, message: "Please enter a valid email address." };
+    if (!ph) return { ok: false, message: "Please Enter Your Phone Number." };
+    if (!/^(?:0|\+94|94)?[1-9][0-9]{8}$/.test(ph)) return { ok: false, message: "Please enter a valid Sri Lankan phone number." };
+    if (!pw) return { ok: false, message: "Please Enter Your Password." };
+    if (pw.length < 8) return { ok: false, message: "Password must be at least 8 characters." };
+    if (!cpw) return { ok: false, message: "Please Confirm Your Password." };
+    if (pw !== cpw) return { ok: false, message: "Password and confirm password do not match." };
 
-  const cred = await createUserWithEmailAndPassword(auth, em, pw);
-  const uid = cred.user.uid;
-  const isAdmin = em.toLowerCase() === "achintha@gmail.com" ? 1 : 0;
-  const profileData = {
-    uid,
-    first_name: fn,
-    last_name: ln,
-    email: em,
-    phone_number: ph,
-    street_address1: "",
-    street_address2: "",
-    town: "",
-    is_admin: isAdmin,
-    created_at: nowColomboISO()
-  };
-  await setDoc(doc(db, "users", uid), profileData);
-  return { user: cred.user, profile: profileData };
+    const cred = await createUserWithEmailAndPassword(auth, em, pw);
+    const uid = cred.user.uid;
+    const isAdmin = em.toLowerCase() === "achintha@gmail.com" ? 1 : 0;
+    const profileData = {
+      uid,
+      first_name: fn,
+      last_name: ln,
+      email: em,
+      phone_number: ph,
+      street_address1: "",
+      street_address2: "",
+      town: "",
+      is_admin: isAdmin,
+      created_at: nowColomboISO()
+    };
+    await setDoc(doc(db, "users", uid), profileData);
+    return { ok: true, user: cred.user, profile: profileData, message: "Registration Successful!" };
+  } catch (err) {
+    return { ok: false, message: mapFirebaseAuthError(err, "Registration failed. Please try again.") };
+  }
 }
 
 export async function loginCustomer(email, password) {
-  const em = String(email || "").trim();
-  const pw = String(password || "");
-  if (!em || !pw) throw new Error("Email and Password required");
+  try {
+    const em = String(email || "").trim();
+    const pw = String(password || "");
+    if (!em || !pw) return { ok: false, message: "Email and Password required" };
 
-  const cred = await signInWithEmailAndPassword(auth, em, pw);
-  const profile = await getUserProfile(cred.user.uid, cred.user.email);
-  if (Number(profile.is_admin) === 1 || em.toLowerCase() === "achintha@gmail.com") {
-    localStorage.setItem("fc_admin_auth", JSON.stringify({
-      uid: cred.user.uid,
-      email: cred.user.email,
-      first_name: profile.first_name || "Admin",
-      last_name: profile.last_name || "User",
-      is_admin: 1,
-      ts: Date.now()
-    }));
+    const cred = await signInWithEmailAndPassword(auth, em, pw);
+    const profile = await getUserProfile(cred.user.uid, cred.user.email);
+    const isAdmin = Number(profile.is_admin) === 1 || em.toLowerCase() === "achintha@gmail.com";
+    if (isAdmin) {
+      localStorage.setItem("fc_admin_auth", JSON.stringify({
+        uid: cred.user.uid,
+        email: cred.user.email,
+        first_name: profile.first_name || "Admin",
+        last_name: profile.last_name || "User",
+        is_admin: 1,
+        ts: Date.now()
+      }));
+    }
+    return { ok: true, isAdmin, user: cred.user, profile, message: "Login Successful!" };
+  } catch (err) {
+    return { ok: false, message: mapFirebaseAuthError(err, "Invalid email or password.") };
   }
-  return { user: cred.user, profile };
 }
 
 export async function logoutUser() {
@@ -367,39 +394,52 @@ export async function logoutUser() {
   await signOut(auth);
 }
 
+export const logoutAdminSession = logoutUser;
+
 export async function updateCustomerAddress(uid, { first_name, last_name, phone_number, street_address1, street_address2, town }) {
-  const fn = String(first_name || "").trim();
-  const ln = String(last_name || "").trim();
-  const ph = String(phone_number || "").trim();
-  const s1 = String(street_address1 || "").trim();
-  const s2 = String(street_address2 || "").trim();
-  const tw = String(town || "").trim();
+  try {
+    if (!uid) return { ok: false, message: "Not signed in." };
+    const fn = String(first_name || "").trim();
+    const ln = String(last_name || "").trim();
+    const ph = String(phone_number || "").trim();
+    const s1 = String(street_address1 || "").trim();
+    const s2 = String(street_address2 || "").trim();
+    const tw = String(town || "").trim();
 
-  if (!fn || !ln) throw new Error("First name and last name are required.");
-  if (!ph) throw new Error("Phone number is required.");
-  if (!s1 || !tw) throw new Error("Street address and Town/City are required.");
+    if (!fn || !ln) return { ok: false, message: "First name and last name are required." };
+    if (!ph) return { ok: false, message: "Phone number is required." };
+    if (!s1 || !tw) return { ok: false, message: "Street address and Town/City are required." };
 
-  await setDoc(doc(db, "users", uid), {
-    first_name: fn,
-    last_name: ln,
-    phone_number: ph,
-    street_address1: s1,
-    street_address2: s2,
-    town: tw,
-    updated_at: nowColomboISO()
-  }, { merge: true });
+    await setDoc(doc(db, "users", uid), {
+      first_name: fn,
+      last_name: ln,
+      phone_number: ph,
+      street_address1: s1,
+      street_address2: s2,
+      town: tw,
+      updated_at: nowColomboISO()
+    }, { merge: true });
+    return { ok: true, message: "Address updated successfully." };
+  } catch (err) {
+    return { ok: false, message: err.message || "Could not update address." };
+  }
 }
 
 export async function updateCustomerPassword(currentPassword, newPassword, confirmPassword) {
-  const user = auth.currentUser;
-  if (!user) throw new Error("Not signed in.");
-  if (!currentPassword) throw new Error("Please enter your current password.");
-  if (!newPassword || newPassword.length < 8) throw new Error("New password must be at least 8 characters.");
-  if (newPassword !== confirmPassword) throw new Error("New password and confirmation do not match.");
+  try {
+    const user = auth.currentUser;
+    if (!user) return { ok: false, message: "Not signed in." };
+    if (!currentPassword) return { ok: false, message: "Please enter your current password." };
+    if (!newPassword || newPassword.length < 8) return { ok: false, message: "New password must be at least 8 characters." };
+    if (newPassword !== confirmPassword) return { ok: false, message: "New password and confirmation do not match." };
 
-  const credential = EmailAuthProvider.credential(user.email, currentPassword);
-  await reauthenticateWithCredential(user, credential);
-  await updatePassword(user, newPassword);
+    const credential = EmailAuthProvider.credential(user.email, currentPassword);
+    await reauthenticateWithCredential(user, credential);
+    await updatePassword(user, newPassword);
+    return { ok: true, message: "Password updated successfully!" };
+  } catch (err) {
+    return { ok: false, message: mapFirebaseAuthError(err, "Current password is incorrect or session expired.") };
+  }
 }
 
 // ============================================================================
@@ -409,6 +449,10 @@ export async function updateCustomerPassword(currentPassword, newPassword, confi
 export async function authenticateAdminPortal(password, emailOptional = "") {
   const pw = String(password || "").trim();
   const em = String(emailOptional || "achintha@gmail.com").trim();
+
+  if (!pw) {
+    return { ok: false, message: "Please enter the security access key." };
+  }
 
   // Support standard Admin Portal Security Access Key ("1234" or "12345678") OR Firebase Admin user login
   if (pw === "1234" || pw === "12345678") {
@@ -423,9 +467,8 @@ export async function authenticateAdminPortal(password, emailOptional = "") {
         is_admin: 1,
         ts: Date.now()
       }));
-      return true;
+      return { ok: true, message: "Access Granted" };
     } catch (_) {
-      // Even if Firebase Auth account for achintha@gmail.com hasn't been created yet, try creating it or grant admin session
       try {
         const cred = await createUserWithEmailAndPassword(auth, "achintha@gmail.com", "12345678");
         await setDoc(doc(db, "users", cred.user.uid), {
@@ -450,25 +493,28 @@ export async function authenticateAdminPortal(password, emailOptional = "") {
         is_admin: 1,
         ts: Date.now()
       }));
-      return true;
+      return { ok: true, message: "Access Granted" };
     }
   }
 
-  // Otherwise try authenticating via Firebase Auth with provided email & password
-  const cred = await signInWithEmailAndPassword(auth, em, pw);
-  const profile = await getUserProfile(cred.user.uid, cred.user.email);
-  if (Number(profile.is_admin) !== 1 && cred.user.email.toLowerCase() !== "achintha@gmail.com") {
-    throw new Error("Access denied. This account does not have administrator privileges.");
+  try {
+    const cred = await signInWithEmailAndPassword(auth, em, pw);
+    const profile = await getUserProfile(cred.user.uid, cred.user.email);
+    if (Number(profile.is_admin) !== 1 && cred.user.email.toLowerCase() !== "achintha@gmail.com") {
+      return { ok: false, message: "Access denied. This account does not have administrator privileges." };
+    }
+    localStorage.setItem("fc_admin_auth", JSON.stringify({
+      uid: cred.user.uid,
+      email: cred.user.email,
+      first_name: profile.first_name || "Admin",
+      last_name: profile.last_name || "User",
+      is_admin: 1,
+      ts: Date.now()
+    }));
+    return { ok: true, message: "Access Granted" };
+  } catch (err) {
+    return { ok: false, message: "Invalid security access key." };
   }
-  localStorage.setItem("fc_admin_auth", JSON.stringify({
-    uid: cred.user.uid,
-    email: cred.user.email,
-    first_name: profile.first_name || "Admin",
-    last_name: profile.last_name || "User",
-    is_admin: 1,
-    ts: Date.now()
-  }));
-  return true;
 }
 
 export function getAdminSession() {
@@ -496,11 +542,13 @@ export function requireAdminSession(redirectUrl = "login.html") {
 // 6. ITEMS / PRODUCT CATALOG OPERATIONS
 // ============================================================================
 
-export async function getAllItems() {
+export async function getAllItems(activeOnly = false) {
   const snap = await getDocs(collection(db, "items"));
   const items = [];
   snap.forEach((d) => {
     const data = d.data();
+    const status = data.status || "active";
+    if (activeOnly && status !== "active") return;
     items.push({
       id: d.id,
       ...data,
@@ -508,7 +556,7 @@ export async function getAllItems() {
       stock_quantity: parseFloat(data.stock_quantity) || 0,
       category_id: Number(data.category_id) || 1,
       category_name: data.category_name || getCategoryNameById(data.category_id),
-      status: data.status || "active"
+      status
     });
   });
   items.sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
@@ -531,7 +579,7 @@ export async function getItemById(itemId) {
   };
 }
 
-export async function addProductItem({ name, price, unit, category_id, status, stock_quantity, imageDataUrl }) {
+export async function addProductItem({ name, price, unit, category_id, status, stock_quantity, imageDataUrl, imageFile }) {
   const nm = String(name || "").trim();
   const pr = parseFloat(price);
   const un = String(unit || "").trim();
@@ -543,7 +591,12 @@ export async function addProductItem({ name, price, unit, category_id, status, s
   if (isNaN(pr) || pr <= 0) throw new Error("Please enter a valid price.");
   if (!un) throw new Error("Please specify the measurement unit.");
   if (!cid) throw new Error("Please select a product category.");
-  if (!imageDataUrl) throw new Error("Please select a product image.");
+
+  let resolvedImage = imageDataUrl;
+  if (!resolvedImage && imageFile) {
+    resolvedImage = await compressImageFile(imageFile, 500, 500, 0.75);
+  }
+  if (!resolvedImage) throw new Error("Please select a product image.");
 
   const ts = nowColomboISO();
   const itemDoc = {
@@ -554,7 +607,7 @@ export async function addProductItem({ name, price, unit, category_id, status, s
     category_name: getCategoryNameById(cid),
     status: st,
     stock_quantity: sq,
-    image_path: imageDataUrl,
+    image_path: resolvedImage,
     created_at: ts,
     updated_at: ts
   };
@@ -571,7 +624,7 @@ export async function addProductItem({ name, price, unit, category_id, status, s
       created_at: ts
     });
   }
-  return { id: docRef.id, ...itemDoc };
+  return { ok: true, id: docRef.id, ...itemDoc };
 }
 
 export async function toggleItemStatus(itemId) {
@@ -584,7 +637,16 @@ export async function toggleItemStatus(itemId) {
   return next;
 }
 
-export async function adjustItemStock(itemId, transactionType, changeQty, reason) {
+export async function adjustItemStock(itemId, typeOrObj, changeQty, reason) {
+  let transactionType = typeOrObj;
+  let qtyVal = changeQty;
+  let reasonStr = reason;
+  if (typeOrObj && typeof typeOrObj === "object") {
+    transactionType = typeOrObj.transaction_type || typeOrObj.transactionType;
+    qtyVal = typeOrObj.quantity ?? typeOrObj.changeQty;
+    reasonStr = typeOrObj.reason;
+  }
+
   const itemRef = doc(db, "items", String(itemId));
   const ts = nowColomboISO();
   let finalStock = 0;
@@ -594,7 +656,7 @@ export async function adjustItemStock(itemId, transactionType, changeQty, reason
     if (!snap.exists()) throw new Error("Item not found.");
     const data = snap.data();
     const prevStock = parseFloat(data.stock_quantity) || 0;
-    const qty = parseFloat(changeQty) || 0;
+    const qty = parseFloat(qtyVal) || 0;
 
     if (transactionType === "in") {
       finalStock = prevStock + qty;
@@ -623,7 +685,7 @@ export async function adjustItemStock(itemId, transactionType, changeQty, reason
       quantity: qty,
       previous_stock: prevStock,
       new_stock: finalStock,
-      reason: String(reason || "Manual Adjustment"),
+      reason: String(reasonStr || "Manual Adjustment"),
       created_at: ts
     });
   });
@@ -672,6 +734,7 @@ export async function getActiveCartWithItems(uid) {
     const lineTotal = qty * unitPrice;
     subtotal += lineTotal;
     inCartMap[String(item.id)] = qty;
+    const formattedQty = formatQuantity(qty, item.unit, item.category_id);
 
     enriched.push({
       cart_item_id: ci.cart_item_id,
@@ -683,7 +746,10 @@ export async function getActiveCartWithItems(uid) {
       stock_quantity: parseFloat(item.stock_quantity) || 0,
       status: item.status || "active",
       quantity: qty,
-      formatted_quantity: formatQuantity(qty, item.unit, item.category_id),
+      formatted_qty: formattedQty,
+      formatted_quantity: formattedQty,
+      is_bulk: isBulkItem(item.category_id, item.unit),
+      metric: getUnitMetric(item.unit),
       unit_price: unitPrice,
       line_total: lineTotal
     });
@@ -698,95 +764,125 @@ export async function getActiveCartWithItems(uid) {
 }
 
 export async function addOrUpdateCartItem(uid, itemId, deltaQty) {
-  if (!uid) throw new Error("User not logged in");
-  const item = await getItemById(itemId);
-  if (!item) throw new Error("Item not found");
+  try {
+    if (!uid) return { ok: false, status: "error", message: "Please sign in to add items to your cart." };
+    const item = await getItemById(itemId);
+    if (!item) return { ok: false, status: "error", message: "Item not found." };
 
-  const stockQty = parseFloat(item.stock_quantity) || 0;
-  if (item.status !== "active" || stockQty <= 0) {
-    throw new Error(`Sorry, "${item.name}" is currently out of stock.`);
-  }
-
-  const cartDocId = `${uid}_${itemId}`;
-  const cartRef = doc(db, "cart_items", cartDocId);
-  const existingSnap = await getDoc(cartRef);
-  const delta = parseFloat(deltaQty) || 0;
-  const ts = nowColomboISO();
-
-  if (existingSnap.exists()) {
-    const curQty = parseFloat(existingSnap.data().quantity) || 0;
-    const newQty = curQty + delta;
-
-    if (delta < 0 && newQty <= 0.0001) {
-      await deleteDoc(cartRef);
-      return { action: "removed", newQty: 0, item };
+    const stockQty = parseFloat(item.stock_quantity) || 0;
+    if (item.status !== "active" || stockQty <= 0) {
+      return { ok: false, status: "error", message: `Sorry, "${item.name}" is currently out of stock.` };
     }
-    if (newQty > stockQty) {
-      throw new Error(`Sorry, only ${stockQty} unit(s) of "${item.name}" are available in stock.`);
+
+    const cartDocId = `${uid}_${itemId}`;
+    const cartRef = doc(db, "cart_items", cartDocId);
+    const existingSnap = await getDoc(cartRef);
+    const delta = parseFloat(deltaQty) || 0;
+    const ts = nowColomboISO();
+
+    if (existingSnap.exists()) {
+      const curQty = parseFloat(existingSnap.data().quantity) || 0;
+      const newQty = curQty + delta;
+
+      if (delta < 0 && newQty <= 0.0001) {
+        await deleteDoc(cartRef);
+        return { ok: true, status: "success", action: "removed", newQty: 0, newQuantity: 0, message: "Item removed from cart.", item };
+      }
+      if (newQty > stockQty) {
+        return { ok: false, status: "error", message: `Sorry, only ${stockQty} unit(s) of "${item.name}" are available in stock.` };
+      }
+      // Always store single unit price in cart_items.price
+      await updateDoc(cartRef, {
+        quantity: newQty,
+        price: item.price,
+        updated_at: ts
+      });
+      return { ok: true, status: "success", action: "updated", newQty, newQuantity: newQty, message: "Cart updated!", item };
+    } else {
+      if (delta <= 0) return { ok: true, status: "success", action: "none", newQty: 0, newQuantity: 0, message: "", item };
+      if (delta > stockQty) {
+        return { ok: false, status: "error", message: `Sorry, only ${stockQty} unit(s) of "${item.name}" are available in stock.` };
+      }
+      await setDoc(cartRef, {
+        user_id: String(uid),
+        item_id: String(itemId),
+        quantity: delta,
+        price: item.price, // Single unit price
+        created_at: ts,
+        updated_at: ts
+      });
+      return { ok: true, status: "success", action: "added", newQty: delta, newQuantity: delta, message: "Added to cart!", item };
     }
-    // Always store single unit price in cart_items.price
-    await updateDoc(cartRef, {
-      quantity: newQty,
-      price: item.price,
-      updated_at: ts
-    });
-    return { action: "updated", newQty, item };
-  } else {
-    if (delta <= 0) return { action: "none", newQty: 0, item };
-    if (delta > stockQty) {
-      throw new Error(`Sorry, only ${stockQty} unit(s) of "${item.name}" are available in stock.`);
-    }
-    await setDoc(cartRef, {
-      user_id: String(uid),
-      item_id: String(itemId),
-      quantity: delta,
-      price: item.price, // Single unit price
-      created_at: ts,
-      updated_at: ts
-    });
-    return { action: "added", newQty: delta, item };
+  } catch (err) {
+    return { ok: false, status: "error", message: err.message || "Could not update cart." };
   }
 }
 
-export async function setCartItemQuantity(uid, cartItemId, newQuantity) {
-  if (!uid) throw new Error("User not logged in");
-  const cartRef = doc(db, "cart_items", String(cartItemId));
-  const snap = await getDoc(cartRef);
-  if (!snap.exists()) throw new Error("Cart item not found");
+export async function setCartItemQuantity(uid, cartItemId, itemIdOrQty, maybeQty) {
+  try {
+    if (!uid) return { ok: false, success: false, message: "User not logged in" };
+    const newQuantity = maybeQty !== undefined ? maybeQty : itemIdOrQty;
+    const cartRef = doc(db, "cart_items", String(cartItemId));
+    const snap = await getDoc(cartRef);
+    if (!snap.exists()) return { ok: false, success: false, message: "Cart item not found" };
 
-  const ci = snap.data();
-  if (String(ci.user_id) !== String(uid)) throw new Error("Unauthorized user");
+    const ci = snap.data();
+    if (String(ci.user_id) !== String(uid)) return { ok: false, success: false, message: "Unauthorized user" };
 
-  const item = await getItemById(ci.item_id);
-  if (!item) throw new Error("Item not found");
+    const item = await getItemById(ci.item_id);
+    if (!item) return { ok: false, success: false, message: "Item not found" };
 
-  const stockQty = parseFloat(item.stock_quantity) || 0;
-  if (item.status !== "active" || stockQty <= 0) {
-    throw new Error(`Sorry, "${item.name}" is currently out of stock.`);
+    const stockQty = parseFloat(item.stock_quantity) || 0;
+    if (item.status !== "active" || stockQty <= 0) {
+      return { ok: false, success: false, message: `Sorry, "${item.name}" is currently out of stock.` };
+    }
+
+    const qty = parseFloat(newQuantity) || 0;
+    if (qty <= 0.0001) {
+      await deleteDoc(cartRef);
+      const updatedCart = await getActiveCartWithItems(uid);
+      return {
+        ok: true,
+        success: true,
+        removed: true,
+        quantity: 0,
+        subtotal: updatedCart.subtotal,
+        grand_total: updatedCart.subtotal,
+        item
+      };
+    }
+    if (qty > stockQty) {
+      return {
+        ok: false,
+        success: false,
+        message: `Sorry, only ${stockQty} unit(s) of "${item.name}" are available in stock.`
+      };
+    }
+
+    await updateDoc(cartRef, {
+      quantity: qty,
+      price: item.price,
+      updated_at: nowColomboISO()
+    });
+
+    const updatedCart = await getActiveCartWithItems(uid);
+    const formattedQty = formatQuantity(qty, item.unit, item.category_id);
+
+    return {
+      ok: true,
+      success: true,
+      removed: false,
+      quantity: qty,
+      formatted_quantity: formattedQty,
+      formatted_qty: formattedQty,
+      item_total: qty * item.price,
+      subtotal: updatedCart.subtotal,
+      grand_total: updatedCart.subtotal,
+      item
+    };
+  } catch (err) {
+    return { ok: false, success: false, message: err.message || "Failed to update cart quantity" };
   }
-
-  const qty = parseFloat(newQuantity) || 0;
-  if (qty <= 0.0001) {
-    await deleteDoc(cartRef);
-    return { removed: true, quantity: 0, item };
-  }
-  if (qty > stockQty) {
-    throw new Error(`Sorry, only ${stockQty} unit(s) of "${item.name}" are available in stock.`);
-  }
-
-  await updateDoc(cartRef, {
-    quantity: qty,
-    price: item.price,
-    updated_at: nowColomboISO()
-  });
-
-  return {
-    removed: false,
-    quantity: qty,
-    formatted_quantity: formatQuantity(qty, item.unit, item.category_id),
-    item_total: qty * item.price,
-    item
-  };
 }
 
 export async function removeCartItemById(uid, cartItemId) {
@@ -818,149 +914,162 @@ function randomChars(chars, len) {
 }
 
 export async function placeOrderTransaction(uid, payload) {
-  if (!uid) throw new Error("Please sign in to place an order.");
+  try {
+    if (!uid) return { ok: false, message: "Please sign in to place an order." };
 
-  const method = payload.purchase_method === "pickup" ? "pickup" : "cod";
-  const customerName = String(payload.customer_name || "").trim();
-  const customerPhone = String(payload.customer_phone || "").trim();
-  let street1 = String(payload.street_address1 || "").trim();
-  let street2 = String(payload.street_address2 || "").trim();
-  let town = String(payload.town || "").trim();
-  const deliveryNotes = String(payload.delivery_notes || "").trim();
-  const pickupDate = method === "pickup" ? String(payload.pickup_date || "").trim() : null;
-  const pickupSlot = method === "pickup" ? String(payload.pickup_time_slot || "").trim() : null;
+    const method = payload.purchase_method === "pickup" ? "pickup" : "cod";
+    const customerName = String(payload.customer_name || "").trim();
+    const customerPhone = String(payload.customer_phone || "").trim();
+    let street1 = String(payload.street_address1 ?? payload.streetAddress1 ?? "").trim();
+    let street2 = String(payload.street_address2 ?? payload.streetAddress2 ?? "").trim();
+    let town = String(payload.town || "").trim();
+    const deliveryNotes = String(payload.delivery_notes || "").trim();
+    const pickupDate = method === "pickup" ? String(payload.pickup_date || "").trim() : null;
+    const pickupSlot = method === "pickup" ? String(payload.pickup_time_slot || "").trim() : null;
 
-  if (!customerName) throw new Error("Please enter your full name.");
-  if (!customerPhone) throw new Error("Please enter your phone number.");
+    if (!customerName) return { ok: false, message: "Please enter your full name." };
+    if (!customerPhone) return { ok: false, message: "Please enter your phone number." };
 
-  if (method === "pickup") {
-    if (!pickupDate) throw new Error("Please select a pickup date.");
-    if (!pickupSlot) throw new Error("Please choose a pickup time slot.");
-    street1 = STORE_CONFIG.address;
-    street2 = "";
-    town = STORE_CONFIG.town;
-  } else {
-    if (!street1) throw new Error("Please enter your delivery street address.");
-    if (!town) throw new Error("Please enter your town/city.");
-  }
-
-  const cart = await getActiveCartWithItems(uid);
-  if (!cart.items || cart.items.length === 0) {
-    throw new Error("Your cart is empty.");
-  }
-
-  const datePart = todayDateString().replace(/-/g, "");
-  const orderNumber = `ORD-${datePart}-${randomChars("0123456789", 4)}`;
-  const pickupCode = method === "pickup" ? `PK-${randomChars("23456789ABCDEFGHJKLMNPQRSTUVWXYZ", 5)}` : null;
-  const deliveryFee = method === "pickup" ? 0.0 : STORE_CONFIG.delivery_fee;
-  const ts = nowColomboISO();
-
-  const newOrderRef = doc(collection(db, "orders"));
-
-  await runTransaction(db, async (transaction) => {
-    // 1. Read all item docs first (Firestore transaction requirement: reads before writes)
-    const itemSnaps = [];
-    for (const ci of cart.items) {
-      const itemRef = doc(db, "items", String(ci.item_id));
-      const snap = await transaction.get(itemRef);
-      itemSnaps.push({ ci, itemRef, snap });
+    if (method === "pickup") {
+      if (!pickupDate) return { ok: false, message: "Please select a pickup date." };
+      if (!pickupSlot) return { ok: false, message: "Please choose a pickup time slot." };
+      street1 = STORE_CONFIG.address;
+      street2 = "";
+      town = STORE_CONFIG.town;
+    } else {
+      if (!street1) return { ok: false, message: "Please enter your delivery street address." };
+      if (!town) return { ok: false, message: "Please enter your town/city." };
     }
 
-    let computedSubtotal = 0;
-    const orderItemsArray = [];
+    const cart = await getActiveCartWithItems(uid);
+    if (!cart.items || cart.items.length === 0) {
+      return { ok: false, message: "Your cart is empty." };
+    }
 
-    // 2. Validate stock & prepare stock deductions
-    for (const { ci, itemRef, snap } of itemSnaps) {
-      if (!snap.exists()) {
-        throw new Error(`Product "${ci.name}" is no longer available.`);
+    const datePart = todayDateString().replace(/-/g, "");
+    const orderNumber = `ORD-${datePart}-${randomChars("0123456789", 4)}`;
+    const pickupCode = method === "pickup" ? `PK-${randomChars("23456789ABCDEFGHJKLMNPQRSTUVWXYZ", 5)}` : null;
+    const deliveryFee = method === "pickup" ? 0.0 : STORE_CONFIG.delivery_fee;
+    const ts = nowColomboISO();
+
+    const newOrderRef = doc(collection(db, "orders"));
+
+    await runTransaction(db, async (transaction) => {
+      // 1. Read all item docs first (Firestore transaction requirement: reads before writes)
+      const itemSnaps = [];
+      for (const ci of cart.items) {
+        const itemRef = doc(db, "items", String(ci.item_id));
+        const snap = await transaction.get(itemRef);
+        itemSnaps.push({ ci, itemRef, snap });
       }
-      const itemData = snap.data();
-      const availStock = parseFloat(itemData.stock_quantity) || 0;
-      const unitPrice = parseFloat(itemData.price) || 0;
 
-      if (itemData.status !== "active" || availStock < ci.quantity) {
-        throw new Error(`Insufficient stock for "${itemData.name}". Available: ${availStock}`);
+      let computedSubtotal = 0;
+      const orderItemsArray = [];
+
+      // 2. Validate stock & prepare stock deductions
+      for (const { ci, itemRef, snap } of itemSnaps) {
+        if (!snap.exists()) {
+          throw new Error(`Product "${ci.name}" is no longer available.`);
+        }
+        const itemData = snap.data();
+        const availStock = parseFloat(itemData.stock_quantity) || 0;
+        const unitPrice = parseFloat(itemData.price) || 0;
+
+        if (itemData.status !== "active" || availStock < ci.quantity) {
+          throw new Error(`Insufficient stock for "${itemData.name}". Available: ${availStock}`);
+        }
+
+        const newStock = availStock - ci.quantity;
+        const lineSubtotal = ci.quantity * unitPrice;
+        computedSubtotal += lineSubtotal;
+
+        transaction.update(itemRef, {
+          stock_quantity: newStock,
+          updated_at: ts
+        });
+
+        const txRef = doc(collection(db, "stock_transactions"));
+        transaction.set(txRef, {
+          item_id: String(ci.item_id),
+          transaction_type: "out",
+          quantity: ci.quantity,
+          previous_stock: availStock,
+          new_stock: newStock,
+          reason: `Order #${orderNumber} (${method.toUpperCase()})`,
+          created_at: ts
+        });
+
+        orderItemsArray.push({
+          item_id: String(ci.item_id),
+          name: itemData.name,
+          product_name: itemData.name,
+          image_path: itemData.image_path || "",
+          unit: itemData.unit || "1 unit",
+          category_id: Number(itemData.category_id) || 1,
+          quantity: ci.quantity,
+          price: unitPrice,
+          subtotal: lineSubtotal
+        });
       }
 
-      const newStock = availStock - ci.quantity;
-      const lineSubtotal = ci.quantity * unitPrice;
-      computedSubtotal += lineSubtotal;
+      const grandTotal = computedSubtotal + deliveryFee;
 
-      transaction.update(itemRef, {
-        stock_quantity: newStock,
+      // 3. Create Order document
+      transaction.set(newOrderRef, {
+        user_id: String(uid),
+        order_number: orderNumber,
+        purchase_method: method,
+        payment_status: "unpaid",
+        order_status: "pending",
+        customer_name: customerName,
+        customer_phone: customerPhone,
+        street_address1: street1,
+        street_address2: street2,
+        town: town,
+        delivery_notes: deliveryNotes,
+        pickup_date: pickupDate,
+        pickup_time_slot: pickupSlot,
+        pickup_code: pickupCode,
+        delivery_fee: deliveryFee,
+        shipping_cost: deliveryFee,
+        subtotal: computedSubtotal,
+        subtotal_amount: computedSubtotal,
+        total_amount: grandTotal,
+        items: orderItemsArray,
+        created_at: ts,
         updated_at: ts
       });
 
-      const txRef = doc(collection(db, "stock_transactions"));
-      transaction.set(txRef, {
-        item_id: String(ci.item_id),
-        transaction_type: "out",
-        quantity: ci.quantity,
-        previous_stock: availStock,
-        new_stock: newStock,
-        reason: `Order #${orderNumber} (${method.toUpperCase()})`,
-        created_at: ts
-      });
-
-      orderItemsArray.push({
-        item_id: String(ci.item_id),
-        product_name: itemData.name,
-        image_path: itemData.image_path || "",
-        unit: itemData.unit || "1 unit",
-        category_id: Number(itemData.category_id) || 1,
-        quantity: ci.quantity,
-        price: unitPrice,
-        subtotal: lineSubtotal
-      });
-    }
-
-    const grandTotal = computedSubtotal + deliveryFee;
-
-    // 3. Create Order document
-    transaction.set(newOrderRef, {
-      user_id: String(uid),
-      order_number: orderNumber,
-      purchase_method: method,
-      payment_status: "unpaid",
-      order_status: "pending",
-      customer_name: customerName,
-      customer_phone: customerPhone,
-      street_address1: street1,
-      street_address2: street2,
-      town: town,
-      delivery_notes: deliveryNotes,
-      pickup_date: pickupDate,
-      pickup_time_slot: pickupSlot,
-      pickup_code: pickupCode,
-      delivery_fee: deliveryFee,
-      subtotal_amount: computedSubtotal,
-      total_amount: grandTotal,
-      items: orderItemsArray,
-      created_at: ts,
-      updated_at: ts
+      // 4. Delete user's cart items
+      for (const ci of cart.items) {
+        const ciRef = doc(db, "cart_items", String(ci.cart_item_id));
+        transaction.delete(ciRef);
+      }
     });
 
-    // 4. Delete user's cart items
-    for (const ci of cart.items) {
-      const ciRef = doc(db, "cart_items", String(ci.cart_item_id));
-      transaction.delete(ciRef);
-    }
-  });
+    // Also save customer's address/phone to their profile if not yet saved
+    try {
+      if (method === "cod") {
+        await setDoc(doc(db, "users", String(uid)), {
+          phone_number: customerPhone,
+          street_address1: street1,
+          street_address2: street2,
+          town: town
+        }, { merge: true });
+      }
+    } catch (_) {}
 
-  // Also save customer's address/phone to their profile if not yet saved
-  try {
-    if (method === "cod") {
-      await setDoc(doc(db, "users", String(uid)), {
-        phone_number: customerPhone,
-        street_address1: street1,
-        street_address2: street2,
-        town: town
-      }, { merge: true });
-    }
-  } catch (_) {}
-
-  sessionStorage.setItem("last_order_id", newOrderRef.id);
-  return { order_id: newOrderRef.id, order_number: orderNumber, pickup_code: pickupCode };
+    sessionStorage.setItem("last_order_id", newOrderRef.id);
+    return {
+      ok: true,
+      orderId: newOrderRef.id,
+      order_id: newOrderRef.id,
+      order_number: orderNumber,
+      pickup_code: pickupCode
+    };
+  } catch (err) {
+    return { ok: false, message: err.message || "Could not place order." };
+  }
 }
 
 // ============================================================================
@@ -993,105 +1102,120 @@ export async function getAllOrdersAdmin() {
 }
 
 export async function cancelOrderWithStockRestore(orderId, cancelledBy = "Admin", enforcePendingForUid = null) {
-  const orderRef = doc(db, "orders", String(orderId));
-  const ts = nowColomboISO();
+  try {
+    const orderRef = doc(db, "orders", String(orderId));
+    const ts = nowColomboISO();
 
-  await runTransaction(db, async (transaction) => {
-    const orderSnap = await transaction.get(orderRef);
-    if (!orderSnap.exists()) throw new Error("Order not found.");
-    const ord = orderSnap.data();
+    await runTransaction(db, async (transaction) => {
+      const orderSnap = await transaction.get(orderRef);
+      if (!orderSnap.exists()) throw new Error("Order not found.");
+      const ord = orderSnap.data();
 
-    if (enforcePendingForUid) {
-      if (String(ord.user_id) !== String(enforcePendingForUid)) {
-        throw new Error("Unauthorized to cancel this order.");
+      if (enforcePendingForUid) {
+        if (String(ord.user_id) !== String(enforcePendingForUid)) {
+          throw new Error("Unauthorized to cancel this order.");
+        }
+        if (ord.order_status !== "pending") {
+          throw new Error("Only orders in Pending status can be cancelled online.");
+        }
       }
-      if (ord.order_status !== "pending") {
-        throw new Error("Only orders in Pending status can be cancelled online.");
+
+      if (ord.order_status === "cancelled") {
+        return; // Already cancelled; prevent double stock restoration
       }
-    }
 
-    if (ord.order_status === "cancelled") {
-      return; // Already cancelled; prevent double stock restoration
-    }
-
-    const items = Array.isArray(ord.items) ? ord.items : [];
-    const itemRefsAndSnaps = [];
-    for (const oi of items) {
-      if (!oi.item_id) continue;
-      const iref = doc(db, "items", String(oi.item_id));
-      const isnap = await transaction.get(iref);
-      itemRefsAndSnaps.push({ oi, iref, isnap });
-    }
-
-    const ordNo = ord.order_number || orderId;
-    for (const { oi, iref, isnap } of itemRefsAndSnaps) {
-      if (isnap.exists()) {
-        const prevStock = parseFloat(isnap.data().stock_quantity) || 0;
-        const restoreQty = parseFloat(oi.quantity) || 0;
-        const newStock = prevStock + restoreQty;
-        transaction.update(iref, { stock_quantity: newStock, updated_at: ts });
-
-        const txRef = doc(collection(db, "stock_transactions"));
-        transaction.set(txRef, {
-          item_id: String(oi.item_id),
-          transaction_type: "in",
-          quantity: restoreQty,
-          previous_stock: prevStock,
-          new_stock: newStock,
-          reason: `Order #${ordNo} Cancelled by ${cancelledBy}`,
-          created_at: ts
-        });
+      const items = Array.isArray(ord.items) ? ord.items : [];
+      const itemRefsAndSnaps = [];
+      for (const oi of items) {
+        if (!oi.item_id) continue;
+        const iref = doc(db, "items", String(oi.item_id));
+        const isnap = await transaction.get(iref);
+        itemRefsAndSnaps.push({ oi, iref, isnap });
       }
-    }
 
-    transaction.update(orderRef, {
-      order_status: "cancelled",
-      payment_status: "cancelled",
-      updated_at: ts
+      const ordNo = ord.order_number || orderId;
+      for (const { oi, iref, isnap } of itemRefsAndSnaps) {
+        if (isnap.exists()) {
+          const prevStock = parseFloat(isnap.data().stock_quantity) || 0;
+          const restoreQty = parseFloat(oi.quantity) || 0;
+          const newStock = prevStock + restoreQty;
+          transaction.update(iref, { stock_quantity: newStock, updated_at: ts });
+
+          const txRef = doc(collection(db, "stock_transactions"));
+          transaction.set(txRef, {
+            item_id: String(oi.item_id),
+            transaction_type: "in",
+            quantity: restoreQty,
+            previous_stock: prevStock,
+            new_stock: newStock,
+            reason: `Order #${ordNo} Cancelled by ${cancelledBy}`,
+            created_at: ts
+          });
+        }
+      }
+
+      transaction.update(orderRef, {
+        order_status: "cancelled",
+        payment_status: "cancelled",
+        updated_at: ts
+      });
     });
-  });
+
+    return { ok: true, message: "Order cancelled and stock restored." };
+  } catch (err) {
+    return { ok: false, message: err.message || "Could not cancel order." };
+  }
 }
 
 export async function updateOrderStatusAdmin(orderId, { status, payment_status }) {
-  if (status === "cancelled") {
-    await cancelOrderWithStockRestore(orderId, "Admin", null);
-    return;
-  }
-  const orderRef = doc(db, "orders", String(orderId));
-  const updates = { updated_at: nowColomboISO() };
-  if (status) {
-    updates.order_status = status;
-    if (status === "delivered" || status === "collected") {
-      updates.payment_status = "paid";
+  try {
+    if (status === "cancelled") {
+      return await cancelOrderWithStockRestore(orderId, "Admin", null);
     }
+    const orderRef = doc(db, "orders", String(orderId));
+    const updates = { updated_at: nowColomboISO() };
+    if (status) {
+      updates.order_status = status;
+      if (status === "delivered" || status === "collected") {
+        updates.payment_status = "paid";
+      }
+    }
+    if (payment_status) {
+      updates.payment_status = String(payment_status).toLowerCase();
+    }
+    await updateDoc(orderRef, updates);
+    return { ok: true, message: "Order status updated." };
+  } catch (err) {
+    return { ok: false, message: err.message || "Could not update order status." };
   }
-  if (payment_status) {
-    updates.payment_status = String(payment_status).toLowerCase();
-  }
-  await updateDoc(orderRef, updates);
 }
 
 // ============================================================================
 // 10. CONTACT INQUIRIES & ADMIN CUSTOMERS
 // ============================================================================
 
-export async function submitContactInquiry({ name, email, subject, message }) {
-  const nm = String(name || "").trim();
-  const em = String(email || "").trim();
-  const sb = String(subject || "General Inquiry").trim();
-  const ms = String(message || "").trim();
+export async function submitContactInquiry({ name, contactName, email, subject, message }) {
+  try {
+    const nm = String(name ?? contactName ?? "").trim();
+    const em = String(email || "").trim();
+    const sb = String(subject || "General Inquiry").trim();
+    const ms = String(message || "").trim();
 
-  if (!nm) throw new Error("Please enter your name.");
-  if (!em || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) throw new Error("Please enter a valid email address.");
-  if (!ms) throw new Error("Please enter your message.");
+    if (!nm) return { ok: false, message: "Please enter your name." };
+    if (!em || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) return { ok: false, message: "Please enter a valid email address." };
+    if (!ms) return { ok: false, message: "Please enter your message." };
 
-  await addDoc(collection(db, "contacts"), {
-    name: nm,
-    email: em,
-    subject: sb || "General Inquiry",
-    message: ms,
-    created_at: nowColomboISO()
-  });
+    await addDoc(collection(db, "contacts"), {
+      name: nm,
+      email: em,
+      subject: sb || "General Inquiry",
+      message: ms,
+      created_at: nowColomboISO()
+    });
+    return { ok: true, message: "Contact Message Sent Successfully!" };
+  } catch (err) {
+    return { ok: false, message: err.message || "Could not send message." };
+  }
 }
 
 export async function getAllInquiriesAdmin() {

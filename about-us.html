@@ -754,9 +754,8 @@
                                 <h2 class="widget-title">Quicklink</h2>
                                 <ul class="widget-list">
                                     <li><a href="about-us.html">About</a></li>
-                                    <li><a href="#">Blog</a></li>
-                                    <li><a href="#">Shop</a></li>
-                                    <li><a href="#">Cart</a></li>
+                                    <li><a href="product/product.html">Shop</a></li>
+                                    <li><a href="product/shopping-cart.html">Cart</a></li>
                                     <li><a href="contact-us.html">Contact</a></li>
                                 </ul>
                             </div>
@@ -899,6 +898,36 @@
 
     <!-- Main JS -->
     <script src="assets/js/main.js"></script>
+    <script type="module">
+        import { waitForAuthUser, getUserProfile } from './assets/js/firebase-service.js';
+
+        waitForAuthUser().then(async (user) => {
+            const dots = document.querySelectorAll('.mt-status-dot');
+            const logos = document.querySelectorAll('.mt-logo');
+            const guestLinks = document.querySelectorAll('.login-register-wrap');
+
+            if (user) {
+                dots.forEach(d => d.style.background = 'GreenYellow');
+                guestLinks.forEach(g => g.style.setProperty('display', 'none', 'important'));
+                const profile = await getUserProfile(user.uid);
+                const f = (profile && profile.first_name) ? profile.first_name : 'F';
+                const l = (profile && profile.last_name) ? profile.last_name : 'C';
+                const init = ((f.charAt(0) || '') + (l.charAt(0) || '')).toUpperCase() || 'FC';
+                logos.forEach(logo => {
+                    logo.childNodes.forEach(n => {
+                        if (n.nodeType === Node.TEXT_NODE && n.textContent.trim()) {
+                            n.textContent = init;
+                        }
+                    });
+                    logo.style.cursor = 'pointer';
+                    logo.title = 'My Account';
+                    logo.addEventListener('click', () => { window.location.href = 'my-account.html'; });
+                });
+            } else {
+                dots.forEach(d => d.style.background = 'red');
+            }
+        });
+    </script>
 
 </body>
 
