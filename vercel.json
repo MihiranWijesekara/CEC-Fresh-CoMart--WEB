@@ -1,0 +1,33 @@
+{
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "rewrites": [
+    { "source": "/", "destination": "/index.html" },
+    { "source": "/index.php", "destination": "/index.html" },
+    { "source": "/proceed.php", "destination": "/proceed.html" },
+    { "source": "/order-confirmation.php", "destination": "/order-confirmation.html" },
+    { "source": "/my-account.php", "destination": "/my-account.html" },
+    { "source": "/profile.php", "destination": "/profile.html" },
+    { "source": "/contact-us.php", "destination": "/contact-us.html" },
+    { "source": "/contact.php", "destination": "/contact.html" },
+    { "source": "/login/sign.php", "destination": "/login/sign.html" },
+    { "source": "/login/register.php", "destination": "/login/register.html" },
+    { "source": "/login/logout.php", "destination": "/login/logout.html" },
+    { "source": "/product/product.php", "destination": "/product/product.html" },
+    { "source": "/product/shopping-cart.php", "destination": "/product/shopping-cart.html" },
+    { "source": "/product/my-orders.php", "destination": "/product/my-orders.html" },
+    { "source": "/product/nav.php", "destination": "/product/nav.html" },
+    { "source": "/Admin", "destination": "/Admin/dashboard.html" },
+    { "source": "/Admin/", "destination": "/Admin/dashboard.html" },
+    { "source": "/Admin/login.php", "destination": "/Admin/login.html" },
+    { "source": "/Admin/logout.php", "destination": "/Admin/logout.html" },
+    { "source": "/Admin/dashboard.php", "destination": "/Admin/dashboard.html" },
+    { "source": "/Admin/order.php", "destination": "/Admin/order.html" },
+    { "source": "/Admin/completOrder.php", "destination": "/Admin/completOrder.html" },
+    { "source": "/Admin/Item.php", "destination": "/Admin/Item.html" },
+    { "source": "/Admin/ItemAdd.php", "destination": "/Admin/ItemAdd.html" },
+    { "source": "/Admin/summary.php", "destination": "/Admin/summary.html" },
+    { "source": "/Admin/inquiries.php", "destination": "/Admin/inquiries.html" }
+  ]
+}
+

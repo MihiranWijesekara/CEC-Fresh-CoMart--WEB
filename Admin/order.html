@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Active Orders Management - Freshcomart Admin</title>
+    <link rel="stylesheet" href="assets/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        .order-card-row { transition: background 0.15s; }
+        .order-card-row:hover { background: #F8FAFC !important; }
+        .filter-tab {
+            padding: 8px 18px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 13px;
+            border: 1.5px solid #E2E8F0;
+            background: #ffffff;
+            color: #475569;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .filter-tab.active-all { background: #0F172A; color: #fff; border-color: #0F172A; }
+        .filter-tab.active-cod { background: #1D4ED8; color: #fff; border-color: #1D4ED8; }
+        .filter-tab.active-pickup { background: #D97706; color: #fff; border-color: #D97706; }
+        .stage-pill {
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+            border: 1.5px solid #E2E8F0;
+            background: #ffffff;
+            color: #475569;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .stage-pill:hover { border-color: #94A3B8; color: #0F172A; }
+        .stage-pill.active { background: #16A34A; color: #ffffff; border-color: #16A34A; }
+        .pickup-code-pill {
+            display: inline-block;
+            background: #FEF3C7;
+            color: #92400E;
+            border: 1.5px dashed #F59E0B;
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-weight: 800;
+            font-size: 13px;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <div id="adminNavbarMount"></div>
+
+    <div class="container-fluid px-4 py-3 mb-5">
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+            <div>
+                <h2 class="fw-bold mb-1" style="color: #0F172A;">Active Orders Management</h2>
+                <p class="text-muted small mb-0">Manage Cash on Delivery dispatches and In-Store Pickup collections in real time</p>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="completOrder.html" class="btn btn-outline-secondary btn-sm fw-bold">
+                    <i class="bi bi-archive me-1"></i> View Completed / Cancelled History
+                </a>
+            </div>
+        </div>
+
+        <div id="alertHost"></div>
+
+        <!-- Filter Tabs & Search Bar -->
+        <div class="card border-0 shadow-sm mb-3" style="border-radius: 12px;">
+            <div class="card-body p-3">
+                <div class="row g-3 align-items-center justify-content-between">
+                    <div class="col-md-auto d-flex flex-wrap gap-2">
+                        <button type="button" class="filter-tab active-all" id="tab-all" onclick="filterByMethod('all')">
+                            All Active (<span id="count-all">0</span>)
+                        </button>
+                        <button type="button" class="filter-tab" id="tab-cod" onclick="filterByMethod('cod')">
+                            <i class="bi bi-truck me-1"></i> Cash on Delivery (<span id="count-cod">0</span>)
+                        </button>
+                        <button type="button" class="filter-tab" id="tab-pickup" onclick="filterByMethod('pickup')">
+                            <i class="bi bi-shop me-1"></i> Store Pickup (<span id="count-pickup">0</span>)
+                        </button>
+                    </div>
+                    <div class="col-md-5">
+                        <div class="input-group">
+                            <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                            <input type="text" id="orderSearchInput" class="form-control border-start-0"
+                                   placeholder="Search Order #, Pickup Code (PK-...), Customer Name or Phone..."
+                                   onkeyup="applyFilters()">
+                            <button class="btn btn-outline-secondary" type="button" onclick="document.getElementById('orderSearchInput').value=''; applyFilters();">Clear</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stage Quick-Filter Bar -->
+                <div class="d-flex flex-wrap align-items-center gap-2 mt-3 pt-3 border-top">
+                    <span class="text-muted small fw-bold me-1"><i class="bi bi-funnel me-1"></i>Workflow Stage:</span>
+                    <button type="button" class="stage-pill active" id="stage-all" onclick="filterByStage('all')">
+                        All Stages (<span id="stage-count-all">0</span>)
+                    </button>
+                    <button type="button" class="stage-pill" id="stage-new" onclick="filterByStage('new')">
+                        <span class="badge bg-warning text-dark rounded-pill me-1" id="stage-count-new">0</span> 1. New / Pending
+                    </button>
+                    <button type="button" class="stage-pill" id="stage-packing" onclick="filterByStage('packing')">
+                        <span class="badge bg-info text-dark rounded-pill me-1" id="stage-count-packing">0</span> 2. Packing / Processing
+                    </button>
+                    <button type="button" class="stage-pill" id="stage-ready" onclick="filterByStage('ready')">
+                        <span class="badge bg-primary rounded-pill me-1" id="stage-count-ready">0</span> 3. Ready / Out for Delivery
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Orders Table -->
+        <div class="card border-0 shadow-sm" style="border-radius: 12px; overflow: hidden;">
+            <div class="table-responsive">
+                <table class="table align-middle mb-0" id="activeOrdersTable">
+                    <thead class="table-light text-uppercase small fw-bold text-secondary">
+                        <tr>
+                            <th class="ps-3">Order &amp; Date</th>
+                            <th>Method</th>
+                            <th>Customer</th>
+                            <th>Fulfillment Details (Address / Pickup Info)</th>
+                            <th>Total &amp; Payment</th>
+                            <th>Order Status</th>
+                            <th class="text-end pe-3" style="min-width: 280px;">Quick Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="activeOrdersBody">
+                        <tr>
+                            <td colspan="7" class="text-center py-5 text-muted">
+                                <div class="spinner-border spinner-border-sm text-success me-2"></div> Loading active orders...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cancel Order Confirmation Modal -->
+    <div class="modal fade" id="cancelOrderModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow" style="border-radius: 14px;">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Cancel Order &amp; Restore Stock</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-2">Are you sure you want to cancel order <strong id="cancelModalOrderNum"></strong>?</p>
+                    <div class="alert alert-warning small mb-0">
+                        <i class="bi bi-box-seam me-1"></i>
+                        <strong>Automatic Inventory Restoration:</strong> All product quantities from this order will be automatically added back to supermarket stock, and an audit log will be recorded.
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <input type="hidden" id="cancelModalOrderId" value="">
+                    <button type="button" class="btn btn-light fw-semibold" data-bs-dismiss="modal">Keep Order</button>
+                    <button type="button" id="confirmCancelOrderBtn" class="btn btn-danger fw-bold">Yes, Cancel &amp; Restore Stock</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="assets/js/bootstrap.bundle.min.js"></script>
+    <script type="module">
+        import {
+            initAdminNavbar,
+            refreshAdminNavBadges,
+            fcOrderMethod,
+            fcMethodBadge,
+            fcPaymentBadge,
+            fcStatusBadge,
+            fcNextAction
+        } from './admin-navbar.js';
+        import {
+            getAllOrdersAdmin,
+            updateOrderStatusAdmin,
+            cancelOrderWithStockRestore,
+            formatQuantity,
+            formatMoney,
+            resolveImagePath
+        } from '../assets/js/firebase-service.js';
+
+        await initAdminNavbar('order.html');
+
+        let activeOrders = [];
+        let currentMethod = 'all';
+        let currentStage = 'all';
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const initialSearch = urlParams.get('search') || '';
+        if (initialSearch) {
+            document.getElementById('orderSearchInput').value = initialSearch;
+        }
+
+        function escapeHtml(str) {
+            return String(str ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function showAlert(msg, type = 'success') {
+            const host = document.getElementById('alertHost');
+            host.innerHTML = `
+                <div class="alert alert-${type} alert-dismissible fade show shadow-sm border-0 mb-3" role="alert">
+                    <i class="bi ${type === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'} me-1"></i>
+                    ${escapeHtml(msg)}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+        }
+
+        function getOrderStage(status) {
+            const st = String(status || 'pending').toLowerCase();
+            if (st === 'pending') return 'new';
+            if (st === 'processing') return 'packing';
+            return 'ready';
+        }
+
+        async function loadOrders() {
+            const allOrders = await getAllOrdersAdmin();
+            activeOrders = allOrders.filter(o => {
+                const st = String(o.order_status || 'pending').toLowerCase();
+                return !['delivered', 'collected', 'cancelled'].includes(st);
+            });
+
+            // Counts
+            const countAll = activeOrders.length;
+            const countCod = activeOrders.filter(o => fcOrderMethod(o.purchase_method) === 'cod').length;
+            const countPickup = activeOrders.filter(o => fcOrderMethod(o.purchase_method) === 'pickup').length;
+
+            const stageNew = activeOrders.filter(o => getOrderStage(o.order_status) === 'new').length;
+            const stagePacking = activeOrders.filter(o => getOrderStage(o.order_status) === 'packing').length;
+            const stageReady = activeOrders.filter(o => getOrderStage(o.order_status) === 'ready').length;
+
+            document.getElementById('count-all').textContent = countAll;
+            document.getElementById('count-cod').textContent = countCod;
+            document.getElementById('count-pickup').textContent = countPickup;
+
+            document.getElementById('stage-count-all').textContent = countAll;
+            document.getElementById('stage-count-new').textContent = stageNew;
+            document.getElementById('stage-count-packing').textContent = stagePacking;
+            document.getElementById('stage-count-ready').textContent = stageReady;
+
+            renderOrdersTable();
+            applyFilters();
+        }
+
+        function renderOrdersTable() {
+            const tbody = document.getElementById('activeOrdersBody');
+            if (!activeOrders.length) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="text-center py-5 text-muted">
+                            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                            No active orders right now.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = activeOrders.map(order => {
+                const oid = order.id;
+                const method = fcOrderMethod(order.purchase_method);
+                const payStatus = String(order.payment_status || 'unpaid').toLowerCase();
+                const status = String(order.order_status || 'pending').toLowerCase();
+                const stageGroup = getOrderStage(status);
+                const nextAction = fcNextAction(status, method);
+
+                const custName = (order.customer_name || `${order.first_name || ''} ${order.last_name || ''}`).trim() || 'Walk-in / Customer';
+                const custPhone = (order.customer_phone || order.phone_number || 'N/A').trim();
+                const items = Array.isArray(order.items) ? order.items : [];
+                const d = order.created_at ? new Date(order.created_at) : new Date();
+                const dateFormatted = d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+                const timeFormatted = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+                const searchIndex = `${order.order_number || ''} ${order.pickup_code || ''} ${custName} ${custPhone} ${order.town || ''}`.toLowerCase();
+
+                let fulfillmentHtml = '';
+                if (method === 'pickup') {
+                    const pDate = order.pickup_date ? new Date(order.pickup_date).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) : 'Today';
+                    fulfillmentHtml = `
+                        <div class="mb-1">
+                            <span class="pickup-code-pill"><i class="bi bi-qr-code-scan me-1"></i>${escapeHtml(order.pickup_code || 'PK-STORE')}</span>
+                        </div>
+                        <div class="small text-dark fw-semibold">
+                            <i class="bi bi-calendar-event text-warning me-1"></i>${escapeHtml(pDate)}
+                            &bull; <i class="bi bi-clock text-warning me-1"></i>${escapeHtml(order.pickup_time_slot || 'Standard Slot')}
+                        </div>
+                        ${order.delivery_notes ? `<div class="small text-muted fst-italic mt-1">Note: ${escapeHtml(order.delivery_notes)}</div>` : ''}
+                    `;
+                } else {
+                    fulfillmentHtml = `
+                        <div class="small text-dark fw-semibold">
+                            <i class="bi bi-geo-alt-fill text-primary me-1"></i>
+                            ${escapeHtml(order.street_address1 || '')}
+                            ${order.street_address2 ? ', ' + escapeHtml(order.street_address2) : ''}
+                            ${order.town ? ', <strong>' + escapeHtml(order.town) + '</strong>' : ''}
+                        </div>
+                        ${order.delivery_notes ? `<div class="small text-muted fst-italic mt-1"><i class="bi bi-chat-left-text me-1"></i>${escapeHtml(order.delivery_notes)}</div>` : ''}
+                    `;
+                }
+
+                let nextBtnHtml = '';
+                if (nextAction) {
+                    const needsCashConfirm = ['delivered', 'collected'].includes(nextAction.next_status);
+                    nextBtnHtml = `
+                        <button type="button" class="btn btn-sm ${nextAction.btn_class} fw-bold next-status-btn"
+                                data-id="${escapeHtml(oid)}"
+                                data-next="${escapeHtml(nextAction.next_status)}"
+                                data-pay="${needsCashConfirm ? 'paid' : ''}">
+                            <i class="bi ${nextAction.icon} me-1"></i> ${escapeHtml(nextAction.label)}
+                        </button>
+                    `;
+                }
+
+                const markPaidBtnHtml = payStatus !== 'paid' ? `
+                    <button type="button" class="btn btn-sm btn-outline-success fw-semibold mark-paid-btn"
+                            data-id="${escapeHtml(oid)}" title="Mark Cash Received">
+                        <i class="bi bi-cash"></i> Mark Paid
+                    </button>
+                ` : '';
+
+                const itemsRowsHtml = items.map(item => {
+                    const imgSrc = resolveImagePath(item.image_path, '../');
+                    const qtyFormatted = formatQuantity(item.quantity, item.unit, item.category_id);
+                    const unitLabel = item.unit ? ` (${escapeHtml(item.unit)})` : '';
+                    return `
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <img src="${escapeHtml(imgSrc)}" alt="" style="width:36px;height:36px;object-fit:contain;border-radius:6px;background:#fff;border:1px solid #E2E8F0;" onerror="this.src='../assets/images/fried.png'">
+                                    <span class="fw-semibold">${escapeHtml(item.name || 'Item')}${unitLabel}</span>
+                                </div>
+                            </td>
+                            <td class="text-center">Rs. ${formatMoney(item.price)}</td>
+                            <td class="text-center fw-bold">${escapeHtml(qtyFormatted)}</td>
+                            <td class="text-end fw-bold">Rs. ${formatMoney(item.subtotal)}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                return `
+                    <tr class="order-card-row" data-method="${method}" data-stage="${stageGroup}" data-search="${escapeHtml(searchIndex)}">
+                        <td class="ps-3">
+                            <div class="fw-bold text-dark">${escapeHtml(order.order_number || '#' + oid)}</div>
+                            <div class="text-muted small">${dateFormatted} &bull; ${timeFormatted}</div>
+                            <button class="btn btn-link btn-sm p-0 text-decoration-none fw-semibold mt-1"
+                                    type="button" data-bs-toggle="collapse" data-bs-target="#itemsCollapse${escapeHtml(oid)}">
+                                <i class="bi bi-basket2 me-1"></i>View ${items.length} item(s)
+                            </button>
+                        </td>
+                        <td>${fcMethodBadge(method)}</td>
+                        <td>
+                            <div class="fw-bold text-dark">${escapeHtml(custName)}</div>
+                            <div class="small text-muted"><i class="bi bi-telephone me-1"></i>${escapeHtml(custPhone)}</div>
+                        </td>
+                        <td style="max-width: 290px;">${fulfillmentHtml}</td>
+                        <td>
+                            <div class="fw-bold fs-6 text-dark">Rs. ${formatMoney(order.total_amount)}</div>
+                            <div class="small text-muted mb-1">
+                                Sub: Rs. ${formatMoney(order.subtotal)} | Del: Rs. ${formatMoney(order.shipping_cost)}
+                            </div>
+                            ${fcPaymentBadge(payStatus)}
+                        </td>
+                        <td>${fcStatusBadge(status, method)}</td>
+                        <td class="text-end pe-3">
+                            <div class="d-flex flex-wrap justify-content-end gap-1">
+                                ${nextBtnHtml}
+                                ${markPaidBtnHtml}
+                                <button type="button" class="btn btn-sm btn-outline-danger fw-semibold open-cancel-btn"
+                                        data-id="${escapeHtml(oid)}"
+                                        data-num="${escapeHtml(order.order_number || '#' + oid)}"
+                                        title="Cancel Order & Restore Stock">
+                                    <i class="bi bi-x-circle"></i> Cancel
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr class="collapse bg-light" id="itemsCollapse${escapeHtml(oid)}">
+                        <td colspan="7" class="p-3 border-bottom">
+                            <div class="card border-0 shadow-sm" style="border-radius: 10px;" id="printableSlip${escapeHtml(oid)}">
+                                <div class="card-body p-3">
+                                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 gap-2">
+                                        <div>
+                                            <h6 class="fw-bold mb-0 text-secondary">
+                                                Order Items Breakdown — ${escapeHtml(order.order_number || '#' + oid)}
+                                            </h6>
+                                            <div class="small text-muted">
+                                                Customer: <strong>${escapeHtml(custName)}</strong> (${escapeHtml(custPhone)})
+                                                ${method === 'pickup'
+                                                    ? ` &bull; Pickup Code: <strong>${escapeHtml(order.pickup_code || 'PK-STORE')}</strong>`
+                                                    : ` &bull; Address: ${escapeHtml((order.street_address1 || '') + ' ' + (order.town || ''))}`}
+                                            </div>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <button type="button" class="btn btn-sm btn-outline-dark fw-semibold print-slip-btn"
+                                                    data-id="${escapeHtml(oid)}" data-num="${escapeHtml(order.order_number || '#' + oid)}">
+                                                <i class="bi bi-printer me-1"></i> Print Packing Slip
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-bordered mb-0 bg-white">
+                                            <thead class="table-light small">
+                                                <tr>
+                                                    <th>Product</th>
+                                                    <th class="text-center">Unit Price</th>
+                                                    <th class="text-center">Quantity</th>
+                                                    <th class="text-end">Line Total</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="small">${itemsRowsHtml}</tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            bindOrderRowActions();
+        }
+
+        function bindOrderRowActions() {
+            document.querySelectorAll('.next-status-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const oid = btn.dataset.id;
+                    const nextStatus = btn.dataset.next;
+                    const payStatus = btn.dataset.pay || undefined;
+                    btn.disabled = true;
+                    try {
+                        await updateOrderStatusAdmin(oid, { status: nextStatus, payment_status: payStatus });
+                        showAlert(`Order updated to "${nextStatus.replace(/_/g, ' ')}"!`, 'success');
+                        await loadOrders();
+                        await refreshAdminNavBadges();
+                    } catch (err) {
+                        showAlert(err.message || 'Could not update order.', 'danger');
+                        btn.disabled = false;
+                    }
+                });
+            });
+
+            document.querySelectorAll('.mark-paid-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const oid = btn.dataset.id;
+                    btn.disabled = true;
+                    try {
+                        await updateOrderStatusAdmin(oid, { payment_status: 'paid' });
+                        showAlert('Payment status marked as PAID!', 'success');
+                        await loadOrders();
+                        await refreshAdminNavBadges();
+                    } catch (err) {
+                        showAlert(err.message || 'Could not mark payment.', 'danger');
+                        btn.disabled = false;
+                    }
+                });
+            });
+
+            document.querySelectorAll('.open-cancel-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.getElementById('cancelModalOrderId').value = btn.dataset.id;
+                    document.getElementById('cancelModalOrderNum').textContent = btn.dataset.num;
+                    const modal = new bootstrap.Modal(document.getElementById('cancelOrderModal'));
+                    modal.show();
+                });
+            });
+
+            document.querySelectorAll('.print-slip-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    printPackingSlip(btn.dataset.id, btn.dataset.num);
+                });
+            });
+        }
+
+        document.getElementById('confirmCancelOrderBtn').addEventListener('click', async () => {
+            const oid = document.getElementById('cancelModalOrderId').value;
+            if (!oid) return;
+            const confirmBtn = document.getElementById('confirmCancelOrderBtn');
+            confirmBtn.disabled = true;
+            try {
+                await cancelOrderWithStockRestore(oid, 'Admin');
+                bootstrap.Modal.getInstance(document.getElementById('cancelOrderModal'))?.hide();
+                showAlert('Order cancelled and item quantities restored to stock!', 'success');
+                await loadOrders();
+                await refreshAdminNavBadges();
+            } catch (err) {
+                showAlert(err.message || 'Failed to cancel order.', 'danger');
+            } finally {
+                confirmBtn.disabled = false;
+            }
+        });
+
+        window.filterByMethod = function (method) {
+            currentMethod = method;
+            document.getElementById('tab-all').className = 'filter-tab' + (method === 'all' ? ' active-all' : '');
+            document.getElementById('tab-cod').className = 'filter-tab' + (method === 'cod' ? ' active-cod' : '');
+            document.getElementById('tab-pickup').className = 'filter-tab' + (method === 'pickup' ? ' active-pickup' : '');
+            window.applyFilters();
+        };
+
+        window.filterByStage = function (stage) {
+            currentStage = stage;
+            ['all', 'new', 'packing', 'ready'].forEach(s => {
+                const el = document.getElementById('stage-' + s);
+                if (el) el.className = 'stage-pill' + (s === stage ? ' active' : '');
+            });
+            window.applyFilters();
+        };
+
+        window.applyFilters = function () {
+            const q = (document.getElementById('orderSearchInput').value || '').toLowerCase().trim();
+            const rows = document.querySelectorAll('#activeOrdersTable tbody tr.order-card-row');
+            rows.forEach(row => {
+                const rowMethod = row.getAttribute('data-method');
+                const rowStage = row.getAttribute('data-stage');
+                const rowSearch = row.getAttribute('data-search') || '';
+                const matchesMethod = (currentMethod === 'all' || rowMethod === currentMethod);
+                const matchesStage = (currentStage === 'all' || rowStage === currentStage);
+                const matchesSearch = (!q || rowSearch.indexOf(q) !== -1);
+                row.style.display = (matchesMethod && matchesStage && matchesSearch) ? '' : 'none';
+            });
+        };
+
+        function printPackingSlip(orderId, orderLabel) {
+            const slipEl = document.getElementById('printableSlip' + orderId);
+            if (!slipEl) return;
+            const win = window.open('', '_blank', 'width=720,height=650');
+            win.document.write(`
+                <html><head><title>Packing Slip - ${escapeHtml(orderLabel)}</title>
+                <link rel="stylesheet" href="assets/css/bootstrap.min.css">
+                <style>body{padding:24px;font-family:sans-serif;} .btn{display:none!important;}</style>
+                </head><body>
+                <h4 style="margin-bottom:4px;font-weight:800;">FRESHCOMART SUPERMARKET — PACKING SLIP</h4>
+                ${slipEl.innerHTML}
+                <script>window.onload=function(){window.print();};<\/script>
+                </body></html>
+            `);
+            win.document.close();
+        }
+
+        await loadOrders();
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,664 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Orders - CEC Fresh-Co Mart</title>
+    <link rel="shortcut icon" type="image/x-icon" href="../assets/images/logo/logo-freshco.png">
+    <!-- Google Fonts - Outfit -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" />
+    
+    <style>
+      :root {
+        --primary-green: #27b62e;
+        --primary-hover: #1e8e24;
+        --bg-gray: #f8fafc;
+        --text-dark: #0f172a;
+        --text-muted: #64748b;
+        --border-color: #f1f5f9;
+        --card-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.03), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
+      }
+
+      body {
+        background-color: var(--bg-gray);
+        font-family: 'Outfit', sans-serif;
+        color: var(--text-dark);
+      }
+
+      .navbar-container {
+        margin-bottom: 30px;
+      }
+
+      .orders-section {
+        margin-top: 20px;
+        margin-bottom: 80px;
+      }
+
+      .orders-container {
+        background: white;
+        border-radius: 20px;
+        padding: 35px;
+        box-shadow: var(--card-shadow);
+        border: 1px solid var(--border-color);
+      }
+
+      .orders-header {
+        font-size: 26px;
+        font-weight: 700;
+        margin-bottom: 30px;
+        color: var(--text-dark);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .orders-header i {
+        color: var(--primary-green);
+      }
+
+      .table-wrapper {
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid var(--border-color);
+      }
+
+      .table {
+        margin-bottom: 0;
+      }
+      .table thead th {
+        background-color: #f8fafc;
+        color: var(--text-muted);
+        font-weight: 600;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 16px;
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      .table tbody tr {
+        border-bottom: 1px solid var(--border-color);
+        transition: background-color 0.2s;
+      }
+      .table tbody tr:hover {
+        background-color: #fafbfc;
+      }
+
+      .table td {
+        padding: 18px 16px;
+        vertical-align: middle;
+        font-size: 0.95rem;
+      }
+
+      .badge-status {
+        padding: 6px 14px;
+        border-radius: 30px;
+        font-weight: 600;
+        font-size: 0.8rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+      }
+      .status-pending { background-color: #fef3c7; color: #d97706; }
+      .status-processing { background-color: #e0f2fe; color: #0284c7; }
+      .status-shipped { background-color: #e0e7ff; color: #4f46e5; }
+      .status-delivered { background-color: #dcfce7; color: #16a34a; }
+      .status-cancelled { background-color: #fee2e2; color: #dc2626; }
+      
+      .btn-expand {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border: 1px solid var(--border-color);
+        background: white;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-muted);
+        transition: all 0.2s ease-in-out;
+        cursor: pointer;
+      }
+      .btn-expand:hover {
+        background-color: var(--primary-green);
+        color: white;
+        border-color: var(--primary-green);
+        box-shadow: 0 4px 10px rgba(39, 182, 46, 0.2);
+      }
+      .btn-expand[aria-expanded="true"] {
+        transform: rotate(180deg);
+        background-color: var(--primary-green);
+        color: white;
+        border-color: var(--primary-green);
+      }
+      
+      .collapse-details {
+        max-height: 0;
+        overflow: hidden;
+        visibility: hidden;
+        opacity: 0;
+        transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, visibility 0.4s;
+        background-color: #fafbfc;
+      }
+      .collapse-details.show {
+        max-height: 2000px;
+        visibility: visible;
+        opacity: 1;
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      .details-content {
+        padding: 24px 30px;
+      }
+
+      .receipt-card {
+        background: white;
+        border-radius: 12px;
+        border: 1px solid var(--border-color);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.01);
+        overflow: hidden;
+      }
+
+      .receipt-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border-color);
+        background-color: #fcfdfe;
+      }
+
+      .product-img {
+        width: 50px;
+        height: 50px;
+        object-fit: cover;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        transition: transform 0.2s;
+      }
+      .product-img:hover {
+        transform: scale(1.1);
+      }
+
+      .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+      }
+      .empty-icon {
+        font-size: 4.5rem;
+        color: #cbd5e1;
+        margin-bottom: 24px;
+        display: inline-block;
+        animation: float 3s ease-in-out infinite;
+      }
+      @keyframes float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+      }
+      
+      .btn-shop {
+        background-color: var(--primary-green);
+        color: white;
+        border: none;
+        padding: 12px 32px;
+        border-radius: 30px;
+        font-weight: 600;
+        font-size: 1rem;
+        text-decoration: none;
+        display: inline-block;
+        transition: all 0.3s;
+        box-shadow: 0 4px 12px rgba(39, 182, 46, 0.2);
+      }
+      .btn-shop:hover {
+        background-color: var(--primary-hover);
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(39, 182, 46, 0.3);
+      }
+      
+      footer {
+        background-color: #0f172a;
+        color: #94a3b8;
+        text-align: center;
+        padding: 24px 0;
+        font-size: 0.9rem;
+        border-top: 1px solid #1e293b;
+        margin-top: 100px;
+      }
+    </style>
+    <link rel="stylesheet" href="../assets/css/custom-ui.css" />
+    <style>
+      body.fc-store .orders-section { margin-top: calc(var(--fc-header-h) + var(--fc-catbar-h) + 24px); }
+      @media (max-width: 991.98px) { body.fc-store .orders-section { margin-top: 150px; } }
+      body.fc-store .orders-container { border-radius: var(--fc-radius); }
+      .badge-status.status-ready, .badge-status.status-ready_for_pickup { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+      .badge-status.status-collected { background: #dcfce7; color: #16a34a; }
+      .method-badge {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 5px 12px; border-radius: 999px; font-size: 0.78rem; font-weight: 700;
+      }
+      .method-cod { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+      .method-pickup { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+      .pickup-code-pill {
+        display: inline-block; background: #1e293b; color: #fbbf24;
+        font-family: monospace; font-weight: 800; font-size: 0.82rem;
+        padding: 3px 10px; border-radius: 6px; letter-spacing: 0.8px; margin-top: 4px;
+      }
+      .order-filter-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px; }
+      .order-filter-tab {
+        padding: 8px 16px; border-radius: 999px; font-size: 0.86rem; font-weight: 600;
+        text-decoration: none; color: #475569; background: #f1f5f9; border: 1px solid #e2e8f0;
+        transition: all 0.2s; cursor: pointer;
+      }
+      .order-filter-tab:hover { background: #e2e8f0; color: #0f172a; }
+      .order-filter-tab.active { background: #16a34a; color: #fff; border-color: #16a34a; }
+      .order-tracker {
+        display: flex; justify-content: space-between; position: relative;
+        margin: 8px 0 22px; padding: 16px 20px; background: #fff;
+        border: 1px solid #e2e8f0; border-radius: 12px;
+      }
+      .tracker-step { flex: 1; text-align: center; position: relative; z-index: 2; }
+      .tracker-dot {
+        width: 34px; height: 34px; border-radius: 50%; margin: 0 auto 6px;
+        display: flex; align-items: center; justify-content: center;
+        background: #f1f5f9; color: #94a3b8; font-weight: 700; border: 2px solid #cbd5e1;
+      }
+      .tracker-step.done .tracker-dot { background: #dcfce7; color: #15803d; border-color: #16a34a; }
+      .tracker-step.active .tracker-dot { background: #16a34a; color: #fff; border-color: #15803d; box-shadow: 0 0 0 4px rgba(22,163,74,0.18); }
+      .tracker-label { font-size: 0.78rem; font-weight: 700; color: #64748b; }
+      .tracker-step.done .tracker-label, .tracker-step.active .tracker-label { color: #0f172a; }
+    </style>
+  </head>
+  <body class="fc-store">
+    <!-- Navbar Placeholder -->
+    <div id="navbar" class="navbar-container"></div>
+    
+    <div class="container orders-section">
+      <div class="orders-container">
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+          <h2 class="orders-header mb-0">
+            <i class="bi bi-bag-check-fill"></i>My Order History
+          </h2>
+          <a href="product.html" class="btn btn-outline-success rounded-pill px-3 fw-semibold btn-sm">
+            <i class="bi bi-cart-plus me-1"></i>Continue Shopping
+          </a>
+        </div>
+
+        <div id="ordersFeedbackAlert" style="display:none;"></div>
+
+        <!-- Filter Tabs -->
+        <div class="order-filter-tabs" id="orderFilterTabs">
+          <button type="button" class="order-filter-tab active" data-filter="all" onclick="setOrderFilter('all', this)">All Orders (<span id="allOrdersCount">0</span>)</button>
+          <button type="button" class="order-filter-tab" data-filter="active" onclick="setOrderFilter('active', this)"><i class="bi bi-lightning-charge me-1"></i>Active / In Progress</button>
+          <button type="button" class="order-filter-tab" data-filter="pickup" onclick="setOrderFilter('pickup', this)"><i class="bi bi-shop me-1"></i>Store Pickup</button>
+          <button type="button" class="order-filter-tab" data-filter="cod" onclick="setOrderFilter('cod', this)"><i class="bi bi-truck me-1"></i>Home Delivery (COD)</button>
+          <button type="button" class="order-filter-tab" data-filter="completed" onclick="setOrderFilter('completed', this)"><i class="bi bi-check2-all me-1"></i>Completed</button>
+          <button type="button" class="order-filter-tab" data-filter="cancelled" onclick="setOrderFilter('cancelled', this)"><i class="bi bi-x-circle me-1"></i>Cancelled</button>
+        </div>
+
+        <div id="ordersTableContainer">
+          <div class="text-center py-5 text-muted">
+            <div class="spinner-border text-success" role="status"></div>
+            <div class="mt-2">Loading your orders...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Footer -->
+    <footer>© 2026 CEC Fresh-Co Mart. All Rights Reserved.</footer>
+    
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script type="module">
+      import {
+        waitForAuthUser,
+        getCustomerOrders,
+        cancelOrderWithStockRestore,
+        formatQuantity,
+        formatMoney,
+        resolveImagePath
+      } from '../assets/js/firebase-service.js';
+
+      // Inject shared header
+      fetch("nav.html")
+        .then(r => r.text())
+        .then(html => {
+          document.getElementById("navbar").innerHTML = html;
+          const script = document.createElement("script");
+          script.src = "navBar.js";
+          document.body.appendChild(script);
+        });
+
+      let currentUser = null;
+      let allOrders = [];
+      let currentFilter = new URLSearchParams(location.search).get('filter') || 'all';
+
+      function esc(s) {
+        const d = document.createElement('div');
+        d.textContent = s == null ? '' : s;
+        return d.innerHTML;
+      }
+
+      function formatOrderDate(isoStr) {
+        if (!isoStr) return '';
+        const dt = new Date(isoStr.replace(' ', 'T'));
+        if (isNaN(dt.getTime())) return isoStr;
+        return dt.toLocaleString('en-US', {
+          month: 'short', day: '2-digit', year: 'numeric',
+          hour: '2-digit', minute: '2-digit', hour12: true
+        });
+      }
+
+      window.toggleOrderDetails = function (orderId, button) {
+        const detailsDiv = document.getElementById("order-items-" + orderId);
+        if (!detailsDiv) return;
+        const isExpanded = button.getAttribute("aria-expanded") === "true";
+        if (isExpanded) {
+          detailsDiv.classList.remove("show");
+          button.setAttribute("aria-expanded", "false");
+        } else {
+          detailsDiv.classList.add("show");
+          button.setAttribute("aria-expanded", "true");
+        }
+      };
+
+      window.setOrderFilter = function (filterVal, btnEl) {
+        currentFilter = filterVal;
+        document.querySelectorAll('#orderFilterTabs .order-filter-tab').forEach(b => {
+          b.classList.toggle('active', b.dataset.filter === filterVal);
+        });
+        renderOrdersList();
+      };
+
+      window.cancelCustomerOrder = async function (orderId, orderNo) {
+        if (!confirm(`Are you sure you want to cancel Order #${orderNo}? Reserved stock will be restored immediately.`)) {
+          return;
+        }
+        if (!currentUser) return;
+        const alertBox = document.getElementById('ordersFeedbackAlert');
+        const res = await cancelOrderWithStockRestore(orderId, 'Customer', currentUser.uid);
+        alertBox.style.display = 'block';
+        if (res.ok) {
+          alertBox.innerHTML = `
+            <div class="alert alert-success d-flex align-items-center rounded-3 mb-3 py-2" role="alert">
+              <i class="bi bi-check-circle-fill me-2"></i>
+              <div>Your order has been cancelled and reserved items have been returned to inventory.</div>
+            </div>
+          `;
+          allOrders = await getCustomerOrders(currentUser.uid);
+          document.getElementById('allOrdersCount').textContent = allOrders.length;
+          renderOrdersList();
+        } else {
+          alertBox.innerHTML = `
+            <div class="alert alert-warning d-flex align-items-center rounded-3 mb-3 py-2" role="alert">
+              <i class="bi bi-exclamation-triangle-fill me-2"></i>
+              <div>${esc(res.message || 'Could not cancel order.')}</div>
+            </div>
+          `;
+        }
+      };
+
+      function renderOrdersList() {
+        const container = document.getElementById('ordersTableContainer');
+        const filtered = allOrders.filter(ord => {
+          const st = (ord.order_status || 'pending').toLowerCase();
+          const pm = (ord.purchase_method || 'cod').toLowerCase();
+          if (currentFilter === 'active' && ['delivered', 'collected', 'cancelled'].includes(st)) return false;
+          if (currentFilter === 'pickup' && pm !== 'pickup') return false;
+          if (currentFilter === 'cod' && pm !== 'cod') return false;
+          if (currentFilter === 'completed' && !['delivered', 'collected'].includes(st)) return false;
+          if (currentFilter === 'cancelled' && st !== 'cancelled') return false;
+          return true;
+        });
+
+        if (!filtered.length) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-icon"><i class="bi bi-cart-x"></i></div>
+              <h4 class="fw-bold">No Matching Orders Found</h4>
+              <p class="text-muted mb-4">
+                ${currentFilter !== 'all' ? 'No orders match the selected filter tab.' : 'You have not placed any orders with us yet.'}
+              </p>
+              ${currentFilter !== 'all' ? `<button type="button" onclick="setOrderFilter('all')" class="btn btn-outline-secondary rounded-pill px-4 me-2">Show All Orders</button>` : ''}
+              <a href="product.html" class="btn-shop">Start Shopping</a>
+            </div>
+          `;
+          return;
+        }
+
+        const rowsHtml = filtered.map(order => {
+          const orderId = String(order.id);
+          const orderNo = order.order_number || orderId;
+          const date = formatOrderDate(order.created_at);
+          const total = Number(order.total_amount || 0);
+          const delivFee = Number(order.delivery_fee || 0);
+          const status = (order.order_status || 'pending').toLowerCase();
+          const method = (order.purchase_method || 'cod').toLowerCase();
+          const payStatus = (order.payment_status || 'unpaid').toLowerCase();
+          const statusClass = 'status-' + status;
+
+          let statusLabel = status;
+          let statusIcon = 'bi-clock';
+          if (status === 'pending') { statusLabel = 'Order Placed'; statusIcon = 'bi-check2-circle'; }
+          else if (status === 'processing') { statusLabel = 'Preparing'; statusIcon = 'bi-box-seam'; }
+          else if (status === 'shipped') { statusLabel = 'Out for Delivery'; statusIcon = 'bi-truck'; }
+          else if (status === 'delivered') { statusLabel = 'Delivered'; statusIcon = 'bi-house-check'; }
+          else if (status === 'ready' || status === 'ready_for_pickup') { statusLabel = 'Ready for Pickup'; statusIcon = 'bi-bag-check-fill'; }
+          else if (status === 'collected') { statusLabel = 'Collected at Store'; statusIcon = 'bi-check2-all'; }
+          else if (status === 'cancelled') { statusLabel = 'Cancelled'; statusIcon = 'bi-x-circle'; }
+
+          let stepIndex = 1;
+          if (status === 'processing') stepIndex = 2;
+          else if (['shipped', 'ready', 'ready_for_pickup'].includes(status)) stepIndex = 3;
+          else if (['delivered', 'collected'].includes(status)) stepIndex = 4;
+
+          const items = Array.isArray(order.items) ? order.items : [];
+          const itemsTableRows = items.map(item => {
+            const formattedQty = formatQuantity(item.quantity, item.unit || '', Number(item.category_id || 0));
+            const img = resolveImagePath(item.image_path, '../');
+            return `
+              <tr>
+                <td class="text-center py-2">
+                  <img src="${esc(img)}" alt="Product" class="product-img" onerror="this.src='../assets/images/logo/logo-freshco.png'" />
+                </td>
+                <td class="fw-semibold text-dark">${esc(item.name || item.product_name || 'Item')}</td>
+                <td class="text-end">Rs. ${formatMoney(item.price)}</td>
+                <td class="text-center fw-semibold">${esc(formattedQty)}</td>
+                <td class="fw-bold text-dark text-end">Rs. ${formatMoney(item.subtotal)}</td>
+              </tr>
+            `;
+          }).join('');
+
+          const addrText = [order.street_address1, order.street_address2, order.town].filter(Boolean).join(', ');
+
+          return `
+            <tr>
+              <td class="text-center">
+                <button class="btn-expand" type="button" onclick="toggleOrderDetails('${esc(orderId)}', this)" aria-expanded="false" title="View Order Details">
+                  <i class="bi bi-chevron-down"></i>
+                </button>
+              </td>
+              <td>
+                <div class="fw-bold text-dark">#${esc(orderNo)}</div>
+                <div class="text-muted small">${esc(date)}</div>
+              </td>
+              <td>
+                ${method === 'pickup' ? `
+                  <span class="method-badge method-pickup"><i class="bi bi-shop"></i> Store Pickup</span>
+                  ${order.pickup_code ? `<div><span class="pickup-code-pill">Code: ${esc(order.pickup_code)}</span></div>` : ''}
+                ` : `
+                  <span class="method-badge method-cod"><i class="bi bi-truck"></i> Cash on Delivery</span>
+                  ${order.town ? `<div class="small text-muted mt-1"><i class="bi bi-geo-alt"></i> ${esc(order.town)}</div>` : ''}
+                `}
+              </td>
+              <td class="text-end">
+                <div class="fw-bold text-dark">Rs. ${formatMoney(total)}</div>
+                ${payStatus === 'paid'
+                  ? `<span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill" style="font-size:0.7rem;">Paid</span>`
+                  : payStatus === 'cancelled'
+                  ? `<span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill" style="font-size:0.7rem;">Cancelled</span>`
+                  : `<span class="badge bg-warning-subtle text-dark border border-warning-subtle rounded-pill" style="font-size:0.7rem;">${method === 'pickup' ? 'Pay at Store' : 'Cash on Delivery'}</span>`}
+              </td>
+              <td class="text-center">
+                <span class="badge-status ${statusClass}">
+                  <i class="bi ${statusIcon}"></i>
+                  ${esc(statusLabel)}
+                </span>
+              </td>
+              <td class="text-center">
+                <div class="d-flex justify-content-center gap-1 flex-wrap">
+                  <a href="../order-confirmation.html?order_id=${encodeURIComponent(orderId)}" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-1" title="View Receipt / Pickup Pass">
+                    <i class="bi bi-printer"></i> ${method === 'pickup' ? 'Pickup Pass' : 'Receipt'}
+                  </a>
+                  ${status === 'pending' ? `
+                    <button type="button" onclick="cancelCustomerOrder('${esc(orderId)}', '${esc(orderNo)}')" class="btn btn-sm btn-outline-danger rounded-pill px-2 py-1" title="Cancel Pending Order">
+                      <i class="bi bi-x-circle"></i> Cancel
+                    </button>
+                  ` : ''}
+                </div>
+              </td>
+            </tr>
+            <tr class="border-0">
+              <td colspan="6" class="p-0 border-0">
+                <div id="order-items-${esc(orderId)}" class="collapse-details">
+                  <div class="details-content">
+                    ${status !== 'cancelled' ? `
+                      <div class="order-tracker">
+                        <div class="tracker-step ${stepIndex > 1 ? 'done' : (stepIndex === 1 ? 'active' : '')}">
+                          <div class="tracker-dot"><i class="bi bi-check2"></i></div>
+                          <div class="tracker-label">1. Order Placed</div>
+                        </div>
+                        <div class="tracker-step ${stepIndex > 2 ? 'done' : (stepIndex === 2 ? 'active' : '')}">
+                          <div class="tracker-dot"><i class="bi bi-box-seam"></i></div>
+                          <div class="tracker-label">2. Preparing</div>
+                        </div>
+                        <div class="tracker-step ${stepIndex > 3 ? 'done' : (stepIndex === 3 ? 'active' : '')}">
+                          <div class="tracker-dot"><i class="bi ${method === 'pickup' ? 'bi-bag-check' : 'bi-truck'}"></i></div>
+                          <div class="tracker-label">3. ${method === 'pickup' ? 'Ready for Pickup' : 'Out for Delivery'}</div>
+                        </div>
+                        <div class="tracker-step ${stepIndex === 4 ? 'done active' : ''}">
+                          <div class="tracker-dot"><i class="bi bi-stars"></i></div>
+                          <div class="tracker-label">4. ${method === 'pickup' ? 'Collected at Store' : 'Delivered'}</div>
+                        </div>
+                      </div>
+                    ` : ''}
+
+                    <div class="row g-3 mb-3">
+                      ${method === 'pickup' ? `
+                        <div class="col-md-12">
+                          <div class="p-3 rounded-3" style="background:#fffbeb; border:1px solid #fde68a;">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                              <div>
+                                <span class="fw-bold text-dark"><i class="bi bi-shop text-warning me-1"></i>In-Store Pickup Details (Rajagiriya Branch)</span>
+                                <div class="small text-secondary mt-1">
+                                  <strong>Scheduled Date:</strong> ${esc(order.pickup_date || 'Anytime')} &nbsp;|&nbsp;
+                                  <strong>Time Slot:</strong> ${esc(order.pickup_time_slot || 'Standard Hours')}
+                                </div>
+                                ${order.delivery_notes ? `<div class="small text-muted mt-1"><strong>Store Note:</strong> ${esc(order.delivery_notes)}</div>` : ''}
+                              </div>
+                              <div class="text-end">
+                                <div class="small text-muted">Present this Pickup Code at counter:</div>
+                                <span class="pickup-code-pill" style="font-size:1rem; padding:5px 14px;">${esc(order.pickup_code || 'N/A')}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ` : `
+                        <div class="col-md-12">
+                          <div class="p-3 rounded-3" style="background:#eff6ff; border:1px solid #bfdbfe;">
+                            <span class="fw-bold text-dark"><i class="bi bi-truck text-primary me-1"></i>Home Delivery Details (Cash on Delivery)</span>
+                            <div class="small text-secondary mt-1">
+                              <strong>Recipient:</strong> ${esc(order.customer_name || 'Customer')} (${esc(order.customer_phone || 'N/A')}) &nbsp;|&nbsp;
+                              <strong>Address:</strong> ${esc(addrText)}
+                            </div>
+                            ${order.delivery_notes ? `<div class="small text-muted mt-1"><strong>Delivery Note:</strong> ${esc(order.delivery_notes)}</div>` : ''}
+                          </div>
+                        </div>
+                      `}
+                    </div>
+
+                    <div class="receipt-card">
+                      <div class="receipt-header d-flex justify-content-between align-items-center">
+                        <h6 class="fw-bold text-secondary mb-0">
+                          <i class="bi bi-receipt me-2"></i>Items in this Order (${items.length})
+                        </h6>
+                        <a href="../order-confirmation.html?order_id=${encodeURIComponent(orderId)}" class="btn btn-sm btn-success rounded-pill px-3">
+                          <i class="bi bi-file-earmark-text me-1"></i>Open Full Printable Pass / Receipt
+                        </a>
+                      </div>
+                      <div class="table-responsive">
+                        <table class="table align-middle mb-0" style="font-size: 0.92rem;">
+                          <thead class="table-light text-secondary">
+                            <tr>
+                              <th scope="col" style="width: 90px;" class="py-2 text-center">Image</th>
+                              <th scope="col" class="py-2">Product Name</th>
+                              <th scope="col" class="py-2 text-end">Unit Price</th>
+                              <th scope="col" class="py-2 text-center">Quantity</th>
+                              <th scope="col" class="py-2 text-end">Subtotal</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            ${itemsTableRows}
+                            <tr class="table-light text-secondary">
+                              <td colspan="4" class="text-end fw-semibold py-2">${method === 'pickup' ? 'Store Pickup Fee:' : 'Home Delivery Fee:'}</td>
+                              <td class="text-end fw-semibold text-dark">
+                                ${delivFee > 0 ? 'Rs. ' + formatMoney(delivFee) : '<span class="text-success fw-bold">FREE (Rs. 0.00)</span>'}
+                              </td>
+                            </tr>
+                            <tr class="fw-bold text-success" style="background-color: #f8fafc;">
+                              <td colspan="4" class="text-end py-3">Grand Total:</td>
+                              <td class="text-end py-3 text-success" style="font-size: 1.05rem;">Rs. ${formatMoney(total)}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('');
+
+        container.innerHTML = `
+          <div class="table-wrapper">
+            <div class="table-responsive">
+              <table class="table align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th style="width: 60px;" class="text-center">Details</th>
+                    <th>Order No &amp; Date</th>
+                    <th>Fulfillment Method</th>
+                    <th class="text-end">Total Amount</th>
+                    <th class="text-center">Order Status</th>
+                    <th class="text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${rowsHtml}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      }
+
+      async function initMyOrders() {
+        currentUser = await waitForAuthUser();
+        if (!currentUser) {
+          window.location.href = '../login/sign.html';
+          return;
+        }
+        allOrders = await getCustomerOrders(currentUser.uid);
+        document.getElementById('allOrdersCount').textContent = allOrders.length;
+        window.setOrderFilter(currentFilter);
+      }
+
+      initMyOrders();
+    </script>
+  </body>
+</html>
+

@@ -1,0 +1,802 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fresh Products - CEC Fresh-Co Mart</title>
+    <link rel="shortcut icon" type="image/x-icon" href="../assets/images/logo/logo-freshco.png">
+    <!-- Google Fonts (Outfit) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    
+    <style>
+      :root {
+        --primary-green: #27b62e;
+        --primary-green-hover: #1e8e24;
+        --bg-gray: #f4f7f5;
+        --text-dark: #1f2937;
+        --text-muted: #6b7280;
+        --card-bg: #ffffff;
+        --badge-in-stock-bg: #e8f5e9;
+        --badge-in-stock-color: #2e7d32;
+        --badge-out-of-stock-bg: #ffebee;
+        --badge-out-of-stock-color: #c62828;
+      }
+
+      body {
+        background-color: var(--bg-gray);
+        font-family: 'Outfit', sans-serif;
+        color: var(--text-dark);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .navbar-container {
+        width: 100%;
+        position: fixed;
+        top: 0;
+        z-index: 1000;
+      }
+
+      .main-content {
+        padding: 120px 20px 60px;
+        display: flex;
+        justify-content: center;
+        flex: 1;
+      }
+
+      .card-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 30px;
+        width: 100%;
+        max-width: 1200px;
+      }
+
+      /* Modals (Glassmorphism backdrop & clean cards) */
+      .overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(17, 24, 39, 0.6);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+      }
+
+      .popup {
+        width: 90%;
+        max-width: 420px;
+        background: #ffffff;
+        border-radius: 24px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        animation: scaleIn 0.3s ease;
+      }
+
+      @keyframes scaleIn {
+        from { transform: scale(0.9); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+      }
+
+      .popup-header1 {
+        background: var(--primary-green);
+        padding: 20px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: white;
+      }
+
+      .popup-header1 h3 {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 700;
+      }
+
+      .close-btn {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        border: none;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s;
+      }
+
+      .close-btn:hover {
+        background: rgba(255, 255, 255, 0.3);
+      }
+
+      .popup-content {
+        padding: 30px;
+        color: var(--text-dark);
+      }
+
+      .popup-content p {
+        line-height: 1.6;
+        font-size: 1rem;
+        color: var(--text-muted);
+        margin-bottom: 25px;
+      }
+
+      .button-group {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+        margin-top: 15px;
+      }
+
+      .popup-btn-primary,
+      .popup-btn-secondary {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 25px;
+        cursor: pointer;
+        font-weight: 700;
+        font-size: 0.95rem;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        display: inline-block;
+      }
+
+      .popup-btn-primary {
+        background: var(--primary-green);
+        color: white;
+        box-shadow: 0 4px 10px rgba(39, 182, 46, 0.2);
+      }
+
+      .popup-btn-primary:hover {
+        background: var(--primary-green-hover);
+        box-shadow: 0 6px 15px rgba(39, 182, 46, 0.35);
+        transform: translateY(-1px);
+        color: white;
+      }
+
+      .popup-btn-secondary {
+        background: #f3f4f6;
+        color: #4b5563;
+      }
+
+      .popup-btn-secondary:hover {
+        background: #e5e7eb;
+        transform: translateY(-1px);
+      }
+
+      .qty-adjust-btn {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        border: 1px solid #e5e7eb;
+        background: white;
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: var(--text-dark);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .qty-adjust-btn:hover {
+        background: var(--primary-green);
+        color: white;
+        border-color: var(--primary-green);
+      }
+
+      footer {
+        background-color: #212529;
+        color: white;
+        text-align: center;
+        padding: 20px 0;
+        font-size: 0.9rem;
+      }
+    </style>
+    <link rel="stylesheet" href="../assets/css/custom-ui.css" />
+    <style>
+      .main-content { padding: calc(var(--fc-header-h) + var(--fc-catbar-h) + 28px) 20px 60px; display: block; }
+      @media (max-width: 991.98px) { .main-content { padding-top: 150px; padding-left: 12px; padding-right: 12px; } }
+    </style>
+  </head>
+  <body class="fc-store">
+
+    <!-- Navbar -->
+    <div id="navbar" class="navbar-container"></div>
+
+    <!-- Product Grid -->
+    <div class="main-content">
+      <div class="fc-page-head">
+        <div>
+          <h1 id="pageTitle">Fresh Products</h1>
+          <p id="pageCount">Loading catalog...</p>
+        </div>
+      </div>
+
+      <!-- Store Pickup Mode Active Banner -->
+      <div id="pickupModeBanner" class="alert d-flex flex-wrap align-items-center justify-content-between rounded-4 mb-3 py-2 px-3" style="display:none !important; background:#fffbeb; border:1px solid #fde68a; color:#92400e;">
+        <div>
+          <i class="bi bi-shop me-2 text-warning"></i>
+          <strong>Store Pickup Mode Active:</strong> Your checkout will default to <strong>Free In-Store Pickup (Rajagiriya Branch – Rs. 0.00 fee)</strong>.
+        </div>
+        <a href="product.html?pickup=0" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1">Switch to Home Delivery</a>
+      </div>
+
+      <!-- Enhanced Category & Attribute Filter Toolbar -->
+      <div class="card p-3 mb-4 border-0 shadow-sm rounded-4 bg-white" style="border: 1px solid #e2e8f0 !important;">
+        <form method="GET" action="product.html" id="filterForm" class="row g-2 align-items-center">
+          <input type="hidden" name="q" id="filterHiddenQ" value="">
+
+          <!-- Category filter dropdown -->
+          <div class="col-md-3 col-sm-6">
+            <label class="form-label small fw-semibold text-muted mb-1"><i class="bi bi-tag-fill text-success me-1"></i>Category</label>
+            <select name="category" id="filterCategorySelect" class="form-select form-select-sm rounded-pill">
+              <option value="0">All Categories</option>
+            </select>
+          </div>
+
+          <!-- Sort dropdown -->
+          <div class="col-md-3 col-sm-6">
+            <label class="form-label small fw-semibold text-muted mb-1"><i class="bi bi-sort-down text-primary me-1"></i>Sort By</label>
+            <select name="sort" id="filterSortSelect" class="form-select form-select-sm rounded-pill">
+              <option value="default">Featured / Default</option>
+              <option value="price_asc">Price: Low to High</option>
+              <option value="price_desc">Price: High to Low</option>
+              <option value="newest">Newest Arrivals</option>
+              <option value="name_asc">Alphabetical (A - Z)</option>
+            </select>
+          </div>
+
+          <!-- Price range -->
+          <div class="col-md-3 col-sm-6">
+            <label class="form-label small fw-semibold text-muted mb-1"><i class="bi bi-cash me-1"></i>Price Range (Rs.)</label>
+            <div class="input-group input-group-sm">
+              <input type="number" name="min_price" id="filterMinPrice" class="form-control" placeholder="Min" style="border-top-left-radius: 20px; border-bottom-left-radius: 20px;">
+              <span class="input-group-text bg-light">&ndash;</span>
+              <input type="number" name="max_price" id="filterMaxPrice" class="form-control" placeholder="Max" style="border-top-right-radius: 20px; border-bottom-right-radius: 20px;">
+            </div>
+          </div>
+
+          <!-- In stock toggle & actions -->
+          <div class="col-md-3 col-sm-6 d-flex align-items-center justify-content-between pt-md-3">
+            <div class="form-check form-switch mt-1">
+              <input class="form-check-input" type="checkbox" name="in_stock" value="1" id="inStockSwitch">
+              <label class="form-check-label small fw-semibold text-dark" for="inStockSwitch">In Stock Only</label>
+            </div>
+            <div class="d-flex gap-1">
+              <button type="submit" class="btn btn-success btn-sm rounded-pill px-3 fw-bold">Filter</button>
+              <a href="product.html" id="resetFilterBtn" class="btn btn-outline-secondary btn-sm rounded-pill px-2" title="Reset Filters" style="display:none;"><i class="bi bi-x-circle"></i></a>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <div class="fc-grid card-container" id="productGrid">
+        <div class="text-center py-5 text-muted" style="grid-column: 1 / -1;">
+          <div class="spinner-border text-success spinner-border-sm me-2" role="status"></div>
+          Loading fresh supermarket catalog...
+        </div>
+      </div>
+    </div>
+
+    <!-- Guest Login Modal -->
+    <div class="overlay" id="popupOverlay">
+      <div class="popup">
+        <div class="popup-header1">
+          <h3>Guest Login</h3>
+          <button class="close-btn" onclick="closePopup()">×</button>
+        </div>
+        <div class="popup-content">
+          <p>
+            Thank you for choosing to shop at Fresh-Co Mart Online!<br />
+            Please Login or Sign Up to proceed.
+          </p>
+          <div class="button-group">
+            <a href="../login/sign.html" class="popup-btn-primary">Login</a>
+            <a href="../login/register.html" class="popup-btn-secondary">Sign Up</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add More Items Modal (Weight / Package Picker) -->
+    <div class="overlay" id="addMoreModal" style="display:none;">
+      <div class="popup" style="max-width:380px;">
+        <div class="popup-header1">
+          <h3 id="addMoreTitle">Add to Cart</h3>
+          <button class="close-btn" onclick="closeAddMoreModal()">×</button>
+        </div>
+        <div class="popup-content text-center">
+          <div id="standardQtyContainer">
+            <p class="mb-3 text-dark fw-semibold">How many items would you like to add?</p>
+            <div class="d-flex justify-content-center align-items-center gap-3 my-4">
+              <button class="qty-adjust-btn" onclick="changeQty(-1)">-</button>
+              <span id="itemQty" class="fs-4 fw-bold" style="min-width:30px; display:inline-block;">1</span>
+              <button class="qty-adjust-btn" onclick="changeQty(1)">+</button>
+            </div>
+          </div>
+          
+          <div id="weightQtyContainer" style="display:none;">
+            <p class="mb-3 text-dark fw-semibold">Select weight and package count:</p>
+            <div class="mb-3">
+              <label for="weightSelect" class="form-label small text-secondary fw-bold">Select Weight / Volume</label>
+              <select class="form-select fs-5 text-center fw-bold" id="weightSelect" style="border-radius:12px; border:2px solid #27b62e;"></select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small text-secondary fw-bold">Number of Packages</label>
+              <div class="d-flex justify-content-center align-items-center gap-3 my-2">
+                <button class="qty-adjust-btn" onclick="changeQty(-1)">-</button>
+                <span id="itemQtyWeight" class="fs-4 fw-bold" style="min-width:30px; display:inline-block;">1</span>
+                <button class="qty-adjust-btn" onclick="changeQty(1)">+</button>
+              </div>
+            </div>
+          </div>
+          
+          <div class="alert alert-success border-0 p-2 my-3 text-center fw-bold fs-6" id="addMorePreview" style="background-color:#eefdf0; color:#1e8e24; border-radius:12px;">
+            Total: Rs. 0.00
+          </div>
+          
+          <div class="button-group mt-3">
+            <button class="popup-btn-primary" id="confirmAddModalBtn" onclick="confirmAddToCart()">Add to Cart</button>
+            <button class="popup-btn-secondary" onclick="closeAddMoreModal()">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>© 2026 CEC Fresh-Co Mart. All Rights Reserved.</footer>
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../script.js"></script>
+
+    <script type="module">
+      import {
+        ensureCategoriesSeeded,
+        getAllItems,
+        waitForAuthUser,
+        getActiveCartWithItems,
+        addOrUpdateCartItem,
+        isBulkItem,
+        parseUnitToGrams,
+        formatMoney,
+        resolveImagePath
+      } from '../assets/js/firebase-service.js';
+
+      // Inject shared header
+      fetch("nav.html")
+        .then(r => r.text())
+        .then(html => {
+          document.getElementById("navbar").innerHTML = html;
+          const script = document.createElement("script");
+          script.src = "navBar.js";
+          document.body.appendChild(script);
+        });
+
+      let currentUser = null;
+      let allCatalogItems = [];
+      let categoriesList = [];
+      let inCartMap = {};
+
+      window.selectedProduct = null;
+      window.selectedPrice = 0;
+      window.itemQty = 1;
+      window.isBulkVal = false;
+      window.dbUnitStr = '';
+
+      function esc(s) {
+        const d = document.createElement('div');
+        d.textContent = s == null ? '' : s;
+        return d.innerHTML;
+      }
+
+      // Check URL params
+      const params = new URLSearchParams(location.search);
+      if (params.has('pickup')) {
+        const pref = params.get('pickup') === '1' ? 'pickup' : 'cod';
+        sessionStorage.setItem('preferred_purchase_method', pref);
+      }
+      const isPickupPreferred = sessionStorage.getItem('preferred_purchase_method') === 'pickup';
+      const pickupBanner = document.getElementById('pickupModeBanner');
+      if (pickupBanner) {
+        pickupBanner.style.setProperty('display', isPickupPreferred ? 'flex' : 'none', 'important');
+      }
+
+      async function initProductCatalog() {
+        const [cats, items, user] = await Promise.all([
+          ensureCategoriesSeeded(),
+          getAllItems(false),
+          waitForAuthUser()
+        ]);
+
+        categoriesList = cats;
+        allCatalogItems = items;
+        currentUser = user;
+        window.isLoggedIn = Boolean(user);
+
+        if (user) {
+          const cart = await getActiveCartWithItems(user.uid);
+          inCartMap = cart.inCartMap || {};
+        }
+
+        populateFilterControls();
+        applyFiltersAndRender();
+      }
+
+      function populateFilterControls() {
+        const countByCat = {};
+        allCatalogItems.forEach(it => {
+          if (it.status === 'active') {
+            const cid = Number(it.category_id || 0);
+            countByCat[cid] = (countByCat[cid] || 0) + 1;
+          }
+        });
+
+        const catSelect = document.getElementById('filterCategorySelect');
+        const urlCat = params.get('category') || '0';
+        if (catSelect) {
+          catSelect.innerHTML = '<option value="0">All Categories</option>' +
+            categoriesList.map(c => {
+              const cnt = countByCat[Number(c.id)] || 0;
+              const selected = String(c.id) === urlCat ? 'selected' : '';
+              return `<option value="${c.id}" ${selected}>${esc(c.name)} (${cnt})</option>`;
+            }).join('');
+        }
+
+        const qVal = (params.get('q') || '').trim();
+        document.getElementById('filterHiddenQ').value = qVal;
+        document.getElementById('filterSortSelect').value = params.get('sort') || 'default';
+        document.getElementById('filterMinPrice').value = params.get('min_price') || '';
+        document.getElementById('filterMaxPrice').value = params.get('max_price') || '';
+        document.getElementById('inStockSwitch').checked = params.get('in_stock') === '1';
+
+        const hasFilters = (urlCat && urlCat !== '0') || qVal !== '' || params.get('in_stock') === '1' || params.get('min_price') || params.get('max_price') || (params.get('sort') && params.get('sort') !== 'default');
+        document.getElementById('resetFilterBtn').style.display = hasFilters ? '' : 'none';
+      }
+
+      function applyFiltersAndRender() {
+        const rawCat = (params.get('category') || '').trim();
+        const catIds = rawCat ? rawCat.split(',').map(x => parseInt(x, 10)).filter(x => x > 0) : [];
+        const searchQ = (params.get('q') || '').trim().toLowerCase();
+        const inStockOnly = params.get('in_stock') === '1';
+        const minPrice = params.get('min_price') ? parseFloat(params.get('min_price')) : null;
+        const maxPrice = params.get('max_price') ? parseFloat(params.get('max_price')) : null;
+        const sort = params.get('sort') || 'default';
+
+        let filtered = allCatalogItems.filter(it => {
+          if (catIds.length && !catIds.includes(Number(it.category_id))) return false;
+          if (searchQ && !String(it.name || '').toLowerCase().includes(searchQ) && !String(it.category_name || '').toLowerCase().includes(searchQ)) return false;
+          if (inStockOnly && !(it.status === 'active' && Number(it.stock_quantity || 0) > 0)) return false;
+          if (minPrice !== null && !isNaN(minPrice) && minPrice > 0 && Number(it.price) < minPrice) return false;
+          if (maxPrice !== null && !isNaN(maxPrice) && maxPrice > 0 && Number(it.price) > maxPrice) return false;
+          return true;
+        });
+
+        if (sort === 'price_asc') {
+          filtered.sort((a, b) => Number(a.price) - Number(b.price));
+        } else if (sort === 'price_desc') {
+          filtered.sort((a, b) => Number(b.price) - Number(a.price));
+        } else if (sort === 'newest') {
+          filtered.sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+        } else if (sort === 'name_asc') {
+          filtered.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+        }
+
+        const rawQ = (params.get('q') || '').trim();
+        document.getElementById('pageTitle').textContent = rawQ ? `Results for “${rawQ}”` : 'Fresh Products';
+        document.getElementById('pageCount').textContent = `${filtered.length} items available`;
+
+        const grid = document.getElementById('productGrid');
+        if (!filtered.length) {
+          grid.innerHTML = `
+            <div class="fc-empty" style="grid-column: 1 / -1;">
+              <i class="bi bi-basket"></i>
+              <p>No products found${rawQ ? ' for “' + esc(rawQ) + '”' : ' in this category'}.</p>
+              <a class="fc-btn fc-btn-primary" href="product.html">Browse all products</a>
+            </div>
+          `;
+          return;
+        }
+
+        grid.innerHTML = filtered.map(row => {
+          const id = String(row.id);
+          const name = row.name || '';
+          const unit = row.unit || '1 unit';
+          const price = Number(row.price || 0);
+          const isActive = row.status === 'active';
+          const stockQty = Number(row.stock_quantity || 0);
+          const isInStock = isActive && stockQty > 0;
+          const bulk = isBulkItem(row.category_id, unit);
+          const cartQty = Number(inCartMap[id] || 0);
+          const showStepper = !bulk && cartQty > 0;
+          const img = resolveImagePath(row.image_path, '../');
+
+          return `
+            <article class="fc-product ${isInStock ? '' : 'is-out'}" data-name="${esc(name.toLowerCase())}">
+              <div class="fc-product-img">
+                <img src="${esc(img)}" alt="${esc(name)}" loading="lazy" onerror="this.src='../assets/images/logo/logo-freshco.png'" />
+                ${!isInStock ? '<div class="fc-out-overlay"><span>Out of Stock</span></div>' : ''}
+              </div>
+              <div class="fc-product-body">
+                <h3 class="fc-product-title">${esc(name)}</h3>
+                <span class="fc-unit">${esc(unit)}</span>
+
+                <div class="fc-price-row">
+                  <span class="fc-price">Rs. ${formatMoney(price)}</span>
+                </div>
+
+                <div class="fc-stock-row">
+                  ${isInStock
+                    ? `<span class="fc-pill in"><i class="bi bi-check-circle-fill"></i>In Stock: ${stockQty} ${esc(unit)}</span>`
+                    : `<span class="fc-pill out"><i class="bi bi-x-circle-fill"></i>Out of Stock</span>`}
+                </div>
+
+                <div class="fc-add-wrap ${showStepper ? 'is-stepper' : ''}"
+                     data-id="${esc(id)}"
+                     data-price="${price}"
+                     data-unit="${esc(unit)}"
+                     data-cat="${Number(row.category_id || 1)}"
+                     data-bulk="${bulk ? 1 : 0}"
+                     data-stock="${stockQty}"
+                     data-qty="${showStepper ? Math.round(cartQty) : 0}">
+                  <button type="button" class="fc-add-btn" onclick="fcAdd(this)" ${!isInStock ? 'disabled' : ''}>
+                    <i class="bi bi-plus-lg"></i> ${isInStock ? 'Add' : 'Out of Stock'}
+                  </button>
+                  <div class="fc-stepper" role="group" aria-label="Quantity for ${esc(name)}">
+                    <button type="button" onclick="fcStep(this, -1)" aria-label="Decrease quantity"><i class="bi bi-dash-lg"></i></button>
+                    <span class="count" aria-live="polite">${showStepper ? Math.round(cartQty) : 0}</span>
+                    <button type="button" onclick="fcStep(this, 1)" aria-label="Increase quantity"><i class="bi bi-plus-lg"></i></button>
+                  </div>
+                </div>
+              </div>
+            </article>
+          `;
+        }).join('');
+      }
+
+      // Filter form handlers
+      document.getElementById('filterCategorySelect').addEventListener('change', function () {
+        document.getElementById('filterForm').submit();
+      });
+      document.getElementById('filterSortSelect').addEventListener('change', function () {
+        document.getElementById('filterForm').submit();
+      });
+      document.getElementById('inStockSwitch').addEventListener('change', function () {
+        document.getElementById('filterForm').submit();
+      });
+
+      function fcRender(wrap, qty) {
+        wrap.dataset.qty = qty;
+        wrap.querySelector('.count').textContent = qty;
+        wrap.classList.toggle('is-stepper', qty > 0);
+        if (typeof window.refreshMiniCart === 'function') window.refreshMiniCart(false);
+      }
+
+      window.fcAdd = async function (btn) {
+        const wrap = btn.closest('.fc-add-wrap');
+        const user = await waitForAuthUser();
+        if (!user) {
+          openPopup();
+          return;
+        }
+        if (wrap.dataset.bulk === '1') {
+          checkLogin(wrap.dataset.id, wrap.dataset.price, wrap.dataset.unit, wrap.dataset.cat, wrap.dataset.stock);
+          return;
+        }
+        btn.disabled = true;
+        const res = await addOrUpdateCartItem(user.uid, wrap.dataset.id, 1);
+        btn.disabled = false;
+        if (res.ok) {
+          fcRender(wrap, res.newQuantity);
+          if (typeof window.showToast === 'function') showToast('Added to cart', 'success');
+        } else {
+          if (typeof window.showToast === 'function') showToast(res.message || 'Error adding to cart.', 'error');
+          else alert(res.message);
+        }
+      };
+
+      window.fcStep = async function (btn, delta) {
+        const wrap = btn.closest('.fc-add-wrap');
+        const stepBtns = wrap.querySelectorAll('.fc-stepper button');
+        const user = await waitForAuthUser();
+        if (!user) {
+          openPopup();
+          return;
+        }
+        stepBtns.forEach(b => { b.disabled = true; });
+        const res = await addOrUpdateCartItem(user.uid, wrap.dataset.id, delta);
+        stepBtns.forEach(b => { b.disabled = false; });
+        if (res.ok) {
+          fcRender(wrap, Math.max(0, res.newQuantity));
+        } else {
+          if (typeof window.showToast === 'function') showToast(res.message || 'Could not update cart.', 'error');
+          else alert(res.message);
+        }
+      };
+
+      window.checkLogin = function (productId, price, unit, categoryId, stockQty) {
+        if (typeof stockQty !== 'undefined' && parseFloat(stockQty) <= 0) {
+          if (typeof window.showToast === 'function') showToast('This product is currently out of stock.', 'error');
+          return;
+        }
+        if (!currentUser) {
+          openPopup();
+          return;
+        }
+        window.selectedProduct = productId;
+        window.selectedPrice = parseFloat(price);
+        window.itemQty = 1;
+        window.dbUnitStr = unit;
+        window.isBulkVal = isBulkItem(categoryId, unit);
+        window.currentStock = typeof stockQty !== 'undefined' ? parseFloat(stockQty) : 999999;
+
+        const stdContainer = document.getElementById('standardQtyContainer');
+        const weightContainer = document.getElementById('weightQtyContainer');
+        const weightSelect = document.getElementById('weightSelect');
+
+        if (window.isBulkVal) {
+          stdContainer.style.display = 'none';
+          weightContainer.style.display = 'block';
+          weightSelect.innerHTML = '';
+
+          const parsedDb = parseUnitToGrams(unit);
+          const metric = parsedDb.metric;
+
+          let options = [];
+          if (metric === 'kg' || metric === 'g') {
+            options = [
+              { text: '500 g', baseVal: 500 },
+              { text: '1 kg', baseVal: 1000 },
+              { text: '2 kg', baseVal: 2000 },
+              { text: '3 kg', baseVal: 3000 },
+              { text: '4 kg', baseVal: 4000 },
+              { text: '5 kg', baseVal: 5000 },
+              { text: '6 kg', baseVal: 6000 },
+              { text: '8 kg', baseVal: 8000 },
+              { text: '10 kg', baseVal: 10000 }
+            ];
+          } else if (metric === 'l' || metric === 'ml') {
+            options = [
+              { text: '250 ml', baseVal: 250 },
+              { text: '500 ml', baseVal: 500 },
+              { text: '1 L', baseVal: 1000 },
+              { text: '2 L', baseVal: 2000 },
+              { text: '3 L', baseVal: 3000 },
+              { text: '4 L', baseVal: 4000 },
+              { text: '5 L', baseVal: 5000 }
+            ];
+          }
+
+          options.forEach(opt => {
+            const el = document.createElement("option");
+            el.value = opt.baseVal;
+            el.textContent = opt.text;
+            weightSelect.appendChild(el);
+          });
+
+          const closestOpt = options.find(o => Math.abs(o.baseVal - parsedDb.baseVal) < 1);
+          if (closestOpt) {
+            weightSelect.value = closestOpt.baseVal;
+          } else {
+            const customOpt = document.createElement("option");
+            customOpt.value = parsedDb.baseVal;
+            customOpt.textContent = unit;
+            weightSelect.appendChild(customOpt);
+            weightSelect.value = parsedDb.baseVal;
+          }
+
+          document.getElementById('itemQtyWeight').innerText = window.itemQty;
+        } else {
+          stdContainer.style.display = 'block';
+          weightContainer.style.display = 'none';
+          document.getElementById('itemQty').innerText = window.itemQty;
+        }
+
+        updateAddMorePreview();
+        document.getElementById('addMoreModal').style.display = 'flex';
+      };
+
+      function updateAddMorePreview() {
+        const previewEl = document.getElementById('addMorePreview');
+        if (window.isBulkVal) {
+          const selectedBase = parseFloat(document.getElementById('weightSelect').value);
+          const dbUnitBase = parseUnitToGrams(window.dbUnitStr).baseVal;
+          const multiplier = selectedBase / dbUnitBase;
+          const totalPrice = window.itemQty * window.selectedPrice * multiplier;
+          const totalWeightVal = window.itemQty * selectedBase;
+
+          let weightText = '';
+          const parsedDb = parseUnitToGrams(window.dbUnitStr);
+          if (parsedDb.metric === 'kg' || parsedDb.metric === 'g') {
+            weightText = totalWeightVal >= 1000
+              ? (totalWeightVal / 1000).toFixed(totalWeightVal % 1000 === 0 ? 0 : 2) + ' kg'
+              : totalWeightVal + ' g';
+          } else if (parsedDb.metric === 'l' || parsedDb.metric === 'ml') {
+            weightText = totalWeightVal >= 1000
+              ? (totalWeightVal / 1000).toFixed(totalWeightVal % 1000 === 0 ? 0 : 2) + ' L'
+              : totalWeightVal + ' ml';
+          }
+          previewEl.innerHTML = `Total: Rs. ${totalPrice.toFixed(2)} (${weightText})`;
+        } else {
+          const totalPrice = window.itemQty * window.selectedPrice;
+          previewEl.innerHTML = `Total: Rs. ${totalPrice.toFixed(2)} (${window.itemQty} items)`;
+        }
+      }
+
+      document.getElementById('weightSelect').addEventListener('change', updateAddMorePreview);
+
+      window.changeQty = function (delta) {
+        window.itemQty = Math.max(1, (window.itemQty || 1) + delta);
+        if (window.isBulkVal) {
+          document.getElementById('itemQtyWeight').innerText = window.itemQty;
+        } else {
+          document.getElementById('itemQty').innerText = window.itemQty;
+        }
+        updateAddMorePreview();
+      };
+
+      window.closeAddMoreModal = function () {
+        document.getElementById('addMoreModal').style.display = 'none';
+      };
+
+      window.openPopup = function () {
+        document.getElementById('popupOverlay').style.display = 'flex';
+      };
+
+      window.closePopup = function () {
+        document.getElementById('popupOverlay').style.display = 'none';
+      };
+
+      window.confirmAddToCart = async function () {
+        const user = await waitForAuthUser();
+        if (!user) {
+          closeAddMoreModal();
+          openPopup();
+          return;
+        }
+        let finalQty = window.itemQty;
+        if (window.isBulkVal) {
+          const selectedBase = parseFloat(document.getElementById('weightSelect').value);
+          const dbUnitBase = parseUnitToGrams(window.dbUnitStr).baseVal;
+          const multiplier = selectedBase / dbUnitBase;
+          finalQty = multiplier * window.itemQty;
+        }
+
+        const btn = document.getElementById('confirmAddModalBtn');
+        if (btn) btn.disabled = true;
+        const res = await addOrUpdateCartItem(user.uid, window.selectedProduct, finalQty);
+        if (btn) btn.disabled = false;
+
+        if (res.ok) {
+          if (typeof window.showToast === 'function') showToast(res.message, 'success');
+          if (typeof window.refreshMiniCart === 'function') window.refreshMiniCart(false);
+        } else {
+          if (typeof window.showToast === 'function') showToast(res.message || 'Error adding to cart.', 'error');
+          else alert(res.message);
+        }
+        closeAddMoreModal();
+      };
+
+      initProductCatalog();
+    </script>
+  </body>
+</html>
+

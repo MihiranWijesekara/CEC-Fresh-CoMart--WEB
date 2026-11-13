@@ -1,83 +1,94 @@
+/**
+ * Customer & Admin Authentication Controller (Firebase Auth + Cloud Firestore)
+ */
 
-function signup() {
-    var fName = document.getElementById("firstName").value;
-    var lName = document.getElementById("lastName").value;
-    var email = document.getElementById("email").value;
-    var phoneNumber = document.getElementById("phone").value;
-    var password = document.getElementById("password").value;
-    var confirmPassword = document.getElementById("confirmPassword").value;
-
-    var f = new FormData();
-    f.append("firstName",fName);
-    f.append("lastName",lName);
-    f.append("email",email);
-    f.append("phoneNumber",phoneNumber);
-    f.append("password",password);
-    f.append("confirmPassword",confirmPassword);
-
-    var r = new XMLHttpRequest();
-    r.onreadystatechange = function () {
-        if (r.readyState == 4 && r.status == 200) {
-            var t = r.responseText;
-            var msgDiv = document.getElementById("msgdiv");
-            msgDiv.style.display = "block";
-            if (t == "success") {
-                // Clear all input fields
-                document.getElementById("registerForm").reset();
-                // Show beautiful success message
-                msgDiv.className = "alert alert-success";
-                msgDiv.innerHTML = '<i class="bi bi-check-circle pe-3"></i>' + "Registration Successful!";
-                setTimeout(function() {
-                    window.location.href = "sign.php";
-                }, 1500);
-            } else {
-                msgDiv.className = "alert alert-danger";
-                msgDiv.innerHTML = '<i class="bi bi-exclamation-circle pe-3"></i>' + t;
-            }
-        }
-    }
-    r.open("POST", "../login/registerProcess.php", true);
-    r.send(f);
+let fbServicePromise = null;
+function loadFirebaseService() {
+  if (!fbServicePromise) {
+    const url = new URL("../assets/js/firebase-service.js", window.location.href).href;
+    fbServicePromise = import(url);
+  }
+  return fbServicePromise;
 }
 
+async function signup() {
+  const fName = document.getElementById("firstName").value;
+  const lName = document.getElementById("lastName").value;
+  const email = document.getElementById("email").value;
+  const phoneNumber = document.getElementById("phone").value;
+  const password = document.getElementById("password").value;
+  const confirmPassword = document.getElementById("confirmPassword").value;
+  const termsEl = document.getElementById("terms");
+  const msgDiv = document.getElementById("msgdiv");
 
-function signIn(){
+  if (termsEl && !termsEl.checked) {
+    msgDiv.style.display = "block";
+    msgDiv.className = "alert alert-danger";
+    msgDiv.innerHTML = '<i class="bi bi-exclamation-circle pe-3"></i>Please agree to the Terms & Conditions.';
+    return;
+  }
 
-    var email = document.getElementById("email").value;
-    console.log(email);
-    var password = document.getElementById("password").value;
-    console.log(password);
+  try {
+    const fb = await loadFirebaseService();
+    const res = await fb.registerCustomer({
+      firstName: fName,
+      lastName: lName,
+      email: email,
+      phoneNumber: phoneNumber,
+      password: password,
+      confirmPassword: confirmPassword
+    });
 
-    var f = new FormData();
-    f.append("email",email);
-    f.append("password",password);
-
-    var r = new XMLHttpRequest();
-    r.onreadystatechange = function () {
-        if (r.readyState == 4 && r.status == 200) {
-            var t = r.responseText;
-            var msgDiv = document.getElementById("msgdiv");
-            msgDiv.style.display = "block";
-            if (t == "success" || t == "admin_success") {
-                                // Clear all input fields
-                                document.getElementById("loginForm").reset();
-                                // Show beautiful success message
-                                msgDiv.className = "alert alert-success";
-                                msgDiv.innerHTML = '<i class="bi bi-check-circle pe-3"></i>' + "Login Successful!";
-                                setTimeout(function() {
-                                    if (t == "admin_success") {
-                                        window.location.href = "../Admin/dashboard.php";
-                                    } else {
-                                        window.location.href = "../product/product.php";
-                                    }
-                                }, 1200);
-          
-            } else {
-                msgDiv.className = "alert alert-danger";
-                msgDiv.innerHTML = '<i class="bi bi-exclamation-circle pe-3"></i>' + t;
-            }
-        }
+    msgDiv.style.display = "block";
+    if (res.ok) {
+      document.getElementById("registerForm").reset();
+      msgDiv.className = "alert alert-success";
+      msgDiv.innerHTML = '<i class="bi bi-check-circle pe-3"></i>Registration Successful!';
+      setTimeout(function () {
+        window.location.href = "sign.html";
+      }, 1200);
+    } else {
+      msgDiv.className = "alert alert-danger";
+      msgDiv.innerHTML = '<i class="bi bi-exclamation-circle pe-3"></i>' + res.message;
     }
-    r.open("POST", "../login/loginProcess.php", true);
-    r.send(f);
+  } catch (err) {
+    msgDiv.style.display = "block";
+    msgDiv.className = "alert alert-danger";
+    msgDiv.innerHTML = '<i class="bi bi-exclamation-circle pe-3"></i>Registration failed. Please try again.';
+  }
 }
+
+async function signIn() {
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+  const msgDiv = document.getElementById("msgdiv");
+
+  try {
+    const fb = await loadFirebaseService();
+    const res = await fb.loginCustomer(email, password);
+
+    msgDiv.style.display = "block";
+    if (res.ok) {
+      document.getElementById("loginForm").reset();
+      msgDiv.className = "alert alert-success";
+      msgDiv.innerHTML = '<i class="bi bi-check-circle pe-3"></i>Login Successful!';
+      setTimeout(function () {
+        if (res.isAdmin) {
+          window.location.href = "../Admin/dashboard.html";
+        } else {
+          window.location.href = "../product/product.html";
+        }
+      }, 1000);
+    } else {
+      msgDiv.className = "alert alert-danger";
+      msgDiv.innerHTML = '<i class="bi bi-exclamation-circle pe-3"></i>' + res.message;
+    }
+  } catch (err) {
+    msgDiv.style.display = "block";
+    msgDiv.className = "alert alert-danger";
+    msgDiv.innerHTML = '<i class="bi bi-exclamation-circle pe-3"></i>Login failed. Please try again.';
+  }
+}
+
+window.signup = signup;
+window.signIn = signIn;

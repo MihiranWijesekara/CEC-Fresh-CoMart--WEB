@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Archive (Completed & Cancelled) - Freshcomart Admin</title>
+    <link rel="stylesheet" href="assets/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        .filter-tab {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 13px;
+            border: 1.5px solid #E2E8F0;
+            background: #ffffff;
+            color: #475569;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .filter-tab.active { background: #0F172A; color: #fff; border-color: #0F172A; }
+        .pickup-code-pill {
+            display: inline-block;
+            background: #FEF3C7;
+            color: #92400E;
+            border: 1.5px dashed #F59E0B;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-weight: 800;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <div id="adminNavbarMount"></div>
+
+    <div class="container-fluid px-4 py-3 mb-5">
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+            <div>
+                <h2 class="fw-bold mb-1" style="color: #0F172A;">Completed &amp; Cancelled Order History</h2>
+                <p class="text-muted small mb-0">Archive of delivered Cash on Delivery orders, collected Store Pickups, and cancelled orders</p>
+            </div>
+            <div>
+                <a href="order.html" class="btn btn-success btn-sm fw-bold">
+                    <i class="bi bi-lightning-charge-fill me-1"></i> Back to Active Orders
+                </a>
+            </div>
+        </div>
+
+        <!-- Filter & Search Bar -->
+        <div class="card border-0 shadow-sm mb-3" style="border-radius: 12px;">
+            <div class="card-body p-3">
+                <div class="row g-3 align-items-center justify-content-between">
+                    <div class="col-md-auto d-flex flex-wrap gap-2">
+                        <button type="button" class="filter-tab active" id="tab-all" onclick="filterArchive('all')">
+                            All Archive (<span id="count-all">0</span>)
+                        </button>
+                        <button type="button" class="filter-tab" id="tab-delivered" onclick="filterArchive('delivered')">
+                            <i class="bi bi-truck me-1 text-primary"></i> Delivered COD (<span id="count-delivered">0</span>)
+                        </button>
+                        <button type="button" class="filter-tab" id="tab-collected" onclick="filterArchive('collected')">
+                            <i class="bi bi-shop me-1 text-warning"></i> Collected Pickup (<span id="count-collected">0</span>)
+                        </button>
+                        <button type="button" class="filter-tab" id="tab-cancelled" onclick="filterArchive('cancelled')">
+                            <i class="bi bi-x-circle me-1 text-danger"></i> Cancelled (<span id="count-cancelled">0</span>)
+                        </button>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="input-group">
+                            <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                            <input type="text" id="archiveSearchInput" class="form-control border-start-0"
+                                   placeholder="Search Order #, Pickup Code, Customer..." onkeyup="applyArchiveFilter()">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm" style="border-radius: 12px; overflow: hidden;">
+            <div class="table-responsive">
+                <table class="table align-middle mb-0" id="archiveTable">
+                    <thead class="table-light text-uppercase small fw-bold text-secondary">
+                        <tr>
+                            <th class="ps-3">Order &amp; Date</th>
+                            <th>Method</th>
+                            <th>Customer</th>
+                            <th>Fulfillment Details</th>
+                            <th>Total &amp; Payment</th>
+                            <th class="pe-3">Final Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="archiveTableBody">
+                        <tr>
+                            <td colspan="6" class="text-center py-5 text-muted">
+                                <div class="spinner-border spinner-border-sm text-success me-2"></div> Loading order archive...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="assets/js/bootstrap.bundle.min.js"></script>
+    <script type="module">
+        import {
+            initAdminNavbar,
+            fcOrderMethod,
+            fcMethodBadge,
+            fcPaymentBadge,
+            fcStatusBadge
+        } from './admin-navbar.js';
+        import {
+            getAllOrdersAdmin,
+            formatQuantity,
+            formatMoney
+        } from '../assets/js/firebase-service.js';
+
+        await initAdminNavbar('completOrder.html');
+
+        let currentTab = 'all';
+        const urlParams = new URLSearchParams(window.location.search);
+        const initialSearch = urlParams.get('search') || '';
+        if (initialSearch) {
+            document.getElementById('archiveSearchInput').value = initialSearch;
+        }
+
+        function escapeHtml(str) {
+            return String(str ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        async function loadArchivedOrders() {
+            const allOrders = await getAllOrdersAdmin();
+            const archivedOrders = allOrders.filter(o => {
+                const st = String(o.order_status || 'pending').toLowerCase();
+                return ['delivered', 'collected', 'cancelled'].includes(st);
+            });
+
+            const countAll = archivedOrders.length;
+            const countDelivered = archivedOrders.filter(o => String(o.order_status || '').toLowerCase() === 'delivered').length;
+            const countCollected = archivedOrders.filter(o => String(o.order_status || '').toLowerCase() === 'collected').length;
+            const countCancelled = archivedOrders.filter(o => String(o.order_status || '').toLowerCase() === 'cancelled').length;
+
+            document.getElementById('count-all').textContent = countAll;
+            document.getElementById('count-delivered').textContent = countDelivered;
+            document.getElementById('count-collected').textContent = countCollected;
+            document.getElementById('count-cancelled').textContent = countCancelled;
+
+            const tbody = document.getElementById('archiveTableBody');
+            if (!archivedOrders.length) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted">
+                            <i class="bi bi-archive fs-1 d-block mb-2"></i>
+                            No completed or cancelled orders yet.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = archivedOrders.map(order => {
+                const oid = order.id;
+                const method = fcOrderMethod(order.purchase_method);
+                const status = String(order.order_status || 'delivered').toLowerCase();
+                const payStatus = String(order.payment_status || 'paid').toLowerCase();
+                const custName = (order.customer_name || `${order.first_name || ''} ${order.last_name || ''}`).trim() || 'Customer';
+                const custPhone = (order.customer_phone || order.phone_number || 'N/A').trim();
+                const items = Array.isArray(order.items) ? order.items : [];
+                const d = order.created_at ? new Date(order.created_at) : new Date();
+                const dateFormatted = d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) + ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+                const searchStr = `${order.order_number || ''} ${order.pickup_code || ''} ${custName} ${custPhone}`.toLowerCase();
+
+                let fulfillmentHtml = '';
+                if (method === 'pickup') {
+                    const pDate = order.pickup_date ? new Date(order.pickup_date).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) : 'Store Pickup';
+                    fulfillmentHtml = `
+                        <span class="pickup-code-pill me-1">${escapeHtml(order.pickup_code || 'PK-STORE')}</span>
+                        <span class="small text-muted">
+                            ${escapeHtml(pDate)} (${escapeHtml(order.pickup_time_slot || 'Standard')})
+                        </span>
+                    `;
+                } else {
+                    fulfillmentHtml = `
+                        <div class="small text-dark">
+                            <i class="bi bi-geo-alt text-primary me-1"></i>
+                            ${escapeHtml(order.street_address1 || '')}
+                            ${order.town ? ', <strong>' + escapeHtml(order.town) + '</strong>' : ''}
+                        </div>
+                    `;
+                }
+
+                const itemsRowsHtml = items.map(it => {
+                    const qtyFormatted = formatQuantity(it.quantity, it.unit, it.category_id);
+                    const unitLabel = it.unit ? ` (${escapeHtml(it.unit)})` : '';
+                    return `
+                        <tr>
+                            <td>${escapeHtml(it.name || 'Item')}${unitLabel}</td>
+                            <td class="text-center">Rs. ${formatMoney(it.price)}</td>
+                            <td class="text-center fw-bold">${escapeHtml(qtyFormatted)}</td>
+                            <td class="text-end fw-bold">Rs. ${formatMoney(it.subtotal)}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                return `
+                    <tr class="archive-row" data-status="${escapeHtml(status)}" data-search="${escapeHtml(searchStr)}">
+                        <td class="ps-3">
+                            <div class="fw-bold text-dark">${escapeHtml(order.order_number || '#' + oid)}</div>
+                            <div class="text-muted small">${dateFormatted}</div>
+                            <button class="btn btn-link btn-sm p-0 text-decoration-none small" type="button"
+                                    data-bs-toggle="collapse" data-bs-target="#archItems${escapeHtml(oid)}">
+                                <i class="bi bi-basket2 me-1"></i>${items.length} item(s)
+                            </button>
+                        </td>
+                        <td>${fcMethodBadge(method)}</td>
+                        <td>
+                            <div class="fw-bold text-dark">${escapeHtml(custName)}</div>
+                            <div class="small text-muted">${escapeHtml(custPhone)}</div>
+                        </td>
+                        <td>${fulfillmentHtml}</td>
+                        <td>
+                            <div class="fw-bold text-dark">Rs. ${formatMoney(order.total_amount)}</div>
+                            ${fcPaymentBadge(payStatus)}
+                        </td>
+                        <td class="pe-3">${fcStatusBadge(status, method)}</td>
+                    </tr>
+                    <tr class="collapse bg-light" id="archItems${escapeHtml(oid)}">
+                        <td colspan="6" class="p-3">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered mb-0 bg-white small">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Item</th>
+                                            <th class="text-center">Unit Price</th>
+                                            <th class="text-center">Qty</th>
+                                            <th class="text-end">Subtotal</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>${itemsRowsHtml}</tbody>
+                                </table>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            window.applyArchiveFilter();
+        }
+
+        window.filterArchive = function (tab) {
+            currentTab = tab;
+            ['all', 'delivered', 'collected', 'cancelled'].forEach(t => {
+                document.getElementById('tab-' + t).className = 'filter-tab' + (t === tab ? ' active' : '');
+            });
+            window.applyArchiveFilter();
+        };
+
+        window.applyArchiveFilter = function () {
+            const q = (document.getElementById('archiveSearchInput').value || '').toLowerCase().trim();
+            document.querySelectorAll('#archiveTable tbody tr.archive-row').forEach(row => {
+                const st = row.getAttribute('data-status');
+                const srch = row.getAttribute('data-search') || '';
+                const matchTab = (currentTab === 'all' || st === currentTab);
+                const matchQ = (!q || srch.indexOf(q) !== -1);
+                row.style.display = (matchTab && matchQ) ? '' : 'none';
+            });
+        };
+
+        await loadArchivedOrders();
+    </script>
+</body>
+</html>
+

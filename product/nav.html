@@ -1,0 +1,185 @@
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+<link rel="stylesheet" href="../assets/css/custom-ui.css" id="fcCustomUiCss" />
+<style>
+  /* status dot + profile menu helpers */
+  .fc-header .mt-status-dot { width: 9px; height: 9px; border-radius: 50%; position: absolute; }
+  .profile-dropdown-wrapper { position: relative; display: inline-block; }
+  .profile-dropdown-menu { display: none; position: absolute; right: 0; background: #fff; min-width: 230px; box-shadow: 0 10px 30px rgba(15,23,42,.15); border-radius: 12px; overflow: hidden; z-index: 1100; border: 1px solid #e2e8f0; font-family: Inter, system-ui, sans-serif; }
+  .profile-dropdown-menu.show { display: block; animation: fcFade .2s ease; }
+  .profile-dropdown-header { padding: 14px 18px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; }
+  .profile-dropdown-header .user-name { font-weight: 700; color: #15803d; font-size: 14px; }
+  .profile-dropdown-header .user-email { color: #64748b; font-size: 12px; word-break: break-all; }
+  .profile-dropdown-menu a { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 18px; text-decoration: none; color: #334155; font-size: 14px; font-weight: 600; }
+  .profile-dropdown-menu a:hover { background: #f0fdf4; color: #15803d; }
+  .profile-dropdown-menu i { width: 18px; text-align: center; color: #64748b; }
+  /* Live search dropdown inside fc-search */
+  .fc-search { position: relative; }
+  .fc-nav-search-dropdown {
+    display: none; position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+    box-shadow: 0 12px 30px rgba(15,23,42,.15); max-height: 360px; overflow-y: auto; z-index: 1200;
+  }
+  .fc-nav-search-dropdown.active { display: block; }
+  .fc-nav-search-item {
+    display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+    text-decoration: none; color: #0f172a; border-bottom: 1px solid #f1f5f9;
+  }
+  .fc-nav-search-item:hover { background: #f0fdf4; color: #15803d; }
+  .fc-nav-search-item img { width: 42px; height: 42px; object-fit: contain; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; }
+</style>
+
+<!-- ============ Sticky header ============ -->
+<header class="fc-header" role="banner">
+  <button class="fc-menu-toggle" type="button" onclick="openSidebar()" aria-label="Open menu"><i class="fas fa-bars"></i></button>
+
+  <a class="fc-logo" data-fc-href="index.html" href="../index.html" aria-label="Freshcomart home">
+    <img data-fc-src="assets/images/logo/logo-freshco.png" src="../assets/images/logo/logo-freshco.png" alt="Freshcomart" />
+  </a>
+
+  <button class="fc-store-select" type="button" title="Pickup &amp; delivery store" aria-label="Selected store: Rajagiriya">
+    <i class="fa-solid fa-location-dot"></i>
+    <span><small>Store</small><strong>Store: Rajagiriya</strong></span>
+  </button>
+
+  <form class="fc-search" id="fcSearch" data-fc-action="product/product.html" action="product.html" method="get" role="search" data-base="../">
+    <select name="category" aria-label="Search category">
+      <option value="0">All Categories</option>
+      <option value="1">Vegetables</option>
+      <option value="2">Fruits</option>
+      <option value="3">Snacks</option>
+      <option value="4">Biscuits</option>
+      <option value="5">Coffee</option>
+      <option value="6">Eggs</option>
+      <option value="7">Water</option>
+      <option value="8">Tea</option>
+      <option value="9">Cheese</option>
+      <option value="10">Yoghurts &amp; Curd</option>
+      <option value="11">Desserts</option>
+      <option value="12">Beverages</option>
+      <option value="13">Bakery</option>
+      <option value="14">Meat &amp; Seafood</option>
+      <option value="15">Pantry Staples</option>
+      <option value="16">Dairy Staples</option>
+      <option value="17">Frozen Foods</option>
+      <option value="18">Household &amp; Cleaning</option>
+      <option value="19">Personal Care &amp; Baby</option>
+    </select>
+    <input type="search" name="q" id="fcSearchInput" value="" placeholder="Search for fruits, milk, rice…" autocomplete="off" aria-label="Search products" />
+    <button type="button" class="fc-search-clear" id="fcSearchClear" aria-label="Clear search"><i class="fas fa-xmark"></i></button>
+    <button type="submit" class="fc-search-submit" aria-label="Search"><i class="fas fa-magnifying-glass"></i><span class="d-none d-xl-inline">Search</span></button>
+    <div id="fcNavSearchDropdown" class="fc-nav-search-dropdown"></div>
+  </form>
+
+  <div class="fc-actions" id="fcNavActions">
+    <!-- Guest actions (shown when logged out) -->
+    <a data-fc-href="login/sign.html" href="../login/sign.html" class="fc-pill-link login-btn" id="fcGuestLoginBtn">Login</a>
+    <a data-fc-href="login/register.html" href="../login/register.html" class="fc-pill-link primary signup-btn hide-sm" id="fcGuestSignupBtn">Sign Up</a>
+
+    <!-- Logged-in user actions (hidden until auth confirmed) -->
+    <a data-fc-href="product/my-orders.html" href="my-orders.html" class="fc-pill-link hide-sm" id="fcAuthOrdersBtn" style="display:none;"><i class="fas fa-bag-shopping"></i>My Orders</a>
+    <div class="profile-dropdown-wrapper" id="fcProfileDropdownWrapper" style="display:none;">
+      <div class="fc-avatar mt-logo" role="button" tabindex="0" aria-label="Account menu">
+        <span id="fcAvatarInitials">FC</span>
+        <div class="mt-status-dot" id="mtStatusDot" style="background: GreenYellow;"></div>
+      </div>
+      <div class="profile-dropdown-menu">
+        <div class="profile-dropdown-header">
+          <div class="user-name" id="fcDropdownUserName">Hello, Customer</div>
+          <div class="user-email" id="fcDropdownUserEmail"></div>
+        </div>
+        <a data-fc-href="my-account.html" href="../my-account.html"><i class="fas fa-user-circle"></i> My Account &amp; Address</a>
+        <a data-fc-href="profile.html" href="../profile.html"><i class="fas fa-user-cog"></i> Edit Profile</a>
+        <a data-fc-href="product/my-orders.html" href="my-orders.html"><i class="fas fa-history"></i> Order History</a>
+        <a data-fc-href="contact-us.html" href="../contact-us.html"><i class="fas fa-headset"></i> Help &amp; Contact</a>
+        <a data-fc-href="login/logout.html" href="../login/logout.html" style="border-top: 1px solid #e2e8f0;"><i class="fas fa-sign-out-alt"></i> Logout</a>
+      </div>
+    </div>
+
+    <a data-fc-href="product/shopping-cart.html" href="shopping-cart.html" class="fc-cart-trigger cart-btn" id="fcCartTrigger" aria-label="Open cart" aria-haspopup="dialog">
+      <i class="fa-solid fa-cart-shopping"></i><span class="label">Cart</span>
+      <span class="fc-cart-badge" id="fcCartBadge">0</span>
+    </a>
+  </div>
+</header>
+
+<!-- ============ Secondary category bar ============ -->
+<nav class="fc-catbar" aria-label="Shop by category">
+  <div class="fc-catbar-inner" id="fcCatbar">
+    <a data-fc-href="product/product.html" href="product.html" data-cats="" class="active"><i class="fa-solid fa-store"></i>All</a>
+    <a data-fc-href="product/product.html?category=1,2" href="product.html?category=1,2" data-cats="1,2"><i class="fa-solid fa-carrot"></i>Fruits &amp; Veg</a>
+    <a data-fc-href="product/product.html?category=16,9,10,6" href="product.html?category=16,9,10,6" data-cats="16,9,10,6"><i class="fa-solid fa-cow"></i>Dairy</a>
+    <a data-fc-href="product/product.html?category=14" href="product.html?category=14" data-cats="14"><i class="fa-solid fa-drumstick-bite"></i>Meat</a>
+    <a data-fc-href="product/product.html?category=12,5,8,7" href="product.html?category=12,5,8,7" data-cats="12,5,8,7"><i class="fa-solid fa-glass-water"></i>Beverages</a>
+    <a data-fc-href="product/product.html?category=15,3,4" href="product.html?category=15,3,4" data-cats="15,3,4"><i class="fa-solid fa-bowl-rice"></i>Pantry</a>
+    <a data-fc-href="product/product.html?category=18" href="product.html?category=18" data-cats="18"><i class="fa-solid fa-soap"></i>Household</a>
+  </div>
+</nav>
+
+<!-- ============ Mini-cart drawer ============ -->
+<div class="fc-scrim" id="fcScrim"></div>
+<aside class="fc-drawer" id="fcDrawer" role="dialog" aria-modal="true" aria-label="Shopping cart"
+       data-checkout="../proceed.html" data-cart="shopping-cart.html" data-base="../">
+  <div class="fc-drawer-head">
+    <h3><i class="fa-solid fa-basket-shopping me-2" style="color:#16a34a"></i>Your Cart <span id="fcDrawerCount" style="color:#64748b;font-weight:500"></span></h3>
+    <button class="fc-drawer-close" type="button" id="fcDrawerClose" aria-label="Close cart"><i class="fas fa-xmark"></i></button>
+  </div>
+  <div class="fc-drawer-body" id="fcDrawerBody"><div class="fc-drawer-empty"><i class="fa-solid fa-spinner fa-spin"></i>Loading…</div></div>
+  <div class="fc-drawer-foot" id="fcDrawerFoot" style="display:none">
+    <div class="fc-drawer-sub"><span>Subtotal</span><span id="fcDrawerSubtotal">Rs. 0.00</span></div>
+    <div class="fc-drawer-note">Delivery fee &amp; pickup options are chosen at checkout.</div>
+    <a class="fc-btn fc-btn-primary" id="fcDrawerCheckout" data-fc-href="proceed.html" href="../proceed.html"><i class="fa-solid fa-lock"></i> Checkout</a>
+    <a class="fc-btn fc-btn-outline" data-fc-href="product/shopping-cart.html" href="shopping-cart.html">View full cart</a>
+  </div>
+</aside>
+
+<!-- ============ Mobile sidebar (burger menu) ============ -->
+<div class="fc-scrim" id="overlay" onclick="closeSidebar()"></div>
+<aside class="fc-mobile-sidebar" id="mobileSidebar" aria-label="Menu">
+  <div class="head">
+    <h3>Menu</h3>
+    <button class="close-sidebar" type="button" onclick="closeSidebar()" aria-label="Close menu" style="border:0;background:none"><i class="fas fa-times"></i></button>
+  </div>
+  <nav>
+    <a data-fc-href="index.html" href="../index.html"><i class="fas fa-house"></i> Home</a>
+    <a data-fc-href="login/sign.html" href="../login/sign.html" id="fcMobileLoginLink"><i class="fas fa-user"></i> Login</a>
+    <a data-fc-href="login/register.html" href="../login/register.html" id="fcMobileSignupLink"><i class="fas fa-user-plus"></i> Sign Up</a>
+    <a data-fc-href="product/my-orders.html" href="my-orders.html" id="fcMobileOrdersLink" style="display:none;"><i class="fas fa-bag-shopping"></i> My Orders</a>
+    <a data-fc-href="profile.html" href="../profile.html" id="fcMobileProfileLink" style="display:none;"><i class="fas fa-user-cog"></i> Edit Profile</a>
+    <a data-fc-href="product/shopping-cart.html" href="shopping-cart.html"><i class="fas fa-cart-shopping"></i> Shopping Cart <span class="fc-cart-badge ms-auto cart-count">0</span></a>
+    <div class="section-title">Categories</div>
+    <div class="mobile-category-list show" id="mobileCategoryList">
+      <a data-fc-href="product/product.html" href="product.html" data-category="All" data-id="0"><i class="fa-solid fa-list"></i> All Items</a>
+      <a data-fc-href="product/product.html?category=1" href="product.html?category=1" data-category="Vegetables" data-id="1"><i class="fa-solid fa-carrot" style="color:#16a34a"></i> Vegetables</a>
+      <a data-fc-href="product/product.html?category=2" href="product.html?category=2" data-category="Fruits" data-id="2"><i class="fa-solid fa-apple-whole" style="color:#16a34a"></i> Fruits</a>
+      <a data-fc-href="product/product.html?category=3" href="product.html?category=3" data-category="Snacks" data-id="3"><i class="fa-solid fa-cookie-bite" style="color:#16a34a"></i> Snacks</a>
+      <a data-fc-href="product/product.html?category=4" href="product.html?category=4" data-category="Biscuits" data-id="4"><i class="fa-solid fa-cookie" style="color:#16a34a"></i> Biscuits</a>
+      <a data-fc-href="product/product.html?category=5" href="product.html?category=5" data-category="Coffee" data-id="5"><i class="fa-solid fa-mug-hot" style="color:#16a34a"></i> Coffee</a>
+      <a data-fc-href="product/product.html?category=6" href="product.html?category=6" data-category="Eggs" data-id="6"><i class="fa-solid fa-egg" style="color:#16a34a"></i> Eggs</a>
+      <a data-fc-href="product/product.html?category=7" href="product.html?category=7" data-category="Water" data-id="7"><i class="fa-solid fa-bottle-water" style="color:#16a34a"></i> Water</a>
+      <a data-fc-href="product/product.html?category=8" href="product.html?category=8" data-category="Tea" data-id="8"><i class="fa-solid fa-mug-saucer" style="color:#16a34a"></i> Tea</a>
+      <a data-fc-href="product/product.html?category=9" href="product.html?category=9" data-category="Cheese" data-id="9"><i class="fa-solid fa-cheese" style="color:#16a34a"></i> Cheese</a>
+      <a data-fc-href="product/product.html?category=10" href="product.html?category=10" data-category="Yoghurts & Curd" data-id="10"><i class="fa-solid fa-ice-cream" style="color:#16a34a"></i> Yoghurts &amp; Curd</a>
+      <a data-fc-href="product/product.html?category=11" href="product.html?category=11" data-category="Desserts" data-id="11"><i class="fa-solid fa-cake-candles" style="color:#16a34a"></i> Desserts</a>
+      <a data-fc-href="product/product.html?category=12" href="product.html?category=12" data-category="Beverages" data-id="12"><i class="fa-solid fa-glass-water" style="color:#16a34a"></i> Beverages</a>
+      <a data-fc-href="product/product.html?category=13" href="product.html?category=13" data-category="Bakery" data-id="13"><i class="fa-solid fa-bread-slice" style="color:#16a34a"></i> Bakery</a>
+      <a data-fc-href="product/product.html?category=14" href="product.html?category=14" data-category="Meat & Seafood" data-id="14"><i class="fa-solid fa-drumstick-bite" style="color:#16a34a"></i> Meat &amp; Seafood</a>
+      <a data-fc-href="product/product.html?category=15" href="product.html?category=15" data-category="Pantry Staples" data-id="15"><i class="fa-solid fa-bowl-rice" style="color:#16a34a"></i> Pantry Staples</a>
+      <a data-fc-href="product/product.html?category=16" href="product.html?category=16" data-category="Dairy Staples" data-id="16"><i class="fa-solid fa-cow" style="color:#16a34a"></i> Dairy Staples</a>
+      <a data-fc-href="product/product.html?category=17" href="product.html?category=17" data-category="Frozen Foods" data-id="17"><i class="fa-solid fa-snowflake" style="color:#16a34a"></i> Frozen Foods</a>
+      <a data-fc-href="product/product.html?category=18" href="product.html?category=18" data-category="Household & Cleaning" data-id="18"><i class="fa-solid fa-soap" style="color:#16a34a"></i> Household &amp; Cleaning</a>
+      <a data-fc-href="product/product.html?category=19" href="product.html?category=19" data-category="Personal Care & Baby" data-id="19"><i class="fa-solid fa-baby-carriage" style="color:#16a34a"></i> Personal Care &amp; Baby</a>
+    </div>
+    <a data-fc-href="login/logout.html" href="../login/logout.html" id="fcMobileLogoutLink" style="display:none;margin-top:8px;border-top:1px solid #e2e8f0"><i class="fas fa-sign-out-alt"></i> Logout</a>
+  </nav>
+</aside>
+
+<!-- ============ Mobile bottom action bar ============ -->
+<nav class="fc-bottombar" aria-label="Quick actions">
+  <a data-fc-href="index.html" href="../index.html"><i class="fas fa-house"></i>Home</a>
+  <a data-fc-href="product/product.html" href="product.html"><i class="fas fa-store"></i>Shop</a>
+  <button type="button" onclick="openSidebar()"><i class="fas fa-table-cells-large"></i>Categories</button>
+  <a data-fc-href="product/shopping-cart.html" href="shopping-cart.html" id="fcBottomCart"><i class="fas fa-cart-shopping"></i>Cart<span class="fc-cart-badge fc-cart-badge-mirror">0</span></a>
+  <a data-fc-href="proceed.html" href="../proceed.html" id="fcBottomCheckout" style="color:#15803d"><i class="fas fa-circle-check"></i>Checkout</a>
+</nav>
+

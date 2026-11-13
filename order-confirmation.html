@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Order Confirmed – CEC Fresh-Co Mart</title>
+  <link rel="shortcut icon" type="image/x-icon" href="assets/images/logo/logo-freshco.png">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+  <link rel="stylesheet" href="assets/css/custom-ui.css" />
+</head>
+<body class="fc-store" style="padding-bottom:0">
+
+  <!-- Hero -->
+  <div class="fc-confirm-hero">
+    <div class="fc-check"><i class="fa fa-check"></i></div>
+    <h1>Order Confirmed!</h1>
+    <p id="confirmSubtitle">Thank you for shopping with Freshcomart.</p>
+    <span class="fc-order-no" id="confirmOrderNo">ORDER #...</span>
+  </div>
+
+  <div class="fc-wrap" id="confirmationContent">
+    <div class="fc-card p-5 text-center text-muted">
+      <div class="spinner-border text-success" role="status"></div>
+      <div class="mt-2">Loading your order receipt...</div>
+    </div>
+  </div>
+
+  <footer style="background:#0f172a;color:white;text-align:center;padding:15px 0;margin-top:40px;">
+    © 2026 CEC Fresh-Co Mart. All Rights Reserved.
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script type="module">
+    import {
+      STORE_CONFIG,
+      waitForAuthUser,
+      getOrderById,
+      formatQuantity,
+      formatMoney,
+      resolveImagePath
+    } from './assets/js/firebase-service.js';
+
+    function esc(s) {
+      const d = document.createElement('div');
+      d.textContent = s == null ? '' : s;
+      return d.innerHTML;
+    }
+
+    function formatDateTime(isoStr) {
+      if (!isoStr) return '';
+      const dt = new Date(isoStr.replace(' ', 'T'));
+      if (isNaN(dt.getTime())) return isoStr;
+      return dt.toLocaleString('en-GB', {
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', hour12: true
+      });
+    }
+
+    function formatPickupDate(dateStr) {
+      if (!dateStr) return '';
+      const dt = new Date(dateStr + 'T00:00:00');
+      if (isNaN(dt.getTime())) return dateStr;
+      return dt.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+    }
+
+    async function loadOrderConfirmation() {
+      const user = await waitForAuthUser();
+      if (!user) {
+        window.location.href = 'login/sign.html';
+        return;
+      }
+
+      const params = new URLSearchParams(location.search);
+      const orderId = params.get('order_id') || sessionStorage.getItem('last_order_id') || '';
+      if (!orderId) {
+        window.location.href = 'product/my-orders.html';
+        return;
+      }
+
+      const order = await getOrderById(orderId);
+      if (!order) {
+        window.location.href = 'product/my-orders.html';
+        return;
+      }
+
+      const methodVal = order.purchase_method || order.order_method || 'cod';
+      const isPickup = methodVal === 'pickup';
+      const rawStatus = (order.order_status || 'pending').toLowerCase();
+      const orderNumber = order.order_number || order.id;
+
+      document.getElementById('confirmSubtitle').textContent =
+        'Thank you for shopping with Freshcomart. ' +
+        (isPickup
+          ? "We're packing your groceries – show your pickup code at the counter."
+          : "We've received your order and will process it shortly.");
+      document.getElementById('confirmOrderNo').textContent = `ORDER #${orderNumber}`;
+
+      const steps = isPickup
+        ? ['Pending', 'Processing', 'Ready for Pickup', 'Collected']
+        : ['Pending', 'Processing', 'Shipped', 'Delivered'];
+      const statusIndex = {
+        pending: 0,
+        processing: 1,
+        shipped: 2,
+        ready: 2,
+        ready_for_pickup: 2,
+        delivered: 3,
+        collected: 3
+      };
+      const current = statusIndex[rawStatus] ?? 0;
+      const cancelled = rawStatus === 'cancelled';
+
+      const stepsHtml = steps.map((label, i) => {
+        let cls = '';
+        if (cancelled) {
+          cls = (i === current) ? 'cancelled' : '';
+        } else if (i < current || (i === current && current === 3)) {
+          cls = 'done';
+        } else if (i === current) {
+          cls = 'current';
+        }
+        return `<li class="${cls}" data-n="${i + 1}">${esc(label)}</li>`;
+      }).join('');
+
+      const pickupSlotVal = order.pickup_time_slot || order.pickup_slot || '';
+      const deliveryNotesVal = order.delivery_notes || order.delivery_instructions || '';
+      const totalAmt = Number(order.total_amount || 0);
+      const delivFee = Number(order.delivery_fee || 0);
+      const subtotalAmt = totalAmt - delivFee;
+      const payLabel = isPickup ? 'Pay at Store Counter' : 'Cash on Delivery';
+      const payStatus = order.payment_status
+        ? order.payment_status.charAt(0).toUpperCase() + order.payment_status.slice(1).toLowerCase()
+        : 'Unpaid';
+
+      const pickupPassHtml = isPickup ? `
+        <div class="fc-pass" id="pickupPass">
+          <div class="fc-pass-main">
+            <span class="tag"><i class="fa-solid fa-store"></i> Store Pickup Pass</span>
+            <dl>
+              <div><dt>Pickup time slot</dt>
+                <dd><i class="fa-regular fa-calendar me-1 text-warning"></i>
+                  ${esc(formatPickupDate(order.pickup_date))}
+                  &middot; ${esc(pickupSlotVal)}</dd></div>
+              <div><dt>Store address</dt>
+                <dd>${esc(STORE_CONFIG.address)}<br>
+                  <small class="text-muted fw-normal">${esc(STORE_CONFIG.hours)} · ${esc(STORE_CONFIG.phone)}</small></dd></div>
+              <div><dt>Instructions</dt>
+                <dd class="fw-normal" style="font-size:.9rem">Show this code (or this page) at the pickup counter and bring a valid ID. Please collect within your selected time slot.</dd></div>
+            </dl>
+          </div>
+          <div class="fc-pass-code">
+            <small>Your pickup code</small>
+            <div class="code">${esc(order.pickup_code || '------')}</div>
+            <p>Order #${esc(orderNumber)}<br>Pay at counter: <strong>Rs. ${formatMoney(totalAmt)}</strong></p>
+          </div>
+        </div>
+      ` : '';
+
+      const items = Array.isArray(order.items) ? order.items : [];
+      const itemsHtml = items.map(it => {
+        const img = resolveImagePath(it.image_path, '');
+        const qtyStr = formatQuantity(it.quantity, it.unit || '', Number(it.category_id || 0));
+        return `
+          <div class="fc-receipt-item">
+            <img src="${esc(img)}" alt="${esc(it.name)}" onerror="this.src='assets/images/logo/logo-freshco.png'">
+            <div>
+              <div class="nm">${esc(it.name)}</div>
+              <div class="q">Qty: ${esc(qtyStr)}</div>
+            </div>
+            <div class="pr">Rs. ${formatMoney(it.subtotal)}</div>
+          </div>
+        `;
+      }).join('');
+
+      const addrFull = [order.street_address1, order.street_address2, order.town].filter(Boolean).join(', ');
+      const statusDisplay = rawStatus === 'shipped' && isPickup
+        ? 'Ready'
+        : rawStatus.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+      document.getElementById('confirmationContent').innerHTML = `
+        <!-- Progress tracker -->
+        <div class="fc-card p-4 mb-3">
+          <h2 class="h6 fw-bold mb-3" style="color:var(--fc-text)"><i class="fa-solid fa-route me-2 text-success"></i>Order progress</h2>
+          <ol class="fc-tracker">
+            ${stepsHtml}
+          </ol>
+          ${cancelled ? '<p class="text-danger fw-semibold mb-0 mt-2">This order was cancelled.</p>' : ''}
+        </div>
+
+        ${pickupPassHtml}
+
+        <!-- Printable receipt -->
+        <div class="fc-card fc-receipt" id="receipt">
+          <div class="fc-receipt-head">
+            <div>
+              <h2><i class="fa fa-receipt me-2 text-success"></i>Order Receipt</h2>
+              <div class="mt-2 d-flex gap-2 flex-wrap">
+                <span class="fc-badge ${isPickup ? 'method-pickup' : 'method-delivery'}">
+                  <i class="fa-solid ${isPickup ? 'fa-store' : 'fa-truck'}"></i>${isPickup ? 'Store Pickup' : 'Delivery / COD'}
+                </span>
+                <span class="fc-badge ${payStatus.toLowerCase() === 'paid' ? 'pay-paid' : 'pay-unpaid'}">${esc(payStatus)}</span>
+              </div>
+            </div>
+            <div class="meta">Freshcomart – ${esc(STORE_CONFIG.label)}<br>${esc(formatDateTime(order.created_at))}</div>
+          </div>
+
+          ${itemsHtml}
+
+          <div class="mt-3">
+            <div class="fc-kv"><span>Subtotal</span><span>Rs. ${formatMoney(subtotalAmt)}</span></div>
+            <div class="fc-kv"><span>Delivery fee</span>
+              <span>${isPickup ? '<span class="fc-free-badge">Free</span>' : 'Rs. ' + formatMoney(delivFee)}</span></div>
+            <div class="fc-kv total"><span>${isPickup ? 'Total to pay in store' : 'Total to pay on delivery'}</span><span>Rs. ${formatMoney(totalAmt)}</span></div>
+          </div>
+
+          <hr style="border-color:var(--fc-border)">
+          <div class="fc-kv"><span>Order number</span><span>#${esc(orderNumber)}</span></div>
+          <div class="fc-kv"><span>Order date</span><span>${esc(formatDateTime(order.created_at))}</span></div>
+          <div class="fc-kv"><span>Payment method</span><span>${esc(payLabel)}</span></div>
+          ${!isPickup ? `
+            <div class="fc-kv"><span>Delivery address</span><span>${esc(addrFull)}</span></div>
+            ${deliveryNotesVal ? `<div class="fc-kv"><span>Delivery instructions</span><span>${esc(deliveryNotesVal)}</span></div>` : ''}
+          ` : ''}
+          <div class="fc-kv"><span>Status</span><span>${esc(statusDisplay)}</span></div>
+        </div>
+
+        <!-- CTAs -->
+        <div class="fc-confirm-actions">
+          <button type="button" class="fc-btn fc-btn-outline" onclick="window.print()"><i class="fa-solid fa-print"></i> Print receipt</button>
+          <a href="product/my-orders.html" class="fc-btn fc-btn-primary"><i class="fa fa-list"></i> View My Orders</a>
+          <a href="product/product.html" class="fc-btn fc-btn-outline"><i class="fa fa-shopping-bag"></i> Continue Shopping</a>
+        </div>
+      `;
+    }
+
+    loadOrderConfirmation();
+  </script>
+</body>
+</html>
+

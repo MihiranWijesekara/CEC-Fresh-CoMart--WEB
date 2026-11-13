@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shopping Cart - CEC Fresh-Co Mart</title>
+    <link rel="shortcut icon" type="image/x-icon" href="../assets/images/logo/logo-freshco.png">
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css"
+    />
+    <style>
+      body {
+        background-color: #f8f9fa;
+      }
+      .cart-container {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        margin-top: 20px;
+      }
+      .cart-header {
+        font-size: 24px;
+        font-weight: 600;
+        margin-bottom: 20px;
+      }
+      .product-table th {
+        background-color: #d9d9d9;
+        padding: 12px;
+        font-weight: 600;
+        text-align: center;
+      }
+      .product-table td {
+        padding: 15px;
+        vertical-align: middle;
+        text-align: center;
+      }
+      .product-img {
+        width: 60px;
+        height: auto;
+      }
+      .product-name {
+        text-align: left;
+      }
+      .qty-control {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+      }
+      .qty-btn {
+        width: 30px;
+        height: 30px;
+        border: 1px solid #ddd;
+        background: white;
+        cursor: pointer;
+        font-weight: bold;
+      }
+      .qty-input {
+        width: 65px;
+        text-align: center;
+        border: none;
+        font-weight: 600;
+      }
+      .remove-btn {
+        background: none;
+        border: none;
+        font-size: 20px;
+        cursor: pointer;
+      }
+      .discount-text {
+        color: #28a745;
+        font-weight: 600;
+      }
+      .summary-box {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-top: 20px;
+      }
+      .summary-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #dee2e6;
+      }
+      .summary-row:last-child {
+        border-bottom: none;
+      }
+      .total-box {
+        background-color: #28a745;
+        color: white;
+        padding: 15px 20px;
+        border-radius: 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 18px;
+        font-weight: 600;
+        margin-top: 15px;
+      }
+      .checkout-btn {
+        width: 100%;
+        background-color: #495057;
+        color: white;
+        padding: 15px;
+        border: none;
+        border-radius: 4px;
+        font-size: 16px;
+        font-weight: 600;
+        margin-top: 15px;
+        cursor: pointer;
+      }
+      .checkout-btn:hover {
+        background-color: #343a40;
+      }
+      footer {
+        background-color: #212529;
+        color: white;
+        text-align: center;
+        padding: 15px 0;
+        margin-top: 150px;
+      }
+    </style>
+    <link rel="stylesheet" href="../assets/css/custom-ui.css" />
+    <style>
+      body.fc-store > .container { margin-top: calc(var(--fc-header-h) + var(--fc-catbar-h) + 16px); }
+      @media (max-width: 991.98px) { body.fc-store > .container { margin-top: 150px; } }
+      body.fc-store .qty-btn { width: 44px; height: 44px; border-radius: 8px; background: #fff; border-color: var(--fc-border); }
+      body.fc-store .qty-btn:hover { background: var(--fc-primary-soft); }
+      body.fc-store .remove-btn { min-width: 44px; min-height: 44px; color: var(--fc-danger); }
+      body.fc-store .total-box { background: var(--fc-primary-dark); border-radius: var(--fc-radius-sm); }
+      body.fc-store .summary-box { background: var(--fc-bg); border: 1px solid var(--fc-border); }
+      body.fc-store { background: var(--fc-bg); }
+      body.fc-store footer { background: #0f172a; margin-top: 60px; }
+      @media (max-width: 767.98px) { .product-table { font-size: .85rem; } .product-table td, .product-table th { padding: 8px !important; } }
+    </style>
+  </head>
+  <body class="fc-store">
+
+    <div id="navbar" class="navbar-container"></div>
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-8">
+          <div class="cart-container" id="cartMainContainer">
+            <div class="text-center py-5 text-muted">
+              <div class="spinner-border text-success" role="status"></div>
+              <div class="mt-2">Loading your shopping cart...</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-4">
+          <div class="cart-container"> 
+            <h5 class="fw-bold mb-3">Order Summary</h5>
+            <div class="summary-box mt-0"> 
+              <div class="summary-row">  
+                <span id="summaryItemsLabel">Items Subtotal (0)</span> 
+                <span class="fw-bold" id="subtotal">Rs. 0.00</span>       
+              </div>    
+              <div class="summary-row">
+                <span><i class="bi bi-shop text-warning me-1"></i>In-Store Pickup (Rajagiriya)</span>
+                <span class="text-success fw-bold">FREE</span>
+              </div>
+              <div class="summary-row">
+                <span><i class="bi bi-truck text-primary me-1"></i>Home Delivery (COD)</span>
+                <span class="text-muted">Rs. 450.00</span>
+              </div>
+              <div class="summary-row">
+                <span>Discounts</span>
+                <span class="discount-text">Rs. 0.00</span>
+              </div>
+            </div>
+
+            <div class="total-box">
+              <span>Cart Subtotal</span>
+              <span id="grandTotal">Rs. 0.00</span>
+            </div>
+            <div class="small text-muted mt-2 text-center">
+              Choose <strong>Home Delivery (COD)</strong> or <strong>Free Store Pickup</strong> on the next screen.
+            </div>
+
+            <div id="checkoutActionsContainer">
+              <button class="checkout-btn" disabled style="background-color: #ccc; cursor: not-allowed;">Proceed to Checkout</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile sticky checkout bar -->
+    <div class="fc-sticky-checkout" id="mobileStickyCheckout" style="display:none;">
+      <div style="flex:1">
+        <div style="font-size:.72rem;color:#64748b;font-weight:600;text-transform:uppercase">Subtotal</div>
+        <div id="fcStickyTotal" style="font-weight:800;color:#0f172a">Rs. 0.00</div>
+      </div>
+      <a class="fc-btn fc-btn-primary" href="../proceed.html">Checkout <i class="fa-solid fa-arrow-right"></i></a>
+    </div>
+
+    <!-- Footer -->
+    <footer>© 2026 CEC Fresh-Co Mart. All Rights Reserved.</footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module">
+      import {
+        waitForAuthUser,
+        getActiveCartWithItems,
+        setCartItemQuantity,
+        removeCartItemById,
+        clearUserCart,
+        formatMoney,
+        resolveImagePath
+      } from '../assets/js/firebase-service.js';
+
+      // Inject shared header
+      fetch("nav.html")
+        .then(r => r.text())
+        .then(html => {
+          document.getElementById("navbar").innerHTML = html;
+          const script = document.createElement("script");
+          script.src = "navBar.js";
+          document.body.appendChild(script);
+        });
+
+      let currentUser = null;
+
+      function esc(s) {
+        const d = document.createElement('div');
+        d.textContent = s == null ? '' : s;
+        return d.innerHTML;
+      }
+
+      async function loadShoppingCart() {
+        currentUser = await waitForAuthUser();
+        if (!currentUser) {
+          window.location.href = '../login/sign.html';
+          return;
+        }
+
+        const cart = await getActiveCartWithItems(currentUser.uid);
+        renderCartPage(cart);
+      }
+
+      function renderCartPage(cart) {
+        const mainContainer = document.getElementById('cartMainContainer');
+        const itemsLabel = document.getElementById('summaryItemsLabel');
+        const subtotalEl = document.getElementById('subtotal');
+        const grandTotalEl = document.getElementById('grandTotal');
+        const stickyTotalEl = document.getElementById('fcStickyTotal');
+        const stickyBar = document.getElementById('mobileStickyCheckout');
+        const actionsContainer = document.getElementById('checkoutActionsContainer');
+
+        const itemCount = cart.count || 0;
+        const subTotalFormatted = formatMoney(cart.subtotal || 0);
+
+        itemsLabel.textContent = `Items Subtotal (${itemCount})`;
+        subtotalEl.textContent = `Rs. ${subTotalFormatted}`;
+        grandTotalEl.textContent = `Rs. ${subTotalFormatted}`;
+        if (stickyTotalEl) stickyTotalEl.textContent = `Rs. ${subTotalFormatted}`;
+
+        if (typeof window.refreshMiniCart === 'function') {
+          window.refreshMiniCart(false);
+        }
+
+        if (!cart.items || cart.items.length === 0) {
+          if (stickyBar) stickyBar.style.display = 'none';
+          actionsContainer.innerHTML = `<button class="checkout-btn" disabled style="background-color: #ccc; cursor: not-allowed;">Proceed to Checkout</button>`;
+          mainContainer.innerHTML = `
+            <div class="text-center py-5">
+              <div class="mb-3" style="font-size: 3.5rem; color: #94a3b8;"><i class="bi bi-cart-x"></i></div>
+              <h2 class="cart-header mb-2">Your shopping cart is empty</h2>
+              <p class="text-muted mb-4">Browse our fresh produce, dairy, bakery, and pantry essentials to get started.</p>
+              <a href="product.html" class="btn btn-success rounded-pill px-4 py-2 fw-bold">
+                <i class="bi bi-bag-plus me-1"></i>Start Shopping
+              </a>
+            </div>
+          `;
+          return;
+        }
+
+        if (stickyBar) stickyBar.style.display = '';
+        actionsContainer.innerHTML = `
+          <a href="../proceed.html?method=cod" style="text-decoration: none">
+            <button class="checkout-btn" style="background-color:#16a34a;">
+              <i class="bi bi-truck me-1"></i>Checkout – Home Delivery (COD)
+            </button>
+          </a>
+          <a href="../proceed.html?method=pickup" style="text-decoration: none">
+            <button class="checkout-btn mt-2" style="background-color:#d97706;">
+              <i class="bi bi-shop me-1"></i>Checkout – Free Store Pickup
+            </button>
+          </a>
+        `;
+
+        const rowsHtml = cart.items.map(row => {
+          const cartItemId = String(row.cart_item_id);
+          const itemId = String(row.item_id);
+          const img = resolveImagePath(row.image_path, '../');
+          return `
+            <tr>
+              <td class="product-name">
+                <div class="d-flex align-items-center">
+                  <img
+                    src="${esc(img)}"
+                    alt="Product"
+                    class="product-img me-3 rounded"
+                    onerror="this.src='../assets/images/logo/logo-freshco.png'"
+                  />
+                  <div>
+                    <div class="fw-semibold text-dark">${esc(row.name)}</div>
+                    <small class="text-muted">Per ${esc(row.unit)}</small>
+                  </div>
+                </div>
+              </td>
+              <td>Rs. ${formatMoney(row.unit_price)}</td>
+              <td>
+                <div class="qty-control">
+                  <button class="qty-btn" onclick="decreaseQty('${esc(cartItemId)}', '${esc(itemId)}')">-</button>
+                  <input
+                    type="text"
+                    class="qty-input"
+                    value="${esc(row.formatted_qty)}"
+                    id="qtyInput-${esc(cartItemId)}"
+                    data-unit-price="${row.unit_price}"
+                    data-raw-qty="${row.quantity}"
+                    data-is-bulk="${row.is_bulk ? 'true' : 'false'}"
+                    data-unit-string="${esc(row.unit)}"
+                    data-metric="${esc(row.metric)}"
+                    readonly
+                  />
+                  <button class="qty-btn" onclick="increaseQty('${esc(cartItemId)}', '${esc(itemId)}')">+</button>
+                </div>
+              </td>
+              <td class="discount-text">Rs. 0.00</td>
+              <td class="fw-bold" id="itemTotal-${esc(cartItemId)}">Rs. ${formatMoney(row.line_total)}</td>
+              <td>
+                <button class="remove-btn" title="Remove item" onclick="removeItem('${esc(cartItemId)}')">✕</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+
+        mainContainer.innerHTML = `
+          <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+            <h2 class="cart-header mb-0"><i class="bi bi-cart3 text-success me-2"></i>Shopping Cart (${itemCount})</h2>
+            <div class="d-flex gap-2">
+              <a href="product.html" class="btn btn-outline-success btn-sm rounded-pill px-3 fw-semibold">
+                <i class="bi bi-arrow-left me-1"></i>Continue Shopping
+              </a>
+              <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-semibold" onclick="clearEntireCart()">
+                <i class="bi bi-trash3 me-1"></i>Clear Cart
+              </button>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="table product-table">
+              <thead>
+                <tr>
+                  <th>Product Name</th>
+                  <th>Unit Price</th>
+                  <th>Qty</th>
+                  <th>Discount</th>
+                  <th>Total</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rowsHtml}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      async function sendQtyUpdate(cartItemId, itemId, nextQty) {
+        if (!currentUser) return;
+        const res = await setCartItemQuantity(currentUser.uid, cartItemId, itemId, nextQty);
+        if (!res.success) {
+          alert(res.message || "Failed to update cart quantity");
+          return;
+        }
+        if (res.removed) {
+          await loadShoppingCart();
+          return;
+        }
+        const input = document.getElementById("qtyInput-" + cartItemId);
+        if (input) {
+          input.value = res.formatted_quantity;
+          input.setAttribute("data-raw-qty", res.quantity);
+        }
+        const itemTotalEl = document.getElementById("itemTotal-" + cartItemId);
+        if (itemTotalEl) {
+          itemTotalEl.textContent = "Rs. " + formatMoney(res.item_total);
+        }
+        document.getElementById("subtotal").textContent = "Rs. " + formatMoney(res.subtotal);
+        document.getElementById("grandTotal").textContent = "Rs. " + formatMoney(res.grand_total);
+        const sticky = document.getElementById("fcStickyTotal");
+        if (sticky) sticky.textContent = "Rs. " + formatMoney(res.grand_total);
+        if (typeof window.refreshMiniCart === 'function') window.refreshMiniCart(false);
+      }
+
+      window.increaseQty = function (cartItemId, itemId) {
+        const input = document.getElementById("qtyInput-" + cartItemId);
+        if (!input) return;
+        const isBulk = input.getAttribute("data-is-bulk") === 'true';
+        const rawQty = parseFloat(input.getAttribute("data-raw-qty")) || 0;
+        let step = 1.0;
+        if (isBulk) {
+          const metric = input.getAttribute("data-metric");
+          step = (metric === 'kg' || metric === 'l') ? 0.5 : 1.0;
+        }
+        sendQtyUpdate(cartItemId, itemId, rawQty + step);
+      };
+
+      window.decreaseQty = function (cartItemId, itemId) {
+        const input = document.getElementById("qtyInput-" + cartItemId);
+        if (!input) return;
+        const isBulk = input.getAttribute("data-is-bulk") === 'true';
+        const rawQty = parseFloat(input.getAttribute("data-raw-qty")) || 0;
+        let step = 1.0;
+        if (isBulk) {
+          const metric = input.getAttribute("data-metric");
+          step = (metric === 'kg' || metric === 'l') ? 0.5 : 1.0;
+        }
+        const nextQty = rawQty - step;
+        if (nextQty <= 0.001) {
+          window.removeItem(cartItemId);
+          return;
+        }
+        sendQtyUpdate(cartItemId, itemId, nextQty);
+      };
+
+      window.removeItem = async function (cartItemId) {
+        if (!confirm("Remove this item from your shopping cart?")) return;
+        if (!currentUser) return;
+        await removeCartItemById(currentUser.uid, cartItemId);
+        await loadShoppingCart();
+      };
+
+      window.clearEntireCart = async function () {
+        if (!confirm("Are you sure you want to remove all items from your cart?")) return;
+        if (!currentUser) return;
+        await clearUserCart(currentUser.uid);
+        await loadShoppingCart();
+      };
+
+      loadShoppingCart();
+    </script>
+  </body>
+</html>
+

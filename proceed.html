@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Checkout - Fresh-Co Mart</title>
+    <link rel="shortcut icon" type="image/x-icon" href="assets/images/logo/logo-freshco.png">
+    <!-- Font Awesome -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" />
+    <link rel="stylesheet" href="assets/css/custom-ui.css" />
+    <style>
+      body.fc-store { padding-top: calc(var(--fc-header-h) + var(--fc-catbar-h)); }
+      @media (max-width: 991.98px) { body.fc-store { padding-top: 112px; } }
+      footer { background-color: #0f172a; color: white; text-align: center; padding: 18px 0; margin-top: 40px; }
+    </style>
+  </head>
+  <body class="fc-store">
+    <!-- Header -->
+    <div id="navbar" class="navbar-container"></div>
+
+    <!-- Checkout -->
+    <div id="msgdiv" style="display:none; max-width:1180px; margin:16px auto 0;"></div>
+    <div class="fc-checkout">
+      <h1>Checkout</h1>
+      <p class="sub">Choose how you'd like to receive your groceries.</p>
+
+      <div class="row g-4">
+        <!-- Left: purchase method -->
+        <div class="col-lg-7">
+          <div class="fc-segment" role="tablist" aria-label="Purchase method">
+            <button type="button" class="active" data-method="cod" role="tab" aria-selected="true">
+              <i class="fa-solid fa-truck-fast"></i>
+              <span>Cash on Delivery (Home Delivery)<small>Pay cash when delivered to doorstep</small></span>
+            </button>
+            <button type="button" data-method="pickup" role="tab" aria-selected="false">
+              <i class="fa-solid fa-store"></i>
+              <span>In-Store Purchase / Store Pickup<small>Collect from Supermarket</small></span>
+            </button>
+          </div>
+
+          <form id="checkoutForm" onsubmit="return false;">
+            <!-- Customer Contact Details (Shared across COD & Pickup) -->
+            <div class="fc-card fc-section">
+              <h2><i class="fa-solid fa-user text-success"></i> Customer Details</h2>
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label for="customerName">Full Name *</label>
+                  <input type="text" class="form-control" id="customerName" value="" required />
+                </div>
+                <div class="col-md-6">
+                  <label for="customerPhone">Phone Number *</label>
+                  <input type="tel" class="form-control" id="customerPhone" value="" required />
+                </div>
+              </div>
+            </div>
+
+            <!-- TAB A: Home delivery -->
+            <div class="fc-panel active" id="panel-delivery" role="tabpanel">
+              <div class="fc-card fc-section">
+                <h2><i class="fa-solid fa-location-dot text-success"></i> Delivery Address</h2>
+                <div class="row g-3">
+                  <div class="col-12">
+                    <label for="streetAddress1">Street Address *</label>
+                    <input type="text" class="form-control" id="streetAddress1" placeholder="House number and street name" value="" required />
+                  </div>
+                  <div class="col-12">
+                    <label for="streetAddress2">Apartment, suite, unit etc. (optional)</label>
+                    <input type="text" class="form-control" id="streetAddress2" placeholder="Apartment, suite, unit etc. (optional)" value="" />
+                  </div>
+                  <div class="col-md-6">
+                    <label for="town">Town / City *</label>
+                    <input type="text" class="form-control" id="town" value="" required />
+                  </div>
+                  <div class="col-md-6">
+                    <label>Email</label>
+                    <input type="email" class="form-control" id="customerEmail" value="" readonly />
+                  </div>
+                  <div class="col-12">
+                    <label for="deliveryNotes">Delivery notes (optional)</label>
+                    <textarea class="form-control" id="deliveryNotes" rows="3" maxlength="500" placeholder="Gate code, landmarks, preferred time…"></textarea>
+                  </div>
+                </div>
+                <div class="mt-3 d-flex align-items-center gap-2 flex-wrap">
+                  <span class="fc-fee-chip fee"><i class="fa-solid fa-truck"></i> Delivery fee: Rs. 450.00</span>
+                  <small class="text-muted">Pay cash to the rider on arrival.</small>
+                </div>
+              </div>
+            </div>
+
+            <!-- TAB B: Store pickup -->
+            <div class="fc-panel" id="panel-pickup" role="tabpanel">
+              <div class="fc-card fc-section">
+                <h2><i class="fa-solid fa-store" style="color:#d97706"></i> Supermarket Pickup Location</h2>
+                <div class="fc-store-card">
+                  <i class="fa-solid fa-location-dot"></i>
+                  <div>
+                    <strong>Freshcomart – Rajagiriya</strong>
+                    <span>No. 142, Parliament Road, Rajagiriya, Colombo</span>
+                    <span><i class="fa-regular fa-clock me-1"></i>Opening Hours: 8:00 AM – 9:00 PM &middot; <i class="fa-solid fa-phone me-1"></i>+94 11 234 5678</span>
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <label for="pickupDate">Pickup date *</label>
+                  <select class="form-select" id="pickupDate" required></select>
+                </div>
+
+                <label class="d-block mb-2">Pickup time slot *</label>
+                <div class="fc-slots" id="pickupSlots"></div>
+
+                <div class="mt-3">
+                  <label for="pickupNotes">Notes for the store team (optional)</label>
+                  <textarea class="form-control" id="pickupNotes" rows="2" maxlength="500" placeholder="e.g. someone else will collect – name &amp; NIC"></textarea>
+                </div>
+
+                <div class="mt-3 d-flex align-items-center gap-2 flex-wrap">
+                  <span class="fc-fee-chip free"><i class="fa-solid fa-tag"></i> Delivery fee: Rs. 0.00 (Free Store Pickup)</span>
+                  <small class="text-muted">You will receive a unique pickup code on the confirmation screen.</small>
+                </div>
+              </div>
+            </div>
+
+            <!-- Payment tiles -->
+            <div class="fc-card fc-section">
+              <h2><i class="fa-regular fa-credit-card text-success"></i> Payment Method</h2>
+              <div class="fc-pay-tiles" role="radiogroup" aria-label="Payment method">
+                <label class="fc-pay-tile" id="tile-cod">
+                  <input type="radio" name="payment" value="cod" checked />
+                  <span class="tile">
+                    <span class="ico"><i class="fa-solid fa-money-bill-wave"></i></span>
+                    <span><strong>Cash on Delivery (COD)</strong><small>Pay cash to the rider at delivery</small></span>
+                    <span class="tick"><i class="fa-solid fa-check"></i></span>
+                  </span>
+                </label>
+                <label class="fc-pay-tile" id="tile-store">
+                  <input type="radio" name="payment" value="store" />
+                  <span class="tile">
+                    <span class="ico"><i class="fa-solid fa-cash-register"></i></span>
+                    <span><strong>Pay at Store Counter</strong><small>Pay when you collect your order</small></span>
+                    <span class="tick"><i class="fa-solid fa-check"></i></span>
+                  </span>
+                </label>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <!-- Right: sticky order summary -->
+        <div class="col-lg-5">
+          <aside class="fc-card fc-summary" aria-label="Order summary">
+            <h2>Order Summary</h2>
+            <div class="fc-summary-items" id="summaryItemsList">
+              <div class="fc-summary-item"><span class="nm">Loading cart items...</span><span class="pr">Rs. 0.00</span></div>
+            </div>
+
+            <div class="fc-line"><span>Subtotal</span><span id="sumSubtotal">Rs. 0.00</span></div>
+            <div class="fc-line">
+              <span id="sumFeeLabel">Delivery fee</span>
+              <span id="sumFee">Rs. 450.00</span>
+            </div>
+            <div class="fc-line total"><span>Total payable</span><span id="sumTotal">Rs. 450.00</span></div>
+
+            <button
+              type="button"
+              onclick="placeOrder()"
+              form="checkoutForm"
+              class="fc-btn fc-btn-primary fc-place-btn"
+            >
+              <i class="fa-solid fa-lock"></i> Place Order
+            </button>
+            <p class="fc-secure-note"><i class="fa-solid fa-shield-halved me-1"></i>Your order details are kept secure.</p>
+          </aside>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>© 2026 CEC Fresh-Co Mart. All Rights Reserved.</footer>
+
+    <!-- JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>window.FC_BASE = '';</script>
+    <script src="script.js"></script>
+    <script type="module">
+      import {
+        STORE_CONFIG,
+        waitForAuthUser,
+        getUserProfile,
+        getActiveCartWithItems,
+        formatMoney
+      } from './assets/js/firebase-service.js';
+
+      // Inject shared header with root base ''
+      fetch("product/nav.html")
+        .then(r => r.text())
+        .then(html => {
+          document.getElementById("navbar").innerHTML = html;
+          const script = document.createElement("script");
+          script.src = "product/navBar.js";
+          document.body.appendChild(script);
+        });
+
+      const BASE_FEE = Number(STORE_CONFIG.delivery_fee || 450);
+      let SUBTOTAL = 0;
+      window.orderMethod = 'cod';
+      window.storeInfo = { address: STORE_CONFIG.address, town: STORE_CONFIG.town };
+
+      function money(n) {
+        return 'Rs. ' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
+
+      function esc(s) {
+        const d = document.createElement('div');
+        d.textContent = s == null ? '' : s;
+        return d.innerHTML;
+      }
+
+      // Populate pickup dates (today + next 4 days) and 2-hour slots
+      function populatePickupSchedule() {
+        const dateSelect = document.getElementById('pickupDate');
+        const daysCount = Number(STORE_CONFIG.pickup_days || 5);
+        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+        let dateOpts = '';
+        for (let d = 0; d < daysCount; d++) {
+          const dt = new Date();
+          dt.setDate(dt.getDate() + d);
+          const yyyy = dt.getFullYear();
+          const mm = String(dt.getMonth() + 1).padStart(2, '0');
+          const dd = String(dt.getDate()).padStart(2, '0');
+          const val = `${yyyy}-${mm}-${dd}`;
+          const prefix = d === 0 ? 'Today' : (d === 1 ? 'Tomorrow' : dayNames[dt.getDay()]);
+          const label = `${prefix} – ${dd} ${monthNames[dt.getMonth()]} ${yyyy}`;
+          dateOpts += `<option value="${val}">${label}</option>`;
+        }
+        dateSelect.innerHTML = dateOpts;
+
+        const slotsContainer = document.getElementById('pickupSlots');
+        slotsContainer.innerHTML = (STORE_CONFIG.pickup_slots || []).map((slot, idx) => `
+          <label class="fc-slot">
+            <input type="radio" name="pickupSlot" value="${esc(slot)}" ${idx === 0 ? 'checked' : ''} required />
+            <span>${esc(slot)}</span>
+          </label>
+        `).join('');
+      }
+
+      function setMethod(method) {
+        window.orderMethod = (method === 'pickup') ? 'pickup' : 'cod';
+        sessionStorage.setItem('preferred_purchase_method', window.orderMethod);
+        const isPickup = (window.orderMethod === 'pickup');
+
+        document.querySelectorAll('.fc-segment button').forEach(b => {
+          const on = b.dataset.method === window.orderMethod;
+          b.classList.toggle('active', on);
+          b.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+        document.getElementById('panel-delivery').classList.toggle('active', !isPickup);
+        document.getElementById('panel-pickup').classList.toggle('active', isPickup);
+
+        document.getElementById('streetAddress1').required = !isPickup;
+        document.getElementById('town').required = !isPickup;
+
+        const pay = document.querySelector('input[name="payment"][value="' + (isPickup ? 'store' : 'cod') + '"]');
+        if (pay) pay.checked = true;
+
+        window.deliveryFee = isPickup ? 0 : BASE_FEE;
+        window.totalAmount = SUBTOTAL + window.deliveryFee;
+        document.getElementById('sumFee').innerHTML = isPickup ? '<span class="fc-free-badge">Rs. 0.00 (Free Store Pickup)</span>' : money(BASE_FEE);
+        document.getElementById('sumFeeLabel').textContent = isPickup ? 'Delivery fee (Pickup)' : 'Delivery fee';
+        document.getElementById('sumTotal').textContent = money(window.totalAmount);
+      }
+
+      document.querySelectorAll('.fc-segment button').forEach(b => {
+        b.addEventListener('click', () => setMethod(b.dataset.method));
+      });
+      document.querySelectorAll('input[name="payment"]').forEach(r => {
+        r.addEventListener('change', () => setMethod(r.value === 'store' ? 'pickup' : 'cod'));
+      });
+
+      populatePickupSchedule();
+
+      // Determine initial purchase method from URL or session preference
+      const params = new URLSearchParams(location.search);
+      let initialMethod = 'cod';
+      if (params.get('method') === 'pickup' || params.get('pickup') === '1') {
+        initialMethod = 'pickup';
+      } else if (params.get('method') === 'cod') {
+        initialMethod = 'cod';
+      } else if (sessionStorage.getItem('preferred_purchase_method') === 'pickup') {
+        initialMethod = 'pickup';
+      }
+
+      async function initCheckout() {
+        const user = await waitForAuthUser();
+        if (!user) {
+          window.location.href = 'login/sign.html';
+          return;
+        }
+
+        const [profile, cart] = await Promise.all([
+          getUserProfile(user.uid),
+          getActiveCartWithItems(user.uid)
+        ]);
+
+        if (!cart.items || cart.items.length === 0) {
+          window.location.href = 'product/product.html';
+          return;
+        }
+
+        if (profile) {
+          const fullName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
+          document.getElementById('customerName').value = fullName || user.displayName || '';
+          document.getElementById('customerPhone').value = profile.phone_number || '';
+          document.getElementById('streetAddress1').value = profile.street_address1 || '';
+          document.getElementById('streetAddress2').value = profile.street_address2 || '';
+          document.getElementById('town').value = profile.town || '';
+          document.getElementById('customerEmail').value = profile.email || user.email || '';
+        }
+
+        SUBTOTAL = Number(cart.subtotal || 0);
+        document.getElementById('sumSubtotal').textContent = money(SUBTOTAL);
+
+        const listEl = document.getElementById('summaryItemsList');
+        listEl.innerHTML = cart.items.map(it => `
+          <div class="fc-summary-item">
+            <span class="nm">${esc(it.name)} <em>× ${esc(it.formatted_qty)}</em></span>
+            <span class="pr">Rs. ${formatMoney(it.line_total)}</span>
+          </div>
+        `).join('');
+
+        setMethod(initialMethod);
+      }
+
+      initCheckout();
+    </script>
+  </body>
+</html>
+

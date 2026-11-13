@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Inquiries - Freshcomart Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+    <link rel="stylesheet" href="../assets/css/custom-ui.css">
+    <style>
+      .main-card {
+        background: #fff;
+        margin: 28px auto 40px auto;
+        max-width: 1340px;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+        padding: 24px;
+      }
+      .msg-preview {
+        max-width: 320px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    </style>
+</head>
+<body class="fc-admin">
+    <div id="adminNavbarMount"></div>
+
+    <div class="main-card">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+        <div>
+          <h2 class="fw-bold mb-1" style="font-size:1.55rem; color:#0f172a;">Customer Inquiries &amp; Messages</h2>
+          <p class="text-muted mb-0" style="font-size:.9rem">Inquiries, questions, and feedback submitted through the storefront Contact Us form.</p>
+        </div>
+        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-2 fw-bold">
+          <i class="bi bi-chat-left-text me-1"></i><span id="inquiriesCountLabel">0</span> Total Inquiries
+        </span>
+      </div>
+
+      <div id="inquiryAlertHost"></div>
+
+      <div class="table-responsive">
+        <table class="table fc-admin-table align-middle table-hover">
+          <thead>
+            <tr>
+              <th scope="col" style="width: 80px;">ID</th>
+              <th scope="col">Customer Name</th>
+              <th scope="col">Email Address</th>
+              <th scope="col">Subject</th>
+              <th scope="col">Message Preview</th>
+              <th scope="col">Date Submitted</th>
+              <th scope="col" class="text-center">Action</th>
+            </tr>
+          </thead>
+          <tbody id="inquiriesTableBody">
+            <tr>
+              <td colspan="7" class="text-center py-5 text-muted">
+                <div class="spinner-border spinner-border-sm text-success me-2"></div> Loading customer inquiries...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Inquiry Details Modal -->
+    <div class="modal fade" id="inquiryModal" tabindex="-1" aria-labelledby="inquiryModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+          <div class="modal-header border-bottom py-3">
+            <h5 class="modal-title fw-bold text-dark" id="inquiryModalLabel">
+              <i class="bi bi-envelope-open text-success me-2"></i>Inquiry Details
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body p-4">
+            <div class="mb-3">
+              <div class="small text-muted">Sender Name &amp; Email:</div>
+              <div class="fw-bold text-dark" id="modalSender"></div>
+              <div class="small text-primary" id="modalEmail"></div>
+            </div>
+            <div class="mb-3">
+              <div class="small text-muted">Subject:</div>
+              <div class="fw-bold text-dark" id="modalSubject"></div>
+            </div>
+            <div class="mb-3">
+              <div class="small text-muted">Message:</div>
+              <div class="p-3 bg-light border rounded-3 text-dark small" id="modalMessage" style="white-space: pre-wrap; max-height: 250px; overflow-y: auto;"></div>
+            </div>
+            <div class="small text-muted" id="modalDate"></div>
+          </div>
+          <div class="modal-footer border-top py-2">
+            <a href="#" id="modalReplyBtn" class="btn btn-success btn-sm rounded-pill px-3">
+              <i class="bi bi-reply me-1"></i>Reply via Email
+            </a>
+            <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module">
+      import { initAdminNavbar, refreshAdminNavBadges } from './admin-navbar.js';
+      import { getAllInquiriesAdmin, deleteInquiryAdmin } from '../assets/js/firebase-service.js';
+
+      await initAdminNavbar('inquiries.html');
+
+      function escapeHtml(str) {
+          return String(str ?? '')
+              .replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+              .replace(/"/g, '&quot;');
+      }
+
+      function showInquiryAlert(msg) {
+          document.getElementById('inquiryAlertHost').innerHTML = `
+              <div class="alert alert-success alert-dismissible fade show py-2 px-3 small" role="alert">
+                <i class="bi bi-check-circle-fill me-1"></i>${escapeHtml(msg)}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" style="padding: 10px;"></button>
+              </div>
+          `;
+      }
+
+      async function loadInquiries() {
+          const list = await getAllInquiriesAdmin();
+          document.getElementById('inquiriesCountLabel').textContent = list.length;
+
+          const tbody = document.getElementById('inquiriesTableBody');
+          if (!list.length) {
+              tbody.innerHTML = `
+                <tr>
+                  <td colspan="7" class="text-center py-5 text-muted">
+                    <i class="bi bi-inbox fs-2 d-block mb-2 text-secondary"></i>
+                    <span class="fw-semibold">No customer inquiries found.</span>
+                  </td>
+                </tr>
+              `;
+              return;
+          }
+
+          tbody.innerHTML = list.map((row, idx) => {
+              const id = row.id;
+              const name = row.name || 'Customer';
+              const email = row.email || 'No Email';
+              const subject = row.subject || 'General Inquiry';
+              const message = row.message || '';
+              const d = row.created_at ? new Date(row.created_at) : new Date();
+              const dateStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) + ', ' +
+                              d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+              return `
+                <tr>
+                  <td class="fw-bold text-muted">#${idx + 1}</td>
+                  <td class="fw-semibold text-dark">${escapeHtml(name)}</td>
+                  <td>
+                    <a href="mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent('Re: ' + subject)}" class="text-decoration-none text-primary small">
+                      <i class="bi bi-envelope me-1"></i>${escapeHtml(email)}
+                    </a>
+                  </td>
+                  <td class="fw-semibold small text-truncate" style="max-width: 180px;">${escapeHtml(subject)}</td>
+                  <td>
+                    <div class="text-muted small msg-preview" title="${escapeHtml(message)}">
+                      ${escapeHtml(message)}
+                    </div>
+                  </td>
+                  <td class="text-muted small">${escapeHtml(dateStr)}</td>
+                  <td class="text-center text-nowrap">
+                    <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3 py-1 me-1 view-inquiry-btn"
+                            data-name="${escapeHtml(name)}"
+                            data-email="${escapeHtml(email)}"
+                            data-subject="${escapeHtml(subject)}"
+                            data-message="${escapeHtml(message)}"
+                            data-date="${escapeHtml(dateStr)}">
+                      <i class="bi bi-eye me-1"></i>View
+                    </button>
+                    <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-2 py-1 delete-inquiry-btn"
+                            data-id="${escapeHtml(id)}" title="Delete Inquiry">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </td>
+                </tr>
+              `;
+          }).join('');
+
+          document.querySelectorAll('.view-inquiry-btn').forEach(btn => {
+              btn.addEventListener('click', () => {
+                  document.getElementById('modalSender').textContent = btn.dataset.name;
+                  document.getElementById('modalEmail').textContent = btn.dataset.email;
+                  document.getElementById('modalSubject').textContent = btn.dataset.subject;
+                  document.getElementById('modalMessage').textContent = btn.dataset.message;
+                  document.getElementById('modalDate').textContent = 'Submitted on: ' + btn.dataset.date;
+                  document.getElementById('modalReplyBtn').href = 'mailto:' + encodeURIComponent(btn.dataset.email) + '?subject=' + encodeURIComponent('Re: ' + btn.dataset.subject);
+                  const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('inquiryModal'));
+                  modal.show();
+              });
+          });
+
+          document.querySelectorAll('.delete-inquiry-btn').forEach(btn => {
+              btn.addEventListener('click', async () => {
+                  if (!confirm('Are you sure you want to delete this inquiry?')) return;
+                  btn.disabled = true;
+                  try {
+                      await deleteInquiryAdmin(btn.dataset.id);
+                      showInquiryAlert('Inquiry deleted successfully.');
+                      await loadInquiries();
+                      await refreshAdminNavBadges();
+                  } catch (err) {
+                      alert('Failed to delete inquiry: ' + (err.message || err));
+                      btn.disabled = false;
+                  }
+              });
+          });
+      }
+
+      await loadInquiries();
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Signing Out - Freshcomart Admin</title>
+</head>
+<body>
+    <script type="module">
+        import { logoutAdminSession } from '../assets/js/firebase-service.js';
+        await logoutAdminSession();
+        window.location.replace('login.html');
+    </script>
+</body>
+</html>
+
