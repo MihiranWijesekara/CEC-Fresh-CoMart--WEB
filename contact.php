@@ -1,3 +1,5 @@
-<?php
-require_once __DIR__ . '/contact-us.php';
+﻿<?php
+$qs = !empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVER['QUERY_STRING'] : '';
+header('Location: contact.html' . $qs);
+exit;
 

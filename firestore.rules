@@ -2,7 +2,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper: check if signed-in user has is_admin == 1 in users/{uid}
     function isSignedIn() {
       return request.auth != null;
     }
@@ -10,7 +9,8 @@ service cloud.firestore {
     function isAdmin() {
       return isSignedIn() &&
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.is_admin == 1;
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.is_admin == 1 ||
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.is_admin == true);
     }
 
     // 1. Categories: Public read, auto-seed / admin write
@@ -25,37 +25,48 @@ service cloud.firestore {
       allow write: if true;
     }
 
-    // 3. Users: Customers read/write their own profile; Admin portal reads customer profiles
+    // 3. Users: Customers read/write their own profile; never store plaintext passwords
     match /users/{userId} {
       allow read: if true;
-      allow create, update: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow create, update: if isSignedIn() &&
+        (request.auth.uid == userId || isAdmin()) &&
+        !('password' in request.resource.data);
       allow delete: if isAdmin();
     }
 
-    // 4. Carts & Cart Items: Authenticated user owns their cart
-    match /carts/{userId} {
-      allow read, write: if isSignedIn() && request.auth.uid == userId;
+    // 4. Deterministic Active Carts (carts/active_{userId}) & Cart Items
+    match /carts/{cartId} {
+      allow read, write: if isSignedIn() &&
+        (cartId == ('active_' + request.auth.uid) || cartId == request.auth.uid || isAdmin());
     }
 
     match /cart_items/{cartItemId} {
       allow read, write: if isSignedIn();
     }
 
-    // 5. Orders: Authenticated customers create & view/cancel their own orders; Admin manages all orders
+    // 5. Sequential Order Counter (counters/orders)
+    match /counters/{counterId} {
+      allow read, write: if true;
+    }
+
+    // 6. Orders & Order Items: Authenticated customers create & view/cancel their own orders; Admin manages all orders
     match /orders/{orderId} {
       allow read, write: if true;
     }
 
-    // 6. Stock Transactions (Inventory Audit Trail)
+    match /order_items/{orderItemId} {
+      allow read, write: if true;
+    }
+
+    // 7. Stock Transactions (Inventory Audit Trail)
     match /stock_transactions/{txId} {
       allow read, write: if true;
     }
 
-    // 7. Contacts (Customer Inquiries): Public submission from Contact Us form; Admin management
+    // 8. Contacts (Customer Inquiries): Public submission from Contact Us form; Admin management
     match /contacts/{contactId} {
       allow create: if true;
       allow read, update, delete: if true;
     }
   }
 }
-

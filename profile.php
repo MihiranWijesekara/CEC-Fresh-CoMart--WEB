@@ -1,3 +1,5 @@
-<?php
-// Profile alias to my-account.php
-require_once __DIR__ . '/my-account.php';
+﻿<?php
+$qs = !empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVER['QUERY_STRING'] : '';
+header('Location: profile.html' . $qs);
+exit;
+

@@ -57,9 +57,14 @@
       <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
         <div>
           <h2 class="fw-bold mb-0" style="font-size:1.5rem;letter-spacing:0.5px;">Inventory &amp; Stock Management</h2>
-          <p class="text-muted small mb-0">Search products, filter low/out-of-stock alerts, and adjust stock levels</p>
+          <p class="text-muted small mb-0">Search products, filter low/out-of-stock alerts, manage categories, and adjust stock levels</p>
         </div>
-        <a href="ItemAdd.html" class="btn btn-success px-4 py-2 rounded-pill shadow-sm fw-semibold"><i class="bi bi-plus-lg me-1"></i>Add New Item</a>
+        <div class="d-flex gap-2 flex-wrap">
+          <button type="button" class="btn btn-outline-success px-3 py-2 rounded-pill fw-semibold" onclick="openCategoriesModal()">
+            <i class="bi bi-tags me-1"></i>Manage Categories
+          </button>
+          <a href="ItemAdd.html" class="btn btn-success px-4 py-2 rounded-pill shadow-sm fw-semibold"><i class="bi bi-plus-lg me-1"></i>Add New Item</a>
+        </div>
       </div>
 
       <!-- Filter Tabs & Search Bar -->
@@ -222,11 +227,58 @@
       </div>
     </div>
 
+    <!-- Categories Management Modal (Category CRUD) -->
+    <div class="modal fade" id="categoriesModal" tabindex="-1" aria-labelledby="categoriesModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content" style="border-radius:18px; border:none; box-shadow: 0 12px 36px rgba(0,0,0,0.18);">
+          <div class="modal-header border-0 bg-light" style="border-top-left-radius: 18px; border-top-right-radius: 18px; padding: 20px 28px;">
+            <h5 class="modal-title fw-bold" id="categoriesModalLabel" style="color: #16a34a;"><i class="bi bi-tags-fill me-2"></i>Manage Supermarket Categories</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body" style="padding: 24px 28px;">
+            <form id="addCategoryForm" class="row g-2 align-items-end mb-4 p-3 rounded-3" style="background:#f8fafc;border:1px solid #e2e8f0;" onsubmit="event.preventDefault(); handleSaveCategory();">
+              <input type="hidden" id="editCategoryId" value="">
+              <div class="col-md-5">
+                <label class="form-label small fw-bold mb-1">Category Name *</label>
+                <input type="text" id="catNameInput" class="form-control form-control-sm" placeholder="e.g. Organic Produce" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold mb-1">Slug</label>
+                <input type="text" id="catSlugInput" class="form-control form-control-sm" placeholder="auto-generated">
+              </div>
+              <div class="col-md-3 d-flex gap-1">
+                <button type="submit" id="saveCatBtn" class="btn btn-sm btn-success w-100 fw-semibold">Save Category</button>
+                <button type="button" id="cancelCatEditBtn" class="btn btn-sm btn-outline-secondary" style="display:none;" onclick="resetCategoryForm()">Cancel</button>
+              </div>
+            </form>
+            <div class="table-responsive" style="max-height: 320px;">
+              <table class="table table-sm table-hover align-middle text-center mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>ID</th>
+                    <th>Image</th>
+                    <th>Name</th>
+                    <th>Slug</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="categoriesTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script type="module">
         import { initAdminNavbar, refreshAdminNavBadges } from './admin-navbar.js';
         import {
             ensureCategoriesSeeded,
+            addCategory,
+            updateCategory,
+            toggleCategoryStatus,
             getAllItems,
             toggleItemStatus,
             adjustItemStock,
@@ -352,7 +404,7 @@
 
                 const isBulk = isBulkItem(catId, unit);
                 const metric = getUnitMetric(unit);
-                const stockQtyFormatted = Number.isInteger(stockQty) ? stockQty : stockQty.toFixed(2);
+                const stockQtyFormatted = Number.isInteger(stockQty) ? stockQty : Number(stockQty.toFixed(3));
 
                 let stockBadgeHtml = '';
                 if (stockQty <= 0) {
@@ -458,26 +510,28 @@
         }
 
         function formatQtyWithUnit(qtyVal, unitStr) {
-            qtyVal = parseFloat(qtyVal);
+            qtyVal = parseFloat(qtyVal) || 0;
             const parsed = parseUnitToGrams(unitStr);
             if (parsed.metric === 'units' || !isBulkGlobal) {
-                return (qtyVal % 1 === 0 ? parseInt(qtyVal) : qtyVal.toFixed(2)) + ' units';
+                return (Number.isInteger(qtyVal) ? qtyVal : Number(qtyVal.toFixed(3))) + ' units';
             }
             const totalBase = qtyVal * parsed.baseVal;
             if (parsed.metric === 'kg' || parsed.metric === 'g') {
                 if (totalBase >= 1000) {
-                    return (totalBase / 1000).toFixed((totalBase / 1000) % 1 === 0 ? 0 : 2) + ' kg';
+                    const kg = totalBase / 1000;
+                    return (Number.isInteger(kg) ? kg : Number(kg.toFixed(3))) + ' kg';
                 } else {
-                    return totalBase.toFixed(totalBase % 1 === 0 ? 0 : 1) + ' g';
+                    return (Number.isInteger(totalBase) ? totalBase : Number(totalBase.toFixed(1))) + ' g';
                 }
             } else if (parsed.metric === 'l' || parsed.metric === 'ml') {
                 if (totalBase >= 1000) {
-                    return (totalBase / 1000).toFixed((totalBase / 1000) % 1 === 0 ? 0 : 2) + ' L';
+                    const l = totalBase / 1000;
+                    return (Number.isInteger(l) ? l : Number(l.toFixed(3))) + ' L';
                 } else {
-                    return totalBase.toFixed(totalBase % 1 === 0 ? 0 : 1) + ' ml';
+                    return (Number.isInteger(totalBase) ? totalBase : Number(totalBase.toFixed(1))) + ' ml';
                 }
             }
-            return qtyVal + ' units';
+            return Number(qtyVal.toFixed(3)) + ' units';
         }
 
         const reasonsMap = {
@@ -703,6 +757,95 @@
         document.getElementById("restockQuantity").addEventListener('input', updateCalculationPreview);
         document.getElementById("restockQuantity").addEventListener('change', updateCalculationPreview);
         document.getElementById("restockUnit").addEventListener('change', updateCalculationPreview);
+
+        // Category CRUD Modal Handlers
+        let categoriesModalInstance = null;
+        let allCategoriesList = [];
+
+        async function renderCategoriesTable() {
+            allCategoriesList = await ensureCategoriesSeeded();
+            const tbody = document.getElementById('categoriesTableBody');
+            tbody.innerHTML = allCategoriesList.map(cat => {
+                const st = cat.status || 'active';
+                const badgeCls = st === 'active' ? 'bg-success' : 'bg-secondary';
+                const imgUrl = resolveImagePath(cat.image_path, '../');
+                return `
+                    <tr>
+                        <td class="fw-bold">#${cat.id}</td>
+                        <td><img src="${escapeHtml(imgUrl)}" style="width:32px;height:32px;object-fit:contain;" onerror="this.src='../assets/images/logo/logo-freshco.png'"></td>
+                        <td class="fw-semibold">${escapeHtml(cat.name)}</td>
+                        <td class="text-muted small"><code>${escapeHtml(cat.slug)}</code></td>
+                        <td><span class="badge ${badgeCls}">${escapeHtml(st)}</span></td>
+                        <td>
+                            <div class="d-flex justify-content-center gap-1">
+                                <button type="button" class="btn btn-outline-primary btn-sm py-0 px-2" onclick="startEditCategory(${cat.id})">Edit</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2" onclick="handleToggleCat(${cat.id})">Toggle</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        window.openCategoriesModal = async function () {
+            await renderCategoriesTable();
+            resetCategoryForm();
+            const modalEl = document.getElementById('categoriesModal');
+            categoriesModalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+            categoriesModalInstance.show();
+        };
+
+        window.resetCategoryForm = function () {
+            document.getElementById('editCategoryId').value = '';
+            document.getElementById('catNameInput').value = '';
+            document.getElementById('catSlugInput').value = '';
+            document.getElementById('saveCatBtn').textContent = 'Save Category';
+            document.getElementById('cancelCatEditBtn').style.display = 'none';
+        };
+
+        window.startEditCategory = function (catId) {
+            const cat = allCategoriesList.find(c => Number(c.id) === Number(catId));
+            if (!cat) return;
+            document.getElementById('editCategoryId').value = cat.id;
+            document.getElementById('catNameInput').value = cat.name;
+            document.getElementById('catSlugInput').value = cat.slug;
+            document.getElementById('saveCatBtn').textContent = 'Update';
+            document.getElementById('cancelCatEditBtn').style.display = 'inline-block';
+        };
+
+        window.handleSaveCategory = async function () {
+            const editId = document.getElementById('editCategoryId').value;
+            const name = document.getElementById('catNameInput').value.trim();
+            const slug = document.getElementById('catSlugInput').value.trim() || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+            if (!name) return;
+
+            const btn = document.getElementById('saveCatBtn');
+            btn.disabled = true;
+            try {
+                if (editId) {
+                    await updateCategory(editId, { name, slug });
+                } else {
+                    await addCategory({ name, slug, status: 'active' });
+                }
+                resetCategoryForm();
+                await renderCategoriesTable();
+                await loadInventory();
+            } catch (err) {
+                alert('Error saving category: ' + (err.message || err));
+            } finally {
+                btn.disabled = false;
+            }
+        };
+
+        window.handleToggleCat = async function (catId) {
+            try {
+                await toggleCategoryStatus(catId);
+                await renderCategoriesTable();
+                await loadInventory();
+            } catch (err) {
+                alert('Error toggling category: ' + (err.message || err));
+            }
+        };
 
         await loadInventory();
     </script>

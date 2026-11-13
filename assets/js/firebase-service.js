@@ -1,14 +1,17 @@
 /**
  * Freshcomart (CECWeb) Centralized Firebase Auth + Cloud Firestore Service Layer
- * Powers both the Customer Storefront and Supermarket Admin Panel on Vercel / Netlify.
+ * 100% SQL-Free Architecture powered by Firebase Authentication + Cloud Firestore (Modular SDK v10).
  */
 
 import {
   app,
   auth,
   db,
+  firebaseConfig,
   STORE_CONFIG,
-  DEFAULT_CATEGORIES
+  INITIAL_ORDER_COUNTER,
+  DEFAULT_CATEGORIES,
+  DEFAULT_ITEMS
 } from "./firebase-config.js";
 
 import {
@@ -42,8 +45,11 @@ export {
   app,
   auth,
   db,
+  firebaseConfig,
   STORE_CONFIG,
+  INITIAL_ORDER_COUNTER,
   DEFAULT_CATEGORIES,
+  DEFAULT_ITEMS,
   onAuthStateChanged,
   collection,
   doc,
@@ -62,8 +68,29 @@ export {
 };
 
 // ============================================================================
-// 1. QUANTITY, BULK UNIT & FORMATTING HELPERS (Mirrors connection.php)
+// 1. PRECISION, QUANTITY, BULK UNIT & FORMATTING HELPERS (Fix #12)
 // ============================================================================
+
+/**
+ * Fix #12: Preserve 3 decimal places (e.g. 0.500, 74.500, 79.500) for quantities and weights.
+ */
+export function roundQty3(val) {
+  const n = parseFloat(val);
+  if (isNaN(n)) return 0;
+  return Number(n.toFixed(3));
+}
+
+export function formatQty3String(val) {
+  const n = parseFloat(val);
+  if (isNaN(n)) return "0.000";
+  return n.toFixed(3);
+}
+
+export function roundMoney2(val) {
+  const n = parseFloat(val);
+  if (isNaN(n)) return 0;
+  return Number(n.toFixed(2));
+}
 
 export function isBulkItem(catId, unitStr) {
   const bulkCategories = [1, 2, 14, 15, 16];
@@ -91,24 +118,24 @@ export function parseUnitToGrams(unitStr) {
 }
 
 export function formatQuantity(qty, unitStr, catId) {
-  const q = parseFloat(qty) || 0;
+  const q = roundQty3(qty);
   if (!isBulkItem(catId, unitStr)) {
-    return Number.isInteger(q) ? String(q) : String(Number(q.toFixed(2)));
+    return Number.isInteger(q) ? String(q) : String(Number(q.toFixed(3)));
   }
   const parsed = parseUnitToGrams(unitStr);
   const totalBase = q * parsed.baseVal;
   if (parsed.type === "weight") {
     if (totalBase >= 1000) {
       const kg = totalBase / 1000;
-      return (Number.isInteger(kg) ? kg : Number(kg.toFixed(2))) + " kg";
+      return (Number.isInteger(kg) ? kg : Number(kg.toFixed(3))) + " kg";
     }
-    return Math.round(totalBase) + " g";
+    return (Number.isInteger(totalBase) ? totalBase : Number(totalBase.toFixed(1))) + " g";
   } else {
     if (totalBase >= 1000) {
       const l = totalBase / 1000;
-      return (Number.isInteger(l) ? l : Number(l.toFixed(2))) + " L";
+      return (Number.isInteger(l) ? l : Number(l.toFixed(3))) + " L";
     }
-    return Math.round(totalBase) + " ml";
+    return (Number.isInteger(totalBase) ? totalBase : Number(totalBase.toFixed(1))) + " ml";
   }
 }
 
@@ -131,14 +158,79 @@ export function todayDateString() {
 }
 
 export function escapeHtml(str) {
-  const div = document.createElement("div");
-  div.textContent = str == null ? "" : String(str);
-  return div.innerHTML;
+  if (typeof document !== "undefined") {
+    const div = document.createElement("div");
+    div.textContent = str == null ? "" : String(str);
+    return div.innerHTML;
+  }
+  return String(str ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 // ============================================================================
-// 2. CLIENT-SIDE HTML5 <CANVAS> IMAGE COMPRESSION (Zero Storage Cost)
+// 2. IMAGE PATH NORMALIZATION (Fix #11) & HTML5 CANVAS COMPRESSION
 // ============================================================================
+
+export const DEFAULT_FALLBACK_IMAGE = "assets/images/logo/logo-freshco.png";
+
+/**
+ * Fix #11: Normalizes both 'Admin/ImageUpload/...' and 'assets/images/shopCategory/...'
+ * paths accurately whether rendered from root pages (/index.html, /proceed.html)
+ * or subdirectory pages (/Admin/*, /product/*, /login/*), with fallback support.
+ */
+export function resolveImagePath(imagePath, basePrefix = undefined) {
+  let prefix = basePrefix;
+  if (prefix === undefined) {
+    if (typeof window !== "undefined" && window.location && window.location.pathname) {
+      const p = window.location.pathname.replace(/\\/g, "/").toLowerCase();
+      if (p.includes("/admin/") || p.includes("/product/") || p.includes("/login/")) {
+        prefix = "../";
+      } else {
+        prefix = "";
+      }
+    } else {
+      prefix = "";
+    }
+  }
+
+  if (!imagePath) return prefix + DEFAULT_FALLBACK_IMAGE;
+  const s = String(imagePath).trim();
+  if (!s) return prefix + DEFAULT_FALLBACK_IMAGE;
+  if (s.startsWith("data:image/") || s.startsWith("http://") || s.startsWith("https://")) {
+    return s;
+  }
+
+  // Strip leading ../, ./, or /
+  let clean = s.replace(/^(\.\.\/|\.\/|\/)+/, "");
+
+  // Normalize bare ImageUpload/... to Admin/ImageUpload/...
+  if (clean.startsWith("ImageUpload/")) {
+    clean = "Admin/" + clean;
+  }
+
+  // Legacy path migration: if a cached doc had assets/images/category/..., map to assets/images/shopCategory/...
+  if (clean.startsWith("assets/images/category/")) {
+    const fileMap = {
+      "vegetables.png": "vegetable.png",
+      "snacks.png": "snack.png",
+      "biscuits.png": "biscuit.png",
+      "water.png": "waterBottle.png",
+      "tea.png": "tea-bag.png",
+      "desserts.png": "yoghurt.png",
+      "bakery.png": "bread.png"
+    };
+    const baseName = clean.split("/").pop();
+    const mapped = fileMap[baseName] || baseName;
+    clean = "assets/images/shopCategory/" + mapped;
+  }
+
+  return prefix + clean;
+}
+
+export const normalizeImagePath = resolveImagePath;
 
 export function compressImageFile(file, maxWidth = 500, maxHeight = 500, quality = 0.75) {
   return new Promise((resolve, reject) => {
@@ -167,7 +259,6 @@ export function compressImageFile(file, maxWidth = 500, maxHeight = 500, quality
         ctx.fillRect(0, 0, width, height);
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Prefer WebP for compact Firestore document size, fallback to JPEG
         let dataUrl = canvas.toDataURL("image/webp", quality);
         if (!dataUrl || !dataUrl.startsWith("data:image/webp")) {
           dataUrl = canvas.toDataURL("image/jpeg", quality);
@@ -180,21 +271,12 @@ export function compressImageFile(file, maxWidth = 500, maxHeight = 500, quality
   });
 }
 
-export function resolveImagePath(imagePath, basePrefix = "") {
-  if (!imagePath) return basePrefix + "assets/images/logo/logo-freshco.png";
-  const s = String(imagePath).trim();
-  if (s.startsWith("data:image/") || s.startsWith("http://") || s.startsWith("https://")) {
-    return s;
-  }
-  const clean = s.replace(/^(\.\.\/|\.\/)+/, "");
-  return basePrefix + clean;
-}
-
 // ============================================================================
-// 3. AUTO-SEED 19 STANDARD CATEGORIES IF EMPTY
+// 3. FIRESTORE DATA MODEL SEEDING (Categories, 20 Items, Order Counter)
 // ============================================================================
 
 let categoriesCache = null;
+let itemsSeedChecked = false;
 
 export async function ensureCategoriesSeeded() {
   if (categoriesCache && categoriesCache.length > 0) {
@@ -202,37 +284,69 @@ export async function ensureCategoriesSeeded() {
   }
   try {
     const snap = await getDocs(collection(db, "categories"));
+    const ts = nowColomboISO();
     if (snap.empty) {
       const batch = writeBatch(db);
-      const ts = nowColomboISO();
       DEFAULT_CATEGORIES.forEach((cat) => {
         const ref = doc(db, "categories", String(cat.id));
         batch.set(ref, {
-          id: cat.id,
+          id: Number(cat.id),
           name: cat.name,
           slug: cat.slug,
           image_path: cat.image_path,
-          created_at: ts
+          status: cat.status || "active",
+          created_at: ts,
+          updated_at: ts
         });
       });
       await batch.commit();
-      categoriesCache = [...DEFAULT_CATEGORIES];
+      categoriesCache = DEFAULT_CATEGORIES.map((c) => ({ ...c, status: c.status || "active", created_at: ts, updated_at: ts }));
       return categoriesCache;
     }
+
     const list = [];
+    const fixBatch = writeBatch(db);
+    let needsFix = false;
+
     snap.forEach((d) => {
       const data = d.data();
       const id = Number(data.id || d.id);
       const def = DEFAULT_CATEGORIES.find((c) => c.id === id) || {};
+      let imgPath = data.image_path || def.image_path || DEFAULT_FALLBACK_IMAGE;
+      if (String(imgPath).startsWith("assets/images/category/") && def.image_path) {
+        imgPath = def.image_path;
+        needsFix = true;
+      }
+      const status = data.status || "active";
+      if (!data.status || !data.updated_at || String(data.image_path || "").startsWith("assets/images/category/")) {
+        needsFix = true;
+        fixBatch.set(doc(db, "categories", String(d.id)), {
+          id,
+          name: data.name || def.name || "Category",
+          slug: data.slug || def.slug || "category",
+          image_path: imgPath,
+          status,
+          created_at: data.created_at || ts,
+          updated_at: data.updated_at || ts
+        }, { merge: true });
+      }
       list.push({
         id,
         name: data.name || def.name || "Category",
         slug: data.slug || def.slug || "category",
-        image_path: data.image_path || def.image_path || "assets/images/logo/logo-freshco.png",
+        image_path: imgPath,
+        status,
         icon: def.icon || "bi-tag",
-        fa: def.fa || "fa-tag"
+        fa: def.fa || "fa-tag",
+        created_at: data.created_at || ts,
+        updated_at: data.updated_at || ts
       });
     });
+
+    if (needsFix) {
+      try { await fixBatch.commit(); } catch (_) {}
+    }
+
     list.sort((a, b) => a.id - b.id);
     categoriesCache = list;
     return list;
@@ -242,13 +356,219 @@ export async function ensureCategoriesSeeded() {
   }
 }
 
+export async function ensureOrderCounterSeeded() {
+  try {
+    const counterRef = doc(db, "counters", "orders");
+    const snap = await getDoc(counterRef);
+    if (!snap.exists()) {
+      await setDoc(counterRef, {
+        current: INITIAL_ORDER_COUNTER,
+        updated_at: nowColomboISO()
+      });
+      return INITIAL_ORDER_COUNTER;
+    }
+    return Number(snap.data().current) || INITIAL_ORDER_COUNTER;
+  } catch (_) {
+    return INITIAL_ORDER_COUNTER;
+  }
+}
+
+export async function ensureItemsSeeded() {
+  if (itemsSeedChecked) return;
+  itemsSeedChecked = true;
+  try {
+    const snap = await getDocs(collection(db, "items"));
+    if (snap.empty) {
+      const batch = writeBatch(db);
+      const ts = nowColomboISO();
+      DEFAULT_ITEMS.forEach((item) => {
+        const ref = doc(db, "items", String(item.id));
+        batch.set(ref, {
+          id: Number(item.id),
+          name: item.name,
+          image_path: item.image_path,
+          unit: item.unit,
+          price: roundMoney2(item.price),
+          stock_quantity: roundQty3(item.stock_quantity),
+          category_id: Number(item.category_id),
+          category_name: getCategoryNameById(item.category_id),
+          status: item.status || "active",
+          created_at: item.created_at || ts,
+          updated_at: item.updated_at || ts
+        });
+      });
+      await batch.commit();
+    }
+    await ensureOrderCounterSeeded();
+  } catch (err) {
+    console.warn("Auto-seed items warning:", err);
+  }
+}
+
+/**
+ * One-click or automatic Firestore seeder for categories (19), items (20: IDs 11-30), and counters/orders (current: 13).
+ */
+export async function seedFirebaseDatabase(force = false) {
+  const ts = nowColomboISO();
+  const batch = writeBatch(db);
+
+  const catSnap = await getDocs(collection(db, "categories"));
+  let categoriesSeeded = 0;
+  if (catSnap.empty || force) {
+    DEFAULT_CATEGORIES.forEach((cat) => {
+      const ref = doc(db, "categories", String(cat.id));
+      batch.set(ref, {
+        id: Number(cat.id),
+        name: cat.name,
+        slug: cat.slug,
+        image_path: cat.image_path,
+        status: cat.status || "active",
+        created_at: ts,
+        updated_at: ts
+      }, { merge: true });
+      categoriesSeeded++;
+    });
+  }
+
+  const itemSnap = await getDocs(collection(db, "items"));
+  let itemsSeeded = 0;
+  if (itemSnap.empty || force) {
+    DEFAULT_ITEMS.forEach((item) => {
+      const ref = doc(db, "items", String(item.id));
+      batch.set(ref, {
+        id: Number(item.id),
+        name: item.name,
+        image_path: item.image_path,
+        unit: item.unit,
+        price: roundMoney2(item.price),
+        stock_quantity: roundQty3(item.stock_quantity),
+        category_id: Number(item.category_id),
+        category_name: getCategoryNameById(item.category_id),
+        status: item.status || "active",
+        created_at: item.created_at || ts,
+        updated_at: item.updated_at || ts
+      }, { merge: true });
+      itemsSeeded++;
+    });
+  }
+
+  const counterRef = doc(db, "counters", "orders");
+  const counterSnap = await getDoc(counterRef);
+  if (!counterSnap.exists() || force) {
+    batch.set(counterRef, {
+      current: counterSnap.exists() ? Math.max(INITIAL_ORDER_COUNTER, Number(counterSnap.data().current) || INITIAL_ORDER_COUNTER) : INITIAL_ORDER_COUNTER,
+      updated_at: ts
+    }, { merge: true });
+  }
+
+  await batch.commit();
+  categoriesCache = null;
+  await ensureCategoriesSeeded();
+
+  return {
+    ok: true,
+    categoriesSeeded,
+    itemsSeeded,
+    totalCategories: DEFAULT_CATEGORIES.length,
+    totalDefaultItems: DEFAULT_ITEMS.length
+  };
+}
+
 export function getCategoryNameById(catId) {
+  if (categoriesCache) {
+    const found = categoriesCache.find((x) => Number(x.id) === Number(catId));
+    if (found) return found.name;
+  }
   const c = DEFAULT_CATEGORIES.find((x) => x.id === Number(catId));
   return c ? c.name : "Grocery";
 }
 
 // ============================================================================
-// 4. AUTHENTICATION & USER PROFILE OPERATIONS
+// 3B. ADMIN CATEGORY CRUD OPERATIONS
+// ============================================================================
+
+export async function getAllCategories(activeOnly = false) {
+  const list = await ensureCategoriesSeeded();
+  if (!activeOnly) return list;
+  return list.filter((c) => (c.status || "active") === "active");
+}
+
+export async function addCategory({ name, slug, image_path, status = "active", imageFile }) {
+  const nm = String(name || "").trim();
+  if (!nm) throw new Error("Category name is required.");
+  const sl = String(slug || nm.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")).trim();
+  const st = status === "inactive" ? "inactive" : "active";
+
+  let resolvedImg = image_path || DEFAULT_FALLBACK_IMAGE;
+  if (imageFile) {
+    resolvedImg = await compressImageFile(imageFile, 300, 300, 0.8);
+  }
+
+  const existing = await ensureCategoriesSeeded();
+  const maxId = existing.reduce((max, c) => Math.max(max, Number(c.id) || 0), 19);
+  const newId = maxId + 1;
+  const ts = nowColomboISO();
+
+  const catDoc = {
+    id: newId,
+    name: nm,
+    slug: sl,
+    image_path: resolvedImg,
+    status: st,
+    created_at: ts,
+    updated_at: ts
+  };
+
+  await setDoc(doc(db, "categories", String(newId)), catDoc);
+  categoriesCache = null;
+  await ensureCategoriesSeeded();
+  return { ok: true, category: catDoc };
+}
+
+export async function updateCategory(categoryId, { name, slug, image_path, status, imageFile }) {
+  const id = Number(categoryId);
+  if (!id) throw new Error("Invalid category ID.");
+  const ref = doc(db, "categories", String(id));
+  const snap = await getDoc(ref);
+  if (!snap.exists()) throw new Error("Category not found.");
+
+  const cur = snap.data();
+  const nm = name !== undefined ? String(name).trim() : cur.name;
+  const sl = slug !== undefined ? String(slug).trim() : cur.slug;
+  const st = status !== undefined ? (status === "inactive" ? "inactive" : "active") : (cur.status || "active");
+  let resolvedImg = image_path !== undefined ? image_path : cur.image_path;
+  if (imageFile) {
+    resolvedImg = await compressImageFile(imageFile, 300, 300, 0.8);
+  }
+
+  const updates = {
+    name: nm,
+    slug: sl,
+    image_path: resolvedImg,
+    status: st,
+    updated_at: nowColomboISO()
+  };
+
+  await updateDoc(ref, updates);
+  categoriesCache = null;
+  await ensureCategoriesSeeded();
+  return { ok: true, category: { id, ...cur, ...updates } };
+}
+
+export async function toggleCategoryStatus(categoryId) {
+  const ref = doc(db, "categories", String(categoryId));
+  const snap = await getDoc(ref);
+  if (!snap.exists()) throw new Error("Category not found.");
+  const cur = snap.data().status === "inactive" ? "inactive" : "active";
+  const next = cur === "active" ? "inactive" : "active";
+  await updateDoc(ref, { status: next, updated_at: nowColomboISO() });
+  categoriesCache = null;
+  await ensureCategoriesSeeded();
+  return next;
+}
+
+// ============================================================================
+// 4. AUTHENTICATION & USER PROFILE OPERATIONS (Fix #2 - Zero Plaintext Passwords)
 // ============================================================================
 
 export function waitForAuthUser() {
@@ -276,8 +596,14 @@ export async function getUserProfile(uid, fallbackEmail = "") {
   try {
     const snap = await getDoc(doc(db, "users", uid));
     if (snap.exists()) {
-      return { id: uid, uid, ...snap.data() };
+      const data = snap.data();
+      // Security guarantee (Fix #2): strip any legacy password field if ever present
+      if ("password" in data) {
+        delete data.password;
+      }
+      return { id: uid, uid, ...data };
     }
+    const ts = nowColomboISO();
     const defaultProfile = {
       id: uid,
       uid,
@@ -288,8 +614,9 @@ export async function getUserProfile(uid, fallbackEmail = "") {
       street_address1: "",
       street_address2: "",
       town: "",
-      is_admin: fallbackEmail === "achintha@gmail.com" ? 1 : 0,
-      created_at: nowColomboISO()
+      is_admin: fallbackEmail.toLowerCase() === "achintha@gmail.com" ? 1 : 0,
+      created_at: ts,
+      updated_at: ts
     };
     await setDoc(doc(db, "users", uid), defaultProfile, { merge: true });
     return defaultProfile;
@@ -345,7 +672,11 @@ export async function registerCustomer({ firstName, lastName, email, phoneNumber
     const cred = await createUserWithEmailAndPassword(auth, em, pw);
     const uid = cred.user.uid;
     const isAdmin = em.toLowerCase() === "achintha@gmail.com" ? 1 : 0;
+    const ts = nowColomboISO();
+
+    // Fix #2: Never store plaintext passwords or bcrypt hashes in Firestore users documents
     const profileData = {
+      id: uid,
       uid,
       first_name: fn,
       last_name: ln,
@@ -355,9 +686,11 @@ export async function registerCustomer({ firstName, lastName, email, phoneNumber
       street_address2: "",
       town: "",
       is_admin: isAdmin,
-      created_at: nowColomboISO()
+      created_at: ts,
+      updated_at: ts
     };
     await setDoc(doc(db, "users", uid), profileData);
+    await getOrCreateActiveCart(uid);
     return { ok: true, user: cred.user, profile: profileData, message: "Registration Successful!" };
   } catch (err) {
     return { ok: false, message: mapFirebaseAuthError(err, "Registration failed. Please try again.") };
@@ -372,7 +705,7 @@ export async function loginCustomer(email, password) {
 
     const cred = await signInWithEmailAndPassword(auth, em, pw);
     const profile = await getUserProfile(cred.user.uid, cred.user.email);
-    const isAdmin = Number(profile.is_admin) === 1 || em.toLowerCase() === "achintha@gmail.com";
+    const isAdmin = Number(profile.is_admin) === 1 || profile.is_admin === true || em.toLowerCase() === "achintha@gmail.com";
     if (isAdmin) {
       localStorage.setItem("fc_admin_auth", JSON.stringify({
         uid: cred.user.uid,
@@ -383,6 +716,7 @@ export async function loginCustomer(email, password) {
         ts: Date.now()
       }));
     }
+    await getOrCreateActiveCart(cred.user.uid);
     return { ok: true, isAdmin, user: cred.user, profile, message: "Login Successful!" };
   } catch (err) {
     return { ok: false, message: mapFirebaseAuthError(err, "Invalid email or password.") };
@@ -443,7 +777,7 @@ export async function updateCustomerPassword(currentPassword, newPassword, confi
 }
 
 // ============================================================================
-// 5. ADMIN PORTAL AUTHENTICATION HELPERS
+// 5. ADMIN PORTAL AUTHENTICATION & ROUTE PROTECTION (Fix #14)
 // ============================================================================
 
 export async function authenticateAdminPortal(password, emailOptional = "") {
@@ -454,7 +788,8 @@ export async function authenticateAdminPortal(password, emailOptional = "") {
     return { ok: false, message: "Please enter the security access key." };
   }
 
-  // Support standard Admin Portal Security Access Key ("1234" or "12345678") OR Firebase Admin user login
+  const ts = nowColomboISO();
+
   if (pw === "1234" || pw === "12345678") {
     try {
       const cred = await signInWithEmailAndPassword(auth, em, pw === "1234" ? "12345678" : pw);
@@ -472,16 +807,18 @@ export async function authenticateAdminPortal(password, emailOptional = "") {
       try {
         const cred = await createUserWithEmailAndPassword(auth, "achintha@gmail.com", "12345678");
         await setDoc(doc(db, "users", cred.user.uid), {
+          id: cred.user.uid,
           uid: cred.user.uid,
           first_name: "Achintha",
-          last_name: "Admin",
+          last_name: "Mihiran",
           email: "achintha@gmail.com",
-          phone_number: "0771234567",
-          street_address1: "No. 142, Parliament Road",
-          street_address2: "",
-          town: "Rajagiriya",
+          phone_number: "0788329266",
+          street_address1: "123 Main St",
+          street_address2: "Apt 4B",
+          town: "Colombo",
           is_admin: 1,
-          created_at: nowColomboISO()
+          created_at: ts,
+          updated_at: ts
         }, { merge: true });
       } catch (_ignore) {}
 
@@ -489,7 +826,7 @@ export async function authenticateAdminPortal(password, emailOptional = "") {
         uid: "admin_portal",
         email: "achintha@gmail.com",
         first_name: "Achintha",
-        last_name: "Admin",
+        last_name: "Mihiran",
         is_admin: 1,
         ts: Date.now()
       }));
@@ -500,7 +837,7 @@ export async function authenticateAdminPortal(password, emailOptional = "") {
   try {
     const cred = await signInWithEmailAndPassword(auth, em, pw);
     const profile = await getUserProfile(cred.user.uid, cred.user.email);
-    if (Number(profile.is_admin) !== 1 && cred.user.email.toLowerCase() !== "achintha@gmail.com") {
+    if (Number(profile.is_admin) !== 1 && profile.is_admin !== true && cred.user.email.toLowerCase() !== "achintha@gmail.com") {
       return { ok: false, message: "Access denied. This account does not have administrator privileges." };
     }
     localStorage.setItem("fc_admin_auth", JSON.stringify({
@@ -522,7 +859,7 @@ export function getAdminSession() {
     const raw = localStorage.getItem("fc_admin_auth");
     if (!raw) return null;
     const data = JSON.parse(raw);
-    if (data && Number(data.is_admin) === 1) return data;
+    if (data && (Number(data.is_admin) === 1 || data.is_admin === true)) return data;
     return null;
   } catch (_) {
     return null;
@@ -532,17 +869,22 @@ export function getAdminSession() {
 export function requireAdminSession(redirectUrl = "login.html") {
   const sess = getAdminSession();
   if (!sess) {
-    window.location.href = redirectUrl;
+    if (typeof window !== "undefined") {
+      window.location.href = redirectUrl;
+    }
     return null;
   }
   return sess;
 }
 
 // ============================================================================
-// 6. ITEMS / PRODUCT CATALOG OPERATIONS
+// 6. ITEMS / PRODUCT CATALOG OPERATIONS (Auto-Seeding + 3-Decimal Stock)
 // ============================================================================
 
 export async function getAllItems(activeOnly = false) {
+  await ensureCategoriesSeeded();
+  await ensureItemsSeeded();
+
   const snap = await getDocs(collection(db, "items"));
   const items = [];
   snap.forEach((d) => {
@@ -552,14 +894,19 @@ export async function getAllItems(activeOnly = false) {
     items.push({
       id: d.id,
       ...data,
-      price: parseFloat(data.price) || 0,
-      stock_quantity: parseFloat(data.stock_quantity) || 0,
+      price: roundMoney2(data.price),
+      stock_quantity: roundQty3(data.stock_quantity),
       category_id: Number(data.category_id) || 1,
       category_name: data.category_name || getCategoryNameById(data.category_id),
       status
     });
   });
-  items.sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+  items.sort((a, b) => {
+    const idA = Number(a.id);
+    const idB = Number(b.id);
+    if (!isNaN(idA) && !isNaN(idB) && idA !== idB) return idB - idA;
+    return String(b.created_at || "").localeCompare(String(a.created_at || ""));
+  });
   return items;
 }
 
@@ -571,8 +918,8 @@ export async function getItemById(itemId) {
   return {
     id: snap.id,
     ...data,
-    price: parseFloat(data.price) || 0,
-    stock_quantity: parseFloat(data.stock_quantity) || 0,
+    price: roundMoney2(data.price),
+    stock_quantity: roundQty3(data.stock_quantity),
     category_id: Number(data.category_id) || 1,
     category_name: data.category_name || getCategoryNameById(data.category_id),
     status: data.status || "active"
@@ -581,11 +928,11 @@ export async function getItemById(itemId) {
 
 export async function addProductItem({ name, price, unit, category_id, status, stock_quantity, imageDataUrl, imageFile }) {
   const nm = String(name || "").trim();
-  const pr = parseFloat(price);
+  const pr = roundMoney2(price);
   const un = String(unit || "").trim();
   const cid = Number(category_id);
   const st = status === "inactive" ? "inactive" : "active";
-  const sq = stock_quantity !== undefined && stock_quantity !== "" ? parseFloat(stock_quantity) : (st === "active" ? 25 : 0);
+  const sq = stock_quantity !== undefined && stock_quantity !== "" ? roundQty3(stock_quantity) : (st === "active" ? 25.000 : 0.000);
 
   if (!nm) throw new Error("Please enter the product name.");
   if (isNaN(pr) || pr <= 0) throw new Error("Please enter a valid price.");
@@ -599,7 +946,9 @@ export async function addProductItem({ name, price, unit, category_id, status, s
   if (!resolvedImage) throw new Error("Please select a product image.");
 
   const ts = nowColomboISO();
+  const docRef = doc(collection(db, "items"));
   const itemDoc = {
+    id: docRef.id,
     name: nm,
     price: pr,
     unit: un,
@@ -611,15 +960,18 @@ export async function addProductItem({ name, price, unit, category_id, status, s
     created_at: ts,
     updated_at: ts
   };
-  const docRef = await addDoc(collection(db, "items"), itemDoc);
-  // Record initial stock transaction
+  await setDoc(docRef, itemDoc);
+
   if (sq > 0) {
-    await addDoc(collection(db, "stock_transactions"), {
-      item_id: docRef.id,
+    const txRef = doc(collection(db, "stock_transactions"));
+    await setDoc(txRef, {
+      id: txRef.id,
+      item_id: String(docRef.id),
+      item_name: nm,
       transaction_type: "in",
-      quantity: sq,
-      previous_stock: 0,
-      new_stock: sq,
+      quantity: roundQty3(sq),
+      previous_stock: 0.000,
+      new_stock: roundQty3(sq),
       reason: "Initial Product Stock",
       created_at: ts
     });
@@ -627,6 +979,34 @@ export async function addProductItem({ name, price, unit, category_id, status, s
   return { ok: true, id: docRef.id, ...itemDoc };
 }
 
+export async function updateProductItem(itemId, { name, price, unit, category_id, status, imageDataUrl, imageFile }) {
+  const itemRef = doc(db, "items", String(itemId));
+  const snap = await getDoc(itemRef);
+  if (!snap.exists()) throw new Error("Item not found.");
+  const cur = snap.data();
+
+  const updates = { updated_at: nowColomboISO() };
+  if (name !== undefined) updates.name = String(name).trim();
+  if (price !== undefined) updates.price = roundMoney2(price);
+  if (unit !== undefined) updates.unit = String(unit).trim();
+  if (category_id !== undefined) {
+    updates.category_id = Number(category_id);
+    updates.category_name = getCategoryNameById(category_id);
+  }
+  if (status !== undefined) updates.status = status === "inactive" ? "inactive" : "active";
+  if (imageDataUrl) {
+    updates.image_path = imageDataUrl;
+  } else if (imageFile) {
+    updates.image_path = await compressImageFile(imageFile, 500, 500, 0.75);
+  }
+
+  await updateDoc(itemRef, updates);
+  return { ok: true, item: { id: itemId, ...cur, ...updates } };
+}
+
+/**
+ * Fix #13: Safe soft-delete / status toggle so historical orders remain intact.
+ */
 export async function toggleItemStatus(itemId) {
   const itemRef = doc(db, "items", String(itemId));
   const snap = await getDoc(itemRef);
@@ -655,18 +1035,18 @@ export async function adjustItemStock(itemId, typeOrObj, changeQty, reason) {
     const snap = await transaction.get(itemRef);
     if (!snap.exists()) throw new Error("Item not found.");
     const data = snap.data();
-    const prevStock = parseFloat(data.stock_quantity) || 0;
-    const qty = parseFloat(qtyVal) || 0;
+    const prevStock = roundQty3(data.stock_quantity);
+    const qty = roundQty3(qtyVal);
 
     if (transactionType === "in") {
-      finalStock = prevStock + qty;
+      finalStock = roundQty3(prevStock + qty);
     } else if (transactionType === "out") {
       if (qty > prevStock) {
-        throw new Error(`Cannot remove more stock than currently available (${prevStock}).`);
+        throw new Error(`Cannot remove more stock than currently available (${prevStock.toFixed(3)}).`);
       }
-      finalStock = Math.max(0, prevStock - qty);
+      finalStock = roundQty3(Math.max(0, prevStock - qty));
     } else if (transactionType === "adjustment") {
-      finalStock = Math.max(0, qty);
+      finalStock = roundQty3(Math.max(0, qty));
     } else {
       throw new Error("Invalid transaction type.");
     }
@@ -680,7 +1060,9 @@ export async function adjustItemStock(itemId, typeOrObj, changeQty, reason) {
 
     const txRef = doc(collection(db, "stock_transactions"));
     transaction.set(txRef, {
+      id: txRef.id,
       item_id: String(itemId),
+      item_name: data.name || "",
       transaction_type: transactionType,
       quantity: qty,
       previous_stock: prevStock,
@@ -706,16 +1088,93 @@ export async function getItemStockHistory(itemId) {
 }
 
 // ============================================================================
-// 7. SHOPPING CART OPERATIONS (Unit Price Storage + Stock Validation)
+// 7. SINGLE ACTIVE CART ENFORCEMENT (Fix #3, Fix #4, Fix #12)
 // ============================================================================
 
+/**
+ * Fix #3: Deterministically stores each user's active cart at `carts/active_{userId}`
+ * so a user can NEVER have two concurrent 'active' carts.
+ */
+export async function getOrCreateActiveCart(userId) {
+  if (!userId) return null;
+  const cartDocId = `active_${userId}`;
+  const cartRef = doc(db, "carts", cartDocId);
+  const ts = nowColomboISO();
+  try {
+    const snap = await getDoc(cartRef);
+    if (snap.exists()) {
+      const data = snap.data();
+      if (data.status !== "active") {
+        const reactivated = {
+          id: cartDocId,
+          user_id: String(userId),
+          status: "active",
+          items: Array.isArray(data.items) ? data.items : [],
+          created_at: data.created_at || ts,
+          updated_at: ts
+        };
+        await setDoc(cartRef, reactivated, { merge: true });
+        return reactivated;
+      }
+      return { id: cartDocId, ...data, items: Array.isArray(data.items) ? data.items : [] };
+    }
+    const newCart = {
+      id: cartDocId,
+      user_id: String(userId),
+      status: "active",
+      items: [],
+      created_at: ts,
+      updated_at: ts
+    };
+    await setDoc(cartRef, newCart);
+    return newCart;
+  } catch (err) {
+    return {
+      id: cartDocId,
+      user_id: String(userId),
+      status: "active",
+      items: [],
+      created_at: ts,
+      updated_at: ts
+    };
+  }
+}
+
+async function syncActiveCartDocument(uid, enrichedItems) {
+  if (!uid) return;
+  const cartDocId = `active_${uid}`;
+  const cartRef = doc(db, "carts", cartDocId);
+  const ts = nowColomboISO();
+  const normalizedItems = enrichedItems.map((it) => ({
+    item_id: String(it.item_id),
+    name: it.name,
+    image_path: it.image_path || "",
+    unit: it.unit || "1 unit",
+    quantity: roundQty3(it.quantity),
+    price: roundMoney2(it.unit_price ?? it.price),
+    subtotal: roundMoney2(it.line_total ?? (it.quantity * (it.unit_price ?? it.price)))
+  }));
+  try {
+    await setDoc(cartRef, {
+      id: cartDocId,
+      user_id: String(uid),
+      status: "active",
+      items: normalizedItems,
+      updated_at: ts
+    }, { merge: true });
+  } catch (_) {}
+}
+
 export async function getActiveCartWithItems(uid) {
-  if (!uid) return { items: [], count: 0, subtotal: 0, inCartMap: {} };
+  if (!uid) return { cartId: null, items: [], count: 0, subtotal: 0, inCartMap: {} };
+
+  await getOrCreateActiveCart(uid);
 
   const q = query(collection(db, "cart_items"), where("user_id", "==", String(uid)));
   const snap = await getDocs(q);
   if (snap.empty) {
-    return { items: [], count: 0, subtotal: 0, inCartMap: {} };
+    await syncActiveCartDocument(uid, []);
+    return { cartId: `active_${uid}`, items: [], count: 0, subtotal: 0, inCartMap: {} };
   }
 
   const rawCartItems = [];
@@ -728,37 +1187,43 @@ export async function getActiveCartWithItems(uid) {
   for (const ci of rawCartItems) {
     const item = await getItemById(ci.item_id);
     if (!item) continue;
-    const qty = parseFloat(ci.quantity) || 0;
+    const qty = roundQty3(ci.quantity);
     if (qty <= 0) continue;
-    const unitPrice = parseFloat(item.price) || parseFloat(ci.price) || 0;
-    const lineTotal = qty * unitPrice;
-    subtotal += lineTotal;
+    const unitPrice = roundMoney2(item.price || ci.price);
+    const lineTotal = roundMoney2(qty * unitPrice);
+    subtotal = roundMoney2(subtotal + lineTotal);
     inCartMap[String(item.id)] = qty;
     const formattedQty = formatQuantity(qty, item.unit, item.category_id);
 
     enriched.push({
       cart_item_id: ci.cart_item_id,
+      cart_id: `active_${uid}`,
       item_id: String(item.id),
       name: item.name,
       image_path: item.image_path,
       unit: item.unit || "1 unit",
       category_id: Number(item.category_id) || 1,
-      stock_quantity: parseFloat(item.stock_quantity) || 0,
+      stock_quantity: roundQty3(item.stock_quantity),
       status: item.status || "active",
       quantity: qty,
       formatted_qty: formattedQty,
       formatted_quantity: formattedQty,
       is_bulk: isBulkItem(item.category_id, item.unit),
       metric: getUnitMetric(item.unit),
+      price: unitPrice,
       unit_price: unitPrice,
+      subtotal: lineTotal,
       line_total: lineTotal
     });
   }
 
+  await syncActiveCartDocument(uid, enriched);
+
   return {
+    cartId: `active_${uid}`,
     items: enriched,
     count: enriched.length,
-    subtotal,
+    subtotal: roundMoney2(subtotal),
     inCartMap
   };
 }
@@ -769,34 +1234,44 @@ export async function addOrUpdateCartItem(uid, itemId, deltaQty) {
     const item = await getItemById(itemId);
     if (!item) return { ok: false, status: "error", message: "Item not found." };
 
-    const stockQty = parseFloat(item.stock_quantity) || 0;
+    // Fix #4: Block adding items with stock_quantity <= 0
+    const stockQty = roundQty3(item.stock_quantity);
     if (item.status !== "active" || stockQty <= 0) {
       return { ok: false, status: "error", message: `Sorry, "${item.name}" is currently out of stock.` };
     }
 
+    await getOrCreateActiveCart(uid);
+
     const cartDocId = `${uid}_${itemId}`;
     const cartRef = doc(db, "cart_items", cartDocId);
     const existingSnap = await getDoc(cartRef);
-    const delta = parseFloat(deltaQty) || 0;
+    const delta = roundQty3(deltaQty);
     const ts = nowColomboISO();
+    const unitPrice = roundMoney2(item.price);
 
     if (existingSnap.exists()) {
-      const curQty = parseFloat(existingSnap.data().quantity) || 0;
-      const newQty = curQty + delta;
+      const curQty = roundQty3(existingSnap.data().quantity);
+      const newQty = roundQty3(curQty + delta);
 
       if (delta < 0 && newQty <= 0.0001) {
         await deleteDoc(cartRef);
+        await getActiveCartWithItems(uid);
         return { ok: true, status: "success", action: "removed", newQty: 0, newQuantity: 0, message: "Item removed from cart.", item };
       }
       if (newQty > stockQty) {
         return { ok: false, status: "error", message: `Sorry, only ${stockQty} unit(s) of "${item.name}" are available in stock.` };
       }
-      // Always store single unit price in cart_items.price
       await updateDoc(cartRef, {
+        cart_id: `active_${uid}`,
+        name: item.name,
+        image_path: item.image_path || "",
+        unit: item.unit || "1 unit",
         quantity: newQty,
-        price: item.price,
+        price: unitPrice,
+        subtotal: roundMoney2(newQty * unitPrice),
         updated_at: ts
       });
+      await getActiveCartWithItems(uid);
       return { ok: true, status: "success", action: "updated", newQty, newQuantity: newQty, message: "Cart updated!", item };
     } else {
       if (delta <= 0) return { ok: true, status: "success", action: "none", newQty: 0, newQuantity: 0, message: "", item };
@@ -804,13 +1279,19 @@ export async function addOrUpdateCartItem(uid, itemId, deltaQty) {
         return { ok: false, status: "error", message: `Sorry, only ${stockQty} unit(s) of "${item.name}" are available in stock.` };
       }
       await setDoc(cartRef, {
+        cart_id: `active_${uid}`,
         user_id: String(uid),
         item_id: String(itemId),
+        name: item.name,
+        image_path: item.image_path || "",
+        unit: item.unit || "1 unit",
         quantity: delta,
-        price: item.price, // Single unit price
+        price: unitPrice,
+        subtotal: roundMoney2(delta * unitPrice),
         created_at: ts,
         updated_at: ts
       });
+      await getActiveCartWithItems(uid);
       return { ok: true, status: "success", action: "added", newQty: delta, newQuantity: delta, message: "Added to cart!", item };
     }
   } catch (err) {
@@ -832,12 +1313,12 @@ export async function setCartItemQuantity(uid, cartItemId, itemIdOrQty, maybeQty
     const item = await getItemById(ci.item_id);
     if (!item) return { ok: false, success: false, message: "Item not found" };
 
-    const stockQty = parseFloat(item.stock_quantity) || 0;
+    const stockQty = roundQty3(item.stock_quantity);
     if (item.status !== "active" || stockQty <= 0) {
       return { ok: false, success: false, message: `Sorry, "${item.name}" is currently out of stock.` };
     }
 
-    const qty = parseFloat(newQuantity) || 0;
+    const qty = roundQty3(newQuantity);
     if (qty <= 0.0001) {
       await deleteDoc(cartRef);
       const updatedCart = await getActiveCartWithItems(uid);
@@ -859,9 +1340,17 @@ export async function setCartItemQuantity(uid, cartItemId, itemIdOrQty, maybeQty
       };
     }
 
+    const unitPrice = roundMoney2(item.price);
+    const itemTotal = roundMoney2(qty * unitPrice);
+
     await updateDoc(cartRef, {
+      cart_id: `active_${uid}`,
+      name: item.name,
+      image_path: item.image_path || "",
+      unit: item.unit || "1 unit",
       quantity: qty,
-      price: item.price,
+      price: unitPrice,
+      subtotal: itemTotal,
       updated_at: nowColomboISO()
     });
 
@@ -875,7 +1364,7 @@ export async function setCartItemQuantity(uid, cartItemId, itemIdOrQty, maybeQty
       quantity: qty,
       formatted_quantity: formattedQty,
       formatted_qty: formattedQty,
-      item_total: qty * item.price,
+      item_total: itemTotal,
       subtotal: updatedCart.subtotal,
       grand_total: updatedCart.subtotal,
       item
@@ -890,6 +1379,7 @@ export async function removeCartItemById(uid, cartItemId) {
   const snap = await getDoc(cartRef);
   if (snap.exists() && String(snap.data().user_id) === String(uid)) {
     await deleteDoc(cartRef);
+    await getActiveCartWithItems(uid);
   }
 }
 
@@ -898,11 +1388,19 @@ export async function clearUserCart(uid) {
   const snap = await getDocs(q);
   const batch = writeBatch(db);
   snap.forEach((d) => batch.delete(d.ref));
+  const activeCartRef = doc(db, "carts", `active_${uid}`);
+  batch.set(activeCartRef, {
+    id: `active_${uid}`,
+    user_id: String(uid),
+    status: "active",
+    items: [],
+    updated_at: nowColomboISO()
+  }, { merge: true });
   await batch.commit();
 }
 
 // ============================================================================
-// 8. CHECKOUT & ATOMIC ORDER PLACEMENT (COD & STORE PICKUP)
+// 8. CHECKOUT & ATOMIC ORDER PLACEMENT (Fixes #4, #5, #6, #7, #8, #12, #13)
 // ============================================================================
 
 function randomChars(chars, len) {
@@ -911,6 +1409,10 @@ function randomChars(chars, len) {
     out += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return out;
+}
+
+export function generatePickupCode() {
+  return `PK-${randomChars("23456789ABCDEFGHJKLMNPQRSTUVWXYZ", 5)}`;
 }
 
 export async function placeOrderTransaction(uid, payload) {
@@ -930,12 +1432,16 @@ export async function placeOrderTransaction(uid, payload) {
     if (!customerName) return { ok: false, message: "Please enter your full name." };
     if (!customerPhone) return { ok: false, message: "Please enter your phone number." };
 
+    // Fix #8: Store Pickup Validation & Branch Address Assignment
     if (method === "pickup") {
       if (!pickupDate) return { ok: false, message: "Please select a pickup date." };
+      if (pickupDate < todayDateString()) {
+        return { ok: false, message: "Pickup date must be today or a future date." };
+      }
       if (!pickupSlot) return { ok: false, message: "Please choose a pickup time slot." };
-      street1 = STORE_CONFIG.address;
+      street1 = "Freshcomart Main Branch, Sri Jayawardenepura Mawatha, Rajagiriya";
       street2 = "";
-      town = STORE_CONFIG.town;
+      town = "Rajagiriya";
     } else {
       if (!street1) return { ok: false, message: "Please enter your delivery street address." };
       if (!town) return { ok: false, message: "Please enter your town/city." };
@@ -946,16 +1452,19 @@ export async function placeOrderTransaction(uid, payload) {
       return { ok: false, message: "Your cart is empty." };
     }
 
-    const datePart = todayDateString().replace(/-/g, "");
-    const orderNumber = `ORD-${datePart}-${randomChars("0123456789", 4)}`;
-    const pickupCode = method === "pickup" ? `PK-${randomChars("23456789ABCDEFGHJKLMNPQRSTUVWXYZ", 5)}` : null;
-    const deliveryFee = method === "pickup" ? 0.0 : STORE_CONFIG.delivery_fee;
+    // Fix #6: Strict Delivery Fee Enforcement (COD = 450.00, Pickup = 0.00)
+    const deliveryFee = method === "cod" ? 450.00 : 0.00;
+    const pickupCode = method === "pickup" ? generatePickupCode() : null;
     const ts = nowColomboISO();
 
     const newOrderRef = doc(collection(db, "orders"));
+    const counterRef = doc(db, "counters", "orders");
+    const activeCartRef = doc(db, "carts", `active_${uid}`);
+    let generatedOrderNumber = "00014";
 
     await runTransaction(db, async (transaction) => {
-      // 1. Read all item docs first (Firestore transaction requirement: reads before writes)
+      // 1. Read order counter + all item docs first (Firestore transaction rule: all reads before writes)
+      const counterSnap = await transaction.get(counterRef);
       const itemSnaps = [];
       for (const ci of cart.items) {
         const itemRef = doc(db, "items", String(ci.item_id));
@@ -963,25 +1472,33 @@ export async function placeOrderTransaction(uid, payload) {
         itemSnaps.push({ ci, itemRef, snap });
       }
 
-      let computedSubtotal = 0;
+      // Fix #7: Sequential 5-digit order_number ('00014', '00015', ...)
+      const currentSeq = counterSnap.exists()
+        ? (Number(counterSnap.data().current) || INITIAL_ORDER_COUNTER)
+        : INITIAL_ORDER_COUNTER;
+      const nextSeq = currentSeq + 1;
+      generatedOrderNumber = String(nextSeq).padStart(5, "0");
+
+      let itemsSubtotal = 0;
       const orderItemsArray = [];
 
-      // 2. Validate stock & prepare stock deductions
+      // 2. Fix #4 & Fix #5: Validate stock > 0 & >= requested qty, deduct atomically with 3-decimal precision
       for (const { ci, itemRef, snap } of itemSnaps) {
         if (!snap.exists()) {
           throw new Error(`Product "${ci.name}" is no longer available.`);
         }
         const itemData = snap.data();
-        const availStock = parseFloat(itemData.stock_quantity) || 0;
-        const unitPrice = parseFloat(itemData.price) || 0;
+        const previousStock = roundQty3(itemData.stock_quantity);
+        const requestedQty = roundQty3(ci.quantity);
+        const unitPrice = roundMoney2(itemData.price);
 
-        if (itemData.status !== "active" || availStock < ci.quantity) {
-          throw new Error(`Insufficient stock for "${itemData.name}". Available: ${availStock}`);
+        if (itemData.status !== "active" || previousStock <= 0 || previousStock < requestedQty) {
+          throw new Error(`Insufficient stock for "${itemData.name}". Available: ${previousStock.toFixed(3)}`);
         }
 
-        const newStock = availStock - ci.quantity;
-        const lineSubtotal = ci.quantity * unitPrice;
-        computedSubtotal += lineSubtotal;
+        const newStock = Number((previousStock - requestedQty).toFixed(3));
+        const lineSubtotal = Number((requestedQty * unitPrice).toFixed(2));
+        itemsSubtotal = Number((itemsSubtotal + lineSubtotal).toFixed(2));
 
         transaction.update(itemRef, {
           stock_quantity: newStock,
@@ -990,15 +1507,18 @@ export async function placeOrderTransaction(uid, payload) {
 
         const txRef = doc(collection(db, "stock_transactions"));
         transaction.set(txRef, {
+          id: txRef.id,
           item_id: String(ci.item_id),
+          item_name: itemData.name,
           transaction_type: "out",
-          quantity: ci.quantity,
-          previous_stock: availStock,
+          quantity: requestedQty,
+          previous_stock: previousStock,
           new_stock: newStock,
-          reason: `Order #${orderNumber} (${method.toUpperCase()})`,
+          reason: `Customer Order #${generatedOrderNumber}`,
           created_at: ts
         });
 
+        // Fix #13: Denormalized Order Items snapshot
         orderItemsArray.push({
           item_id: String(ci.item_id),
           name: itemData.name,
@@ -1006,18 +1526,26 @@ export async function placeOrderTransaction(uid, payload) {
           image_path: itemData.image_path || "",
           unit: itemData.unit || "1 unit",
           category_id: Number(itemData.category_id) || 1,
-          quantity: ci.quantity,
+          quantity: requestedQty,
           price: unitPrice,
           subtotal: lineSubtotal
         });
       }
 
-      const grandTotal = computedSubtotal + deliveryFee;
+      // Fix #6: Exact total calculation
+      const totalAmount = Number((itemsSubtotal + deliveryFee).toFixed(2));
+
+      // Update sequential order counter
+      transaction.set(counterRef, {
+        current: nextSeq,
+        updated_at: ts
+      }, { merge: true });
 
       // 3. Create Order document
       transaction.set(newOrderRef, {
+        id: newOrderRef.id,
         user_id: String(uid),
-        order_number: orderNumber,
+        order_number: generatedOrderNumber,
         purchase_method: method,
         payment_status: "unpaid",
         order_status: "pending",
@@ -1032,39 +1560,49 @@ export async function placeOrderTransaction(uid, payload) {
         pickup_code: pickupCode,
         delivery_fee: deliveryFee,
         shipping_cost: deliveryFee,
-        subtotal: computedSubtotal,
-        subtotal_amount: computedSubtotal,
-        total_amount: grandTotal,
+        subtotal: itemsSubtotal,
+        subtotal_amount: itemsSubtotal,
+        total_amount: totalAmount,
         items: orderItemsArray,
         created_at: ts,
         updated_at: ts
       });
 
-      // 4. Delete user's cart items
+      // 4. Clear user's cart_items and reset carts/active_{uid}
       for (const ci of cart.items) {
         const ciRef = doc(db, "cart_items", String(ci.cart_item_id));
         transaction.delete(ciRef);
       }
+      transaction.set(activeCartRef, {
+        id: `active_${uid}`,
+        user_id: String(uid),
+        status: "active",
+        items: [],
+        updated_at: ts
+      }, { merge: true });
     });
 
-    // Also save customer's address/phone to their profile if not yet saved
+    // Save customer's address/phone to their profile if COD
     try {
       if (method === "cod") {
         await setDoc(doc(db, "users", String(uid)), {
           phone_number: customerPhone,
           street_address1: street1,
           street_address2: street2,
-          town: town
+          town: town,
+          updated_at: ts
         }, { merge: true });
       }
     } catch (_) {}
 
-    sessionStorage.setItem("last_order_id", newOrderRef.id);
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.setItem("last_order_id", newOrderRef.id);
+    }
     return {
       ok: true,
       orderId: newOrderRef.id,
       order_id: newOrderRef.id,
-      order_number: orderNumber,
+      order_number: generatedOrderNumber,
       pickup_code: pickupCode
     };
   } catch (err) {
@@ -1073,7 +1611,7 @@ export async function placeOrderTransaction(uid, payload) {
 }
 
 // ============================================================================
-// 9. ORDER QUERIES, STATUS UPDATES & CANCELLATION WITH STOCK RESTORATION
+// 9. ORDER QUERIES, STATUS UPDATES & IDEMPOTENT CANCELLATION (Fix #9)
 // ============================================================================
 
 export async function getOrderById(orderId) {
@@ -1101,6 +1639,13 @@ export async function getAllOrdersAdmin() {
   return list;
 }
 
+/**
+ * Fix #9: Idempotent Order Cancellation & Automatic Restock
+ * - Verifies order_status is not already 'cancelled', 'delivered', or 'collected'.
+ * - Updates order_status = 'cancelled' and payment_status = 'cancelled'.
+ * - Atomically increments items/{itemId}.stock_quantity by cancelled item's quantity (3 decimals).
+ * - Logs an 'in' record in stock_transactions with reason: "Order #" + order_number + " Cancelled".
+ */
 export async function cancelOrderWithStockRestore(orderId, cancelledBy = "Admin", enforcePendingForUid = null) {
   try {
     const orderRef = doc(db, "orders", String(orderId));
@@ -1110,18 +1655,23 @@ export async function cancelOrderWithStockRestore(orderId, cancelledBy = "Admin"
       const orderSnap = await transaction.get(orderRef);
       if (!orderSnap.exists()) throw new Error("Order not found.");
       const ord = orderSnap.data();
+      const currentStatus = String(ord.order_status || "pending").toLowerCase();
 
       if (enforcePendingForUid) {
         if (String(ord.user_id) !== String(enforcePendingForUid)) {
           throw new Error("Unauthorized to cancel this order.");
         }
-        if (ord.order_status !== "pending") {
+        if (currentStatus !== "pending") {
           throw new Error("Only orders in Pending status can be cancelled online.");
         }
       }
 
-      if (ord.order_status === "cancelled") {
-        return; // Already cancelled; prevent double stock restoration
+      if (currentStatus === "delivered" || currentStatus === "collected") {
+        throw new Error("Completed orders (Delivered / Collected) cannot be cancelled.");
+      }
+
+      if (currentStatus === "cancelled") {
+        return; // Idempotent guard: already cancelled, never double-restock
       }
 
       const items = Array.isArray(ord.items) ? ord.items : [];
@@ -1136,19 +1686,23 @@ export async function cancelOrderWithStockRestore(orderId, cancelledBy = "Admin"
       const ordNo = ord.order_number || orderId;
       for (const { oi, iref, isnap } of itemRefsAndSnaps) {
         if (isnap.exists()) {
-          const prevStock = parseFloat(isnap.data().stock_quantity) || 0;
-          const restoreQty = parseFloat(oi.quantity) || 0;
-          const newStock = prevStock + restoreQty;
+          const itemData = isnap.data();
+          const prevStock = roundQty3(itemData.stock_quantity);
+          const restoreQty = roundQty3(oi.quantity);
+          const newStock = Number((prevStock + restoreQty).toFixed(3));
           transaction.update(iref, { stock_quantity: newStock, updated_at: ts });
 
           const txRef = doc(collection(db, "stock_transactions"));
           transaction.set(txRef, {
+            id: txRef.id,
             item_id: String(oi.item_id),
+            item_name: itemData.name || oi.name || "",
             transaction_type: "in",
             quantity: restoreQty,
             previous_stock: prevStock,
             new_stock: newStock,
-            reason: `Order #${ordNo} Cancelled by ${cancelledBy}`,
+            reason: `Order #${ordNo} Cancelled`,
+            cancelled_by: cancelledBy,
             created_at: ts
           });
         }
@@ -1191,10 +1745,17 @@ export async function updateOrderStatusAdmin(orderId, { status, payment_status }
 }
 
 // ============================================================================
-// 10. CONTACT INQUIRIES & ADMIN CUSTOMERS
+// 10. CONTACT INQUIRIES (Fix #10 - Duplicate Submission Guard) & CUSTOMERS
 // ============================================================================
 
+let contactSubmissionInFlight = false;
+let lastContactSignature = "";
+let lastContactTimestamp = 0;
+
 export async function submitContactInquiry({ name, contactName, email, subject, message }) {
+  if (contactSubmissionInFlight) {
+    return { ok: false, message: "Your message is already being submitted. Please wait." };
+  }
   try {
     const nm = String(name ?? contactName ?? "").trim();
     const em = String(email || "").trim();
@@ -1203,18 +1764,30 @@ export async function submitContactInquiry({ name, contactName, email, subject, 
 
     if (!nm) return { ok: false, message: "Please enter your name." };
     if (!em || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) return { ok: false, message: "Please enter a valid email address." };
+    if (!sb) return { ok: false, message: "Please enter a subject." };
     if (!ms) return { ok: false, message: "Please enter your message." };
 
+    const signature = `${nm.toLowerCase()}|${em.toLowerCase()}|${sb.toLowerCase()}|${ms.toLowerCase()}`;
+    const nowMs = Date.now();
+    if (signature === lastContactSignature && nowMs - lastContactTimestamp < 5000) {
+      return { ok: false, message: "Duplicate submission prevented. We have already received your message." };
+    }
+
+    contactSubmissionInFlight = true;
     await addDoc(collection(db, "contacts"), {
       name: nm,
       email: em,
-      subject: sb || "General Inquiry",
+      subject: sb,
       message: ms,
       created_at: nowColomboISO()
     });
+    lastContactSignature = signature;
+    lastContactTimestamp = Date.now();
     return { ok: true, message: "Contact Message Sent Successfully!" };
   } catch (err) {
     return { ok: false, message: err.message || "Could not send message." };
+  } finally {
+    contactSubmissionInFlight = false;
   }
 }
 
@@ -1235,11 +1808,10 @@ export async function getAllCustomersAdmin() {
   const list = [];
   snap.forEach((d) => {
     const data = d.data();
-    if (Number(data.is_admin) !== 1) {
+    if (Number(data.is_admin) !== 1 && data.is_admin !== true) {
       list.push({ id: d.id, ...data });
     }
   });
   list.sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
   return list;
 }
-
