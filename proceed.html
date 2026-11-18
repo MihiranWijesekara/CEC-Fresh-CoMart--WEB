@@ -302,7 +302,8 @@
       async function initCheckout() {
         const user = await waitForAuthUser();
         if (!user) {
-          window.location.href = 'login/sign.html';
+          sessionStorage.setItem('fc_post_login_redirect', window.location.href);
+          window.location.href = 'login/sign.html?redirect=' + encodeURIComponent(window.location.href);
           return;
         }
 

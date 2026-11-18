@@ -778,7 +778,7 @@ body.fc-body, .fc-theme {
 /* 9. Modern Footer */
 .fc-footer {
   background: #0f172a;
-  color: #94a3b8;
+  color: #cbd5e1;
   padding: 50px 0 20px 0;
   margin-top: 60px;
   font-size: 14px;
@@ -791,21 +791,28 @@ body.fc-body, .fc-theme {
   margin-bottom: 16px;
 }
 
+.fc-footer p,
+.fc-footer .text-muted,
+.fc-footer small {
+  color: #cbd5e1 !important;
+}
+
 .fc-footer a {
-  color: #94a3b8;
+  color: #e2e8f0;
   text-decoration: none;
   transition: color 0.15s;
 }
 
 .fc-footer a:hover {
-  color: #ffffff;
+  color: #4ade80;
 }
 
 .fc-footer-bottom {
-  border-top: 1px solid #1e293b;
+  border-top: 1px solid #334155;
   margin-top: 40px;
   padding-top: 20px;
   text-align: center;
   font-size: 13px;
+  color: #e2e8f0;
 }
 

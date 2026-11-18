@@ -12,6 +12,12 @@ function loadGlobalFirebaseService() {
   return fbServiceCache;
 }
 
+function escHtml(str) {
+  var d = document.createElement("div");
+  d.textContent = str == null ? "" : String(str);
+  return d.innerHTML;
+}
+
 async function contactUs() {
   var contactName = document.getElementById("con_name").value;
   var email = document.getElementById("con_email").value;
@@ -38,7 +44,7 @@ async function contactUs() {
       }, 3000);
     } else {
       msgDiv.className = "alert alert-danger";
-      msgDiv.innerHTML = '<i class="bi bi-exclamation-circle pe-3"></i>' + (res.message || "Could not send message.");
+      msgDiv.innerHTML = '<i class="bi bi-exclamation-circle pe-3"></i>' + escHtml(res.message || "Could not send message.");
     }
   } catch (e) {
     msgDiv.style.display = "block";
@@ -135,7 +141,7 @@ async function placeOrder() {
         placeBtn.innerHTML = '<i class="fa-solid fa-lock"></i> Place Order';
       }
       msgDiv.className = "alert alert-danger";
-      msgDiv.innerHTML = '<i class="bi bi-exclamation-circle pe-3"></i>' + (res.message || "Could not place order.");
+      msgDiv.innerHTML = '<i class="bi bi-exclamation-circle pe-3"></i>' + escHtml(res.message || "Could not place order.");
     }
   } catch (err) {
     if (placeBtn) {
@@ -146,7 +152,7 @@ async function placeOrder() {
     if (msgDiv) {
       msgDiv.style.display = "block";
       msgDiv.className = "alert alert-danger";
-      msgDiv.innerHTML = '<i class="bi bi-exclamation-circle pe-3"></i>' + (err.message || "Error placing order.");
+      msgDiv.innerHTML = '<i class="bi bi-exclamation-circle pe-3"></i>' + escHtml(err.message || "Error placing order.");
     }
   }
 }
@@ -182,7 +188,7 @@ function showToast(message, type = 'success') {
   toast.style.transform = 'translateY(-20px)';
   toast.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
 
-  toast.innerHTML = (type === 'success' ? '✓ ' : '⚠ ') + message;
+  toast.textContent = (type === 'success' ? '✓ ' : '⚠ ') + String(message || '');
 
   container.appendChild(toast);
 

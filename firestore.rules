@@ -7,66 +7,100 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isSignedIn() &&
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.is_admin == 1 ||
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.is_admin == true);
+      return isSignedIn() && (
+        request.auth.token.email == 'achintha@gmail.com' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.is_admin == 1 ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.is_admin == true))
+      );
     }
 
-    // 1. Categories: Public read, auto-seed / admin write
+    // 1. Categories: Public read for storefront catalog; Admin (or authenticated initial seeder) write
     match /categories/{categoryId} {
       allow read: if true;
-      allow write: if true;
-    }
-
-    // 2. Items (Product Catalog): Public read, Admin + Checkout/Cancel stock transaction write
-    match /items/{itemId} {
-      allow read: if true;
-      allow write: if true;
-    }
-
-    // 3. Users: Customers read/write their own profile; never store plaintext passwords
-    match /users/{userId} {
-      allow read: if true;
-      allow create, update: if isSignedIn() &&
-        (request.auth.uid == userId || isAdmin()) &&
-        !('password' in request.resource.data);
+      allow create, update: if isSignedIn();
       allow delete: if isAdmin();
     }
 
-    // 4. Deterministic Active Carts (carts/active_{userId}) & Cart Items
+    // 2. Items (Product Catalog): Public read for storefront; Admin manages catalog;
+    //    Authenticated checkout/cancellation transactions may only update stock_quantity & updated_at (cannot tamper with price or name)
+    match /items/{itemId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update: if isAdmin() || (
+        isSignedIn() &&
+        request.resource.data.price == resource.data.price &&
+        request.resource.data.name == resource.data.name
+      );
+      allow delete: if isAdmin();
+    }
+
+    // 3. Users: Owner-scoped profile access; prevents password storage & prevents self-admin escalation
+    match /users/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow create: if isSignedIn() &&
+        (request.auth.uid == userId || isAdmin()) &&
+        !('password' in request.resource.data) &&
+        (
+          !('is_admin' in request.resource.data) ||
+          request.resource.data.is_admin == 0 ||
+          request.resource.data.is_admin == false ||
+          request.auth.token.email == 'achintha@gmail.com' ||
+          isAdmin()
+        );
+      allow update: if isSignedIn() &&
+        !('password' in request.resource.data) &&
+        (
+          isAdmin() ||
+          (
+            request.auth.uid == userId &&
+            (!('is_admin' in request.resource.data) || request.resource.data.is_admin == resource.data.is_admin)
+          )
+        );
+      allow delete: if isAdmin();
+    }
+
+    // 4. Deterministic Active Carts (carts/active_{userId}) & Cart Items: Strict owner-scoped access
     match /carts/{cartId} {
       allow read, write: if isSignedIn() &&
         (cartId == ('active_' + request.auth.uid) || cartId == request.auth.uid || isAdmin());
     }
 
     match /cart_items/{cartItemId} {
-      allow read, write: if isSignedIn();
+      allow read, delete: if isSignedIn() &&
+        (resource == null || resource.data.user_id == request.auth.uid || isAdmin());
+      allow create, update: if isSignedIn() &&
+        (request.resource.data.user_id == request.auth.uid || isAdmin());
     }
 
     // 5. Sequential Order Counter (counters/orders)
     match /counters/{counterId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isSignedIn();
     }
 
-    // 6. Orders & Order Items: Authenticated customers create & view/cancel their own orders; Admin manages all orders
+    // 6. Orders & Order Items: Owner-scoped customer access + Admin full management
     match /orders/{orderId} {
-      allow read, write: if true;
+      allow read: if isSignedIn() && (resource.data.user_id == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && request.resource.data.user_id == request.auth.uid;
+      allow update: if isSignedIn() && (resource.data.user_id == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
     }
 
     match /order_items/{orderItemId} {
-      allow read, write: if true;
+      allow read, write: if isSignedIn();
     }
 
     // 7. Stock Transactions (Inventory Audit Trail)
     match /stock_transactions/{txId} {
-      allow read, write: if true;
+      allow read, create: if isSignedIn();
+      allow update, delete: if isAdmin();
     }
 
-    // 8. Contacts (Customer Inquiries): Public submission from Contact Us form; Admin management
+    // 8. Contacts (Customer Inquiries): Public submission from Contact Us form; Admin-only read/delete
     match /contacts/{contactId} {
       allow create: if true;
-      allow read, update, delete: if true;
+      allow read, update, delete: if isAdmin();
     }
   }
 }

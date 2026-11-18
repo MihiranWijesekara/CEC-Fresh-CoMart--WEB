@@ -1,6 +1,7 @@
 /**
  * Freshcomart Supermarket Storefront Interactive Controller (Firebase Edition)
- * Live search with 300ms debounce, Firestore cart steppers, and offcanvas drawer integration.
+ * Live search with 300ms debounce, XSS-safe DOM rendering, Firestore cart steppers,
+ * guest purchase sign-in redirect preservation, and offcanvas drawer integration.
  */
 
 (function () {
@@ -17,6 +18,39 @@
     }
     return fbModulePromise;
   }
+
+  function esc(str) {
+    var d = document.createElement('div');
+    d.textContent = str == null ? '' : String(str);
+    return d.innerHTML;
+  }
+
+  function promptGuestSignIn(itemId, qty) {
+    var base = window.FC_BASE || '';
+    var returnUrl = window.location.href;
+    try {
+      if (itemId) {
+        sessionStorage.setItem('fc_pending_cart_action', JSON.stringify({
+          itemId: String(itemId),
+          quantity: Number(qty) > 0 ? Number(qty) : 1,
+          returnUrl: returnUrl
+        }));
+      }
+      sessionStorage.setItem('fc_post_login_redirect', returnUrl);
+    } catch (_) {}
+
+    if (typeof window.openHomeGuestLoginModal === 'function') {
+      window.openHomeGuestLoginModal(itemId);
+      return;
+    }
+
+    var loginUrl = base + 'login/sign.html?redirect=' + encodeURIComponent(returnUrl);
+    if (confirm('Please sign in to your Freshcomart account to add items and continue with your purchase. Proceed to Sign In?')) {
+      window.location.href = loginUrl;
+    }
+  }
+
+  window.promptGuestSignIn = promptGuestSignIn;
 
   // 1. Live Search with 300ms Debounce (Firestore items collection)
   var searchInput = document.getElementById('fcLiveSearchInput');
@@ -40,9 +74,8 @@
         var base = window.FC_BASE || '';
         try {
           var fb = await getFirebaseService();
-          if (!cachedItems) {
-            cachedItems = await fb.getAllItems(true);
-          }
+          cachedItems = await fb.getAllItems(true);
+
           var qLower = query.toLowerCase();
           var results = cachedItems.filter(function (it) {
             if (cat > 0 && Number(it.category_id) !== cat) return false;
@@ -51,7 +84,7 @@
           }).slice(0, 8);
 
           if (!results.length) {
-            searchDropdown.innerHTML = '<div class="p-3 text-center text-muted small"><i class="bi bi-search me-1"></i>No products found matching "' + query.replace(/</g, '&lt;') + '"</div>';
+            searchDropdown.innerHTML = '<div class="p-3 text-center text-muted small"><i class="bi bi-search me-1"></i>No products found matching "' + esc(query) + '"</div>';
             searchDropdown.classList.add('active');
             return;
           }
@@ -66,14 +99,14 @@
             var imgPath = fb.resolveImagePath(item.image_path, base);
             var linkUrl = base + 'product/product.html?q=' + encodeURIComponent(item.name);
 
-            html += '<a href="' + linkUrl + '" class="fc-search-item">' +
-                      '<img src="' + imgPath + '" alt="' + item.name + '" onerror="this.src=\'' + base + 'assets/images/logo/logo-freshco.png\'">' +
+            html += '<a href="' + esc(linkUrl) + '" class="fc-search-item">' +
+                      '<img src="' + esc(imgPath) + '" alt="' + esc(item.name) + '" loading="lazy" decoding="async" onerror="this.src=\'' + esc(base + 'assets/images/logo/logo-freshco.png') + '\'">' +
                       '<div class="meta">' +
-                        '<div class="name">' + item.name + '</div>' +
-                        '<div class="cat">' + item.category_name + ' &middot; ' + item.unit + '</div>' +
+                        '<div class="name">' + esc(item.name) + '</div>' +
+                        '<div class="cat">' + esc(item.category_name) + ' &middot; ' + esc(item.unit) + '</div>' +
                       '</div>' +
                       '<div class="text-end ms-2">' +
-                        '<div class="price">Rs. ' + fb.formatMoney(item.price) + '</div>' +
+                        '<div class="price">Rs. ' + esc(fb.formatMoney(item.price)) + '</div>' +
                         stockBadge +
                       '</div>' +
                     '</a>';
@@ -103,42 +136,60 @@
 
   // 2. Firestore Stepper & Add to Cart Controller
   window.updateCartItem = async function (itemId, delta, btnEl) {
-    var base = window.FC_BASE || '';
-    var containers = document.querySelectorAll('[data-card-action="' + itemId + '"], #card-action-' + itemId);
+    var safeId = String(itemId);
+    var containers = document.querySelectorAll('[data-card-action="' + safeId + '"], #card-action-' + safeId);
     if (!containers.length) return;
 
-    if (btnEl) btnEl.disabled = true;
-
+    // Check auth first before opening bulk modal or adding item
     try {
       var fb = await getFirebaseService();
       var user = await fb.waitForAuthUser();
       if (!user) {
         if (btnEl) btnEl.disabled = false;
-        if (confirm('Please sign in or create an account to start adding items to your Freshcomart cart!')) {
-          window.location.href = base + 'login/sign.html';
+        promptGuestSignIn(safeId, delta > 0 ? delta : 1);
+        return;
+      }
+
+      // Phase 4: If adding a bulk item on Homepage, open the Bulk Weight Picker Modal if available
+      var firstContainer = containers[0];
+      if (delta > 0 && firstContainer && firstContainer.dataset.isBulk === '1' && typeof window.openHomeBulkModal === 'function') {
+        window.openHomeBulkModal(safeId);
+        return;
+      }
+
+      if (btnEl) btnEl.disabled = true;
+
+      var res = await fb.addOrUpdateCartItem(user.uid, safeId, delta);
+      if (btnEl) btnEl.disabled = false;
+
+      if (!res.ok) {
+        if (res.requiresAuth) {
+          promptGuestSignIn(safeId, delta > 0 ? delta : 1);
+          return;
+        }
+        if (typeof window.showHomeToast === 'function') {
+          window.showHomeToast(res.message || 'Unable to update cart.', 'danger');
+        } else {
+          alert(res.message || 'Unable to update cart.');
         }
         return;
       }
 
-      var res = await fb.addOrUpdateCartItem(user.uid, itemId, delta);
-      if (btnEl) btnEl.disabled = false;
-
-      if (!res.ok) {
-        alert(res.message || 'Unable to update cart.');
-        return;
+      var newQty = Number(res.newQuantity || 0);
+      if (typeof window.syncHomeCartQty === 'function') {
+        window.syncHomeCartQty(safeId, newQty);
       }
 
-      var newQty = Number(res.newQuantity || 0);
       var updatedHtml = '';
       if (newQty <= 0) {
-        updatedHtml = '<button class="fc-btn-add" onclick="updateCartItem(\'' + itemId + '\', 1, this)">' +
+        updatedHtml = '<button class="fc-btn-add" onclick="updateCartItem(\'' + esc(safeId) + '\', 1, this)">' +
                         '<i class="bi bi-cart-plus me-1"></i>Add' +
                       '</button>';
       } else {
         updatedHtml = '<div class="fc-stepper">' +
-                        '<button type="button" onclick="updateCartItem(\'' + itemId + '\', -1, this)" aria-label="Decrease">&minus;</button>' +
-                        '<span class="qty">' + newQty + '</span>' +
-                        '<button type="button" onclick="updateCartItem(\'' + itemId + '\', 1, this)" aria-label="Increase">&plus;</button>' +
+                        '<button type="button" onclick="updateCartItem(\'' + esc(safeId) + '\', -1, this)" aria-label="Decrease">&minus;</button>' +
+                        '<span class="qty">' + esc(newQty) + '</span>' +
+                        '<button type="button" onclick="updateCartItem(\'' + esc(safeId) + '\', 1, this)" aria-label="Increase">&plus;</button>' +
                       '</div>';
       }
       containers.forEach(function (c) { c.innerHTML = updatedHtml; });
@@ -160,10 +211,15 @@
     }
   };
 
-  // 3. Tab Filter for Daily Grocery & Pantry Staples
+  // 3. Tab Filter for Daily Grocery & Pantry Staples (delegates to scalable pagination engine when present)
   window.filterHomeStaples = function (catId, btnEl) {
     document.querySelectorAll('.fc-tab-btn').forEach(function (b) { b.classList.remove('active'); });
     if (btnEl) btnEl.classList.add('active');
+
+    if (typeof window.applyHomeStaplesCategory === 'function') {
+      window.applyHomeStaplesCategory(catId);
+      return;
+    }
 
     var cards = document.querySelectorAll('#homeStaplesGrid .fc-card');
     cards.forEach(function (c) {

@@ -249,23 +249,67 @@
             </div>
         </section>
 
-        <!-- Section F: Daily Grocery & Pantry Staples Tabbed View -->
-        <section class="mb-5">
-            <div class="fc-section-head">
+        <!-- Section F: Daily Grocery & Pantry Staples Tabbed View (Scalable for 500–1,000+ Products) -->
+        <section class="mb-5" id="dailyStaplesSection">
+            <div class="fc-section-head flex-wrap gap-2">
                 <div>
                     <h2><i class="bi bi-basket-fill text-success me-2"></i>Daily Grocery &amp; Pantry Staples</h2>
-                    <small class="text-muted">High quality kitchen essentials for your family</small>
+                    <small class="text-muted">Complete supermarket catalog &bull; Smart filtering, lazy loading &amp; progressive pagination</small>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-2 fw-bold" id="homeStaplesTotalBadge">
+                        <i class="bi bi-box-seam me-1"></i>Loading catalog...
+                    </span>
+                    <a href="product/product.html">Full Catalog View <i class="bi bi-arrow-right"></i></a>
                 </div>
             </div>
 
-            <!-- Tabs -->
-            <div class="fc-tab-nav">
-                <button type="button" class="fc-tab-btn active" onclick="filterHomeStaples('all', this)">All Staples</button>
-                <button type="button" class="fc-tab-btn" onclick="filterHomeStaples('1,2', this)">Fresh Produce</button>
-                <button type="button" class="fc-tab-btn" onclick="filterHomeStaples('15', this)">Pantry &amp; Rice</button>
-                <button type="button" class="fc-tab-btn" onclick="filterHomeStaples('16', this)">Dairy &amp; Milk</button>
-                <button type="button" class="fc-tab-btn" onclick="filterHomeStaples('14', this)">Meat &amp; Seafood</button>
-                <button type="button" class="fc-tab-btn" onclick="filterHomeStaples('3,4', this)">Snacks &amp; Biscuits</button>
+            <!-- Department / Category Tabs -->
+            <div class="fc-tab-nav mb-3" id="homeStaplesTabNav">
+                <button type="button" class="fc-tab-btn active" data-cat-filter="all" onclick="filterHomeStaples('all', this)">All Products</button>
+                <button type="button" class="fc-tab-btn" data-cat-filter="1,2" onclick="filterHomeStaples('1,2', this)">Fresh Produce</button>
+                <button type="button" class="fc-tab-btn" data-cat-filter="15" onclick="filterHomeStaples('15', this)">Pantry &amp; Rice</button>
+                <button type="button" class="fc-tab-btn" data-cat-filter="6,9,10,11,16" onclick="filterHomeStaples('6,9,10,11,16', this)">Dairy, Eggs &amp; Cheese</button>
+                <button type="button" class="fc-tab-btn" data-cat-filter="14" onclick="filterHomeStaples('14', this)">Meat &amp; Seafood</button>
+                <button type="button" class="fc-tab-btn" data-cat-filter="3,4" onclick="filterHomeStaples('3,4', this)">Snacks &amp; Biscuits</button>
+                <button type="button" class="fc-tab-btn" data-cat-filter="5,7,8,12" onclick="filterHomeStaples('5,7,8,12', this)">Beverages, Tea &amp; Coffee</button>
+                <button type="button" class="fc-tab-btn" data-cat-filter="13,17,18,19" onclick="filterHomeStaples('13,17,18,19', this)">Bakery &amp; Household</button>
+            </div>
+
+            <!-- Inline Quick Search, Sort & Stock Filter Bar for Large Catalogs (500-1,000+ items) -->
+            <div class="card border-0 shadow-sm rounded-4 p-3 mb-3 bg-white" style="border: 1px solid #e2e8f0 !important;">
+                <div class="row g-2 align-items-center">
+                    <div class="col-lg-5 col-md-6">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-light border-end-0 rounded-start-pill ps-3"><i class="bi bi-search text-success"></i></span>
+                            <input type="text" id="homeStaplesSearch" class="form-control border-start-0 rounded-end-pill" placeholder="Filter products in this section by name, category, or unit..." autocomplete="off">
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-3 col-sm-6">
+                        <select id="homeStaplesSort" class="form-select form-select-sm rounded-pill" aria-label="Sort products">
+                            <option value="featured">Sort: Featured &amp; Newest</option>
+                            <option value="price_asc">Price: Low to High</option>
+                            <option value="price_desc">Price: High to Low</option>
+                            <option value="name_asc">Name: A to Z</option>
+                        </select>
+                    </div>
+                    <div class="col-lg-2 col-md-3 col-sm-6">
+                        <select id="homeStaplesPageSize" class="form-select form-select-sm rounded-pill" aria-label="Items per batch">
+                            <option value="12" selected>Show: 12 per page</option>
+                            <option value="24">Show: 24 per page</option>
+                            <option value="48">Show: 48 per page</option>
+                        </select>
+                    </div>
+                    <div class="col-lg-2 col-md-12 d-flex align-items-center justify-content-lg-end justify-content-between">
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" id="homeStaplesInStock">
+                            <label class="form-check-label small fw-semibold text-dark" for="homeStaplesInStock">In Stock Only</label>
+                        </div>
+                        <button type="button" id="homeStaplesResetBtn" class="btn btn-link btn-sm text-secondary text-decoration-none p-0 ms-2" style="display:none;" onclick="resetHomeStaplesFilters()">
+                            <i class="bi bi-arrow-counterclockwise"></i> Reset
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <div class="fc-product-grid" id="homeStaplesGrid">
@@ -274,8 +318,101 @@
                     Loading daily staples...
                 </div>
             </div>
+
+            <!-- Progressive Load More & Numbered Pagination Footer -->
+            <div id="homeStaplesPagination" class="card border-0 shadow-sm rounded-4 p-3 mt-4 bg-white" style="display:none; border: 1px solid #e2e8f0 !important;">
+                <div class="d-flex flex-column flex-md-row align-items-center justify-content-between gap-3">
+                    <div class="text-center text-md-start" style="min-width: 220px;">
+                        <div class="small fw-bold text-dark" id="homeStaplesShowingText">Showing 0 of 0 products</div>
+                        <div class="progress mt-1" style="height: 6px; width: 200px; background-color: #e2e8f0; border-radius: 99px;">
+                            <div id="homeStaplesProgressBar" class="progress-bar bg-success" role="progressbar" style="width: 0%; border-radius: 99px;"></div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex flex-wrap align-items-center justify-content-center gap-2">
+                        <button type="button" id="homeStaplesLoadMoreBtn" class="btn btn-success rounded-pill px-4 py-2 fw-bold shadow-sm" onclick="loadMoreHomeStaples()">
+                            <i class="bi bi-plus-circle me-1"></i>Load More Products
+                        </button>
+                    </div>
+
+                    <nav aria-label="Product catalog pages">
+                        <ul class="pagination pagination-sm mb-0 gap-1 flex-wrap justify-content-center" id="homeStaplesPageList"></ul>
+                    </nav>
+                </div>
+            </div>
         </section>
     </main>
+
+    <!-- User-Friendly Guest Sign-In Required Modal -->
+    <div class="modal fade" id="homeGuestLoginModal" tabindex="-1" aria-labelledby="homeGuestLoginModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 22px; overflow: hidden;">
+                <div class="modal-header border-0 text-white py-3 px-4" style="background: linear-gradient(135deg, #16a34a, #15803d);">
+                    <h5 class="modal-title fw-bold" id="homeGuestLoginModalLabel">
+                        <i class="bi bi-person-check-fill me-2"></i>Sign In to Continue Shopping
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4 text-center">
+                    <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 64px; height: 64px; background: #dcfce7; color: #16a34a; font-size: 1.75rem;">
+                        <i class="bi bi-cart-check-fill"></i>
+                    </div>
+                    <h6 class="fw-bold text-dark mb-2" id="homeGuestModalTitle">Ready to add this item to your basket?</h6>
+                    <p class="text-muted small mb-4" id="homeGuestModalDesc">
+                        Please sign in to your Freshcomart account to purchase products. Your selected item will be saved and automatically added to your cart right after you sign in!
+                    </p>
+                    <div class="d-grid gap-2">
+                        <a href="login/sign.html" id="homeGuestModalSignInBtn" class="btn btn-success rounded-pill py-2 fw-bold shadow-sm">
+                            <i class="bi bi-box-arrow-in-right me-1"></i>Sign In &amp; Continue Purchase
+                        </a>
+                        <a href="login/register.html" id="homeGuestModalRegisterBtn" class="btn btn-outline-success rounded-pill py-2 fw-bold">
+                            <i class="bi bi-person-plus me-1"></i>Create a Free Account
+                        </a>
+                        <button type="button" class="btn btn-light rounded-pill py-2 small text-muted fw-semibold mt-1" data-bs-dismiss="modal">
+                            Continue Browsing
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Toast Notification Container -->
+    <div id="homeToastContainer" style="position: fixed; bottom: 24px; right: 24px; z-index: 1080; display: flex; flex-direction: column; gap: 10px;"></div>
+
+    <!-- Bulk Weight / Volume Picker Modal (Phase 4 Unified Bulk Item Workflow) -->
+    <div class="modal fade" id="homeBulkModal" tabindex="-1" aria-labelledby="homeBulkModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+                <div class="modal-header border-0 text-white" style="background: #16a34a; border-top-left-radius: 20px; border-top-right-radius: 20px;">
+                    <h5 class="modal-title fw-bold" id="homeBulkModalLabel"><i class="bi bi-basket2-fill me-2"></i>Select Weight / Volume</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4 text-center">
+                    <h6 class="fw-bold text-dark mb-3" id="homeBulkItemTitle"></h6>
+                    <div class="mb-3">
+                        <label for="homeWeightSelect" class="form-label small text-secondary fw-bold">Select Weight / Volume</label>
+                        <select class="form-select fs-5 text-center fw-bold" id="homeWeightSelect" style="border-radius: 12px; border: 2px solid #16a34a;"></select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small text-secondary fw-bold">Number of Packages</label>
+                        <div class="d-flex justify-content-center align-items-center gap-3 my-2">
+                            <button type="button" class="btn btn-outline-secondary rounded-circle fw-bold" style="width:38px;height:38px;" onclick="changeHomeBulkQty(-1)">&minus;</button>
+                            <span id="homeBulkPkgCount" class="fs-4 fw-bold" style="min-width:32px;">1</span>
+                            <button type="button" class="btn btn-outline-secondary rounded-circle fw-bold" style="width:38px;height:38px;" onclick="changeHomeBulkQty(1)">&plus;</button>
+                        </div>
+                    </div>
+                    <div class="alert alert-success border-0 p-2 my-3 text-center fw-bold fs-6" id="homeBulkPreview" style="background-color:#dcfce7; color:#15803d; border-radius:12px;">
+                        Total: Rs. 0.00
+                    </div>
+                    <div class="d-flex justify-content-center gap-2 mt-3">
+                        <button type="button" class="btn btn-success rounded-pill px-4 fw-bold" id="homeConfirmBulkBtn" onclick="confirmHomeBulkAdd()">Add to Cart</button>
+                        <button type="button" class="btn btn-light rounded-pill px-4 fw-semibold" data-bs-dismiss="modal">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Offcanvas Mini-Cart Drawer -->
     <div class="offcanvas offcanvas-end" tabindex="-1" id="miniCartOffcanvas" aria-labelledby="miniCartLabel" style="width: 380px;">
@@ -317,13 +454,13 @@
             <div class="row g-4">
                 <div class="col-lg-4 col-md-6">
                     <img src="assets/images/logo/logo-freshco.png" alt="Freshcomart Logo" height="42" class="mb-3">
-                    <p class="small text-muted">
+                    <p class="small" style="color: #cbd5e1 !important;">
                         Freshcomart is Colombo's premier online supermarket, delivering fresh farm produce, groceries, and daily household essentials straight to your door or ready for fast in-store pickup.
                     </p>
                     <div class="small text-light mt-2">
-                        <div><i class="bi bi-geo-alt text-success me-2"></i>No. 142, Parliament Road, Rajagiriya, Colombo</div>
+                        <div><i class="bi bi-geo-alt text-success me-2"></i>Freshcomart Main Branch, Sri Jayawardenepura Mawatha, Rajagiriya</div>
                         <div class="mt-1"><i class="bi bi-clock text-success me-2"></i>Open Daily: 8:00 AM – 9:00 PM</div>
-                        <div class="mt-1"><i class="bi bi-telephone text-success me-2"></i>Hotline: +94 11 234 5678</div>
+                        <div class="mt-1"><i class="bi bi-telephone text-success me-2"></i>Hotline: +94 11 288 0000</div>
                     </div>
                 </div>
                 <div class="col-lg-2 col-md-3 col-6">
@@ -348,7 +485,7 @@
                 </div>
                 <div class="col-lg-3 col-md-12">
                     <h5>Fulfillment &amp; Payment</h5>
-                    <p class="small text-muted">We provide two convenient payment and collection channels:</p>
+                    <p class="small" style="color: #cbd5e1 !important;">We provide two convenient payment and collection channels:</p>
                     <div class="d-flex flex-column gap-2">
                         <div class="p-2 border rounded border-secondary bg-dark small text-light">
                             <i class="bi bi-truck text-success me-2"></i>Cash on Delivery (Flat Rs. 450)
@@ -360,7 +497,7 @@
                 </div>
             </div>
             <div class="fc-footer-bottom">
-                <p class="mb-0">&copy; <span id="footerYear">2026</span> Freshcomart Supermarket (CEC Web). All rights reserved.</p>
+                <p class="mb-0" style="color: #e2e8f0 !important;">&copy; <span id="footerYear">2026</span> Freshcomart Supermarket (CEC Web). All rights reserved.</p>
             </div>
         </div>
     </footer>
@@ -380,6 +517,10 @@
             waitForAuthUser,
             getUserProfile,
             getActiveCartWithItems,
+            addOrUpdateCartItem,
+            isBulkItem,
+            parseUnitToGrams,
+            formatQuantity,
             formatMoney,
             resolveImagePath
         } from './assets/js/firebase-service.js';
@@ -391,11 +532,136 @@
             5: 'bi-cup-hot', 6: 'bi-egg', 14: 'bi-fire', 15: 'bi-box-seam', 16: 'bi-droplet'
         };
 
+        let homeCatalogItems = [];
+        let homeInCartMap = {};
+        let selectedBulkItem = null;
+        let homeBulkPkgQty = 1;
+        let homeBulkModalInstance = null;
+
+        // Scalable Pagination & Filtering State for "Daily Grocery & Pantry Staples" (Handles 500–1,000+ Products)
+        const homeStaplesState = {
+            category: 'all',
+            search: '',
+            sort: 'featured',
+            inStockOnly: false,
+            pageSize: 12,
+            currentPage: 1,
+            visibleCount: 12,
+            mode: 'loadmore' // 'loadmore' or 'page'
+        };
+
         function esc(str) {
             const d = document.createElement('div');
             d.textContent = str == null ? '' : str;
             return d.innerHTML;
         }
+
+        function showHomeToast(message, type = 'success') {
+            const container = document.getElementById('homeToastContainer');
+            if (!container) return;
+            const toast = document.createElement('div');
+            const bg = type === 'danger' ? '#dc2626' : '#16a34a';
+            toast.className = 'shadow-lg text-white px-4 py-3 rounded-4 d-flex align-items-center gap-2';
+            toast.style.cssText = `background:${bg}; min-width:280px; max-width:420px; font-weight:600; font-size:14px; animation: fadeIn 0.25s ease;`;
+            toast.innerHTML = `<i class="bi ${type === 'danger' ? 'bi-exclamation-triangle-fill' : 'bi-check-circle-fill'} fs-5"></i><div class="flex-grow-1">${esc(message)}</div>`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+        window.showHomeToast = showHomeToast;
+
+        // Check if user was just redirected back after signing in with a pending cart item
+        try {
+            const postLoginToast = sessionStorage.getItem('fc_just_added_toast');
+            if (postLoginToast) {
+                sessionStorage.removeItem('fc_just_added_toast');
+                setTimeout(() => showHomeToast(postLoginToast, 'success'), 350);
+            }
+        } catch (_) {}
+
+        // Helper to reliably toggle header Guest vs Logged-in state (overcoming Bootstrap's .d-flex !important)
+        function setHomeHeaderAuthUI(user, profile) {
+            const guestBtns = document.getElementById('homeGuestButtons');
+            const authDrop = document.getElementById('homeAuthDropdown');
+            if (user) {
+                if (guestBtns) {
+                    guestBtns.classList.remove('d-flex');
+                    guestBtns.classList.add('d-none');
+                    guestBtns.style.setProperty('display', 'none', 'important');
+                }
+                if (authDrop) {
+                    authDrop.classList.remove('d-none');
+                    authDrop.style.setProperty('display', 'block', 'important');
+                }
+                const fName = (profile && profile.first_name) ? profile.first_name : (user.first_name || user.displayName || 'Customer');
+                const lName = (profile && profile.last_name) ? profile.last_name : (user.last_name || '');
+                const initials = ((fName.charAt(0) || '') + (lName.charAt(0) || '')).toUpperCase() || 'FC';
+                const initEl = document.getElementById('homeAvatarInitials');
+                const nameEl = document.getElementById('homeUserName');
+                const emailEl = document.getElementById('homeUserEmail');
+                if (initEl) initEl.textContent = initials;
+                if (nameEl) nameEl.textContent = 'Hello, ' + fName;
+                if (emailEl) emailEl.textContent = (profile && profile.email) || user.email || '';
+            } else {
+                if (guestBtns) {
+                    guestBtns.classList.remove('d-none');
+                    guestBtns.classList.add('d-flex');
+                    guestBtns.style.removeProperty('display');
+                }
+                if (authDrop) {
+                    authDrop.classList.add('d-none');
+                    authDrop.style.setProperty('display', 'none', 'important');
+                }
+                const badge = document.getElementById('fcCartBadge');
+                if (badge) badge.textContent = '0';
+            }
+        }
+
+        // Instant synchronous hydration of header login state from localStorage so clicking the logo never flashes logged-out
+        try {
+            const cachedSessionRaw = localStorage.getItem('fc_customer_session_v2');
+            if (cachedSessionRaw) {
+                const cachedSession = JSON.parse(cachedSessionRaw);
+                if (cachedSession && cachedSession.uid) {
+                    setHomeHeaderAuthUI(cachedSession, cachedSession);
+                }
+            }
+        } catch (_) {}
+
+        window.openHomeGuestLoginModal = function (itemId) {
+            const returnUrl = window.location.href;
+            const item = itemId ? homeCatalogItems.find(x => String(x.id) === String(itemId)) : null;
+            const titleEl = document.getElementById('homeGuestModalTitle');
+            const descEl = document.getElementById('homeGuestModalDesc');
+            const signInBtn = document.getElementById('homeGuestModalSignInBtn');
+            const registerBtn = document.getElementById('homeGuestModalRegisterBtn');
+
+            if (item && titleEl && descEl) {
+                titleEl.textContent = `Sign in to add "${item.name}"`;
+                descEl.textContent = `Please sign in to your Freshcomart account. We've saved "${item.name}" so it will be added to your cart automatically right after you sign in!`;
+            } else if (titleEl && descEl) {
+                titleEl.textContent = 'Ready to add items to your basket?';
+                descEl.textContent = 'Please sign in to your Freshcomart account to purchase products. After signing in, you will be redirected right back to continue shopping.';
+            }
+
+            const encodedReturn = encodeURIComponent(returnUrl);
+            if (signInBtn) signInBtn.setAttribute('href', `login/sign.html?redirect=${encodedReturn}`);
+            if (registerBtn) registerBtn.setAttribute('href', `login/register.html?redirect=${encodedReturn}`);
+
+            const modalEl = document.getElementById('homeGuestLoginModal');
+            if (modalEl && typeof bootstrap !== 'undefined') {
+                bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            } else {
+                window.location.href = `login/sign.html?redirect=${encodedReturn}`;
+            }
+        };
+
+        window.syncHomeCartQty = function (itemId, newQty) {
+            homeInCartMap[String(itemId)] = Number(newQty || 0);
+        };
 
         function renderCategorySections(categories, countByCat = {}) {
             const selectEl = document.getElementById('fcLiveSearchCategory');
@@ -417,12 +683,12 @@
 
             if (gridEl) {
                 gridEl.innerHTML = categories.map(c => {
-                    const img = c.image_path ? c.image_path : 'assets/images/logo/logo-freshco.png';
+                    const img = resolveImagePath(c.image_path, '');
                     const count = Number(countByCat[Number(c.id)] || 0);
                     return `
                         <a href="product/product.html?category=${c.id}" class="fc-cat-card">
                             <div class="fc-cat-img">
-                                <img src="${esc(img)}" alt="${esc(c.name)}" onerror="this.src='assets/images/logo/logo-freshco.png'">
+                                <img src="${esc(img)}" alt="${esc(c.name)}" loading="lazy" decoding="async" onerror="this.src='assets/images/logo/logo-freshco.png'">
                             </div>
                             <div class="title">${esc(c.name)}</div>
                             <div class="count">${count} items</div>
@@ -437,18 +703,26 @@
             const stock = Number(item.stock_quantity || 0);
             const inStock = item.status === 'active' && stock > 0;
             const cartQty = Number(inCartMap[itemId] || 0);
+            const bulk = isBulkItem(item.category_id, item.unit);
             const imgPath = resolveImagePath(item.image_path, '');
 
             let actionHtml = '';
             if (!inStock) {
                 actionHtml = `<button class="fc-btn-add" disabled>Out of Stock</button>`;
-            } else if (cartQty > 0) {
+            } else if (!bulk && cartQty > 0) {
                 actionHtml = `
                     <div class="fc-stepper">
                         <button type="button" onclick="updateCartItem('${esc(itemId)}', -1, this)" aria-label="Decrease">&minus;</button>
                         <span class="qty">${cartQty}</span>
                         <button type="button" onclick="updateCartItem('${esc(itemId)}', 1, this)" aria-label="Increase">&plus;</button>
                     </div>
+                `;
+            } else if (bulk && cartQty > 0) {
+                const formattedInCart = formatQuantity(cartQty, item.unit, item.category_id);
+                actionHtml = `
+                    <button class="fc-btn-add" onclick="updateCartItem('${esc(itemId)}', 1, this)">
+                        <i class="bi bi-check2-circle me-1"></i>In Cart (${esc(formattedInCart)}) &bull; +Add
+                    </button>
                 `;
             } else {
                 actionHtml = `
@@ -464,7 +738,7 @@
                         <span class="fc-card-badge-stock ${inStock ? 'in-stock' : 'out-stock'}">
                             ${inStock ? 'In Stock' : 'Out of Stock'}
                         </span>
-                        <img src="${esc(imgPath)}" alt="${esc(item.name)}" loading="lazy" onerror="this.src='assets/images/logo/logo-freshco.png'">
+                        <img src="${esc(imgPath)}" alt="${esc(item.name)}" loading="lazy" decoding="async" onerror="this.src='assets/images/logo/logo-freshco.png'">
                     </div>
                     <div class="fc-card-body">
                         <span class="fc-card-unit">${esc(item.unit || '1 unit')}</span>
@@ -472,7 +746,7 @@
                         <div class="fc-card-price-row">
                             <span class="fc-card-price">Rs. ${formatMoney(item.price)}</span>
                         </div>
-                        <div class="fc-card-action" id="card-action-${esc(itemId)}" data-card-action="${esc(itemId)}">
+                        <div class="fc-card-action" id="card-action-${esc(itemId)}" data-card-action="${esc(itemId)}" data-is-bulk="${bulk ? '1' : '0'}">
                             ${actionHtml}
                         </div>
                     </div>
@@ -480,50 +754,297 @@
             `;
         }
 
-        // Pre-render default 19 categories immediately for instant UI paint
-        renderCategorySections(DEFAULT_CATEGORIES, {});
+        function updateDepartmentTabCounts(allItems) {
+            const tabLabels = {
+                'all': 'All Products',
+                '1,2': 'Fresh Produce',
+                '15': 'Pantry & Rice',
+                '6,9,10,11,16': 'Dairy, Eggs & Cheese',
+                '14': 'Meat & Seafood',
+                '3,4': 'Snacks & Biscuits',
+                '5,7,8,12': 'Beverages, Tea & Coffee',
+                '13,17,18,19': 'Bakery & Household'
+            };
 
-        async function loadHomepageData() {
-            const [categories, allItems, user] = await Promise.all([
-                ensureCategoriesSeeded(),
-                getAllItems(true),
-                waitForAuthUser()
-            ]);
-
-            let inCartMap = {};
-            if (user) {
-                document.getElementById('homeGuestButtons').style.display = 'none';
-                document.getElementById('homeAuthDropdown').style.display = '';
-                const [profile, cart] = await Promise.all([
-                    getUserProfile(user.uid),
-                    getActiveCartWithItems(user.uid)
-                ]);
-                const fName = (profile && profile.first_name) ? profile.first_name : (user.displayName || 'User');
-                const lName = (profile && profile.last_name) ? profile.last_name : '';
-                const initials = ((fName.charAt(0) || '') + (lName.charAt(0) || '')).toUpperCase() || 'FC';
-                document.getElementById('homeAvatarInitials').textContent = initials;
-                document.getElementById('homeUserName').textContent = 'Hello, ' + fName;
-                document.getElementById('homeUserEmail').textContent = (profile && profile.email) || user.email || '';
-                document.getElementById('fcCartBadge').textContent = cart.count || 0;
-                inCartMap = cart.inCartMap || {};
-            } else {
-                document.getElementById('homeGuestButtons').style.display = '';
-                document.getElementById('homeAuthDropdown').style.display = 'none';
-                document.getElementById('fcCartBadge').textContent = '0';
-            }
-
-            const countByCat = {};
-            allItems.forEach(i => {
-                const cid = Number(i.category_id || 0);
-                countByCat[cid] = (countByCat[cid] || 0) + 1;
+            document.querySelectorAll('#homeStaplesTabNav .fc-tab-btn').forEach(btn => {
+                const filterKey = btn.getAttribute('data-cat-filter') || 'all';
+                const baseLabel = tabLabels[filterKey] || btn.textContent;
+                let count = 0;
+                if (filterKey === 'all') {
+                    count = allItems.length;
+                } else {
+                    const allowedCats = filterKey.split(',').map(x => Number(x.trim()));
+                    count = allItems.filter(it => allowedCats.includes(Number(it.category_id))).length;
+                }
+                btn.innerHTML = `${esc(baseLabel)} <span class="badge rounded-pill ms-1" style="background:rgba(0,0,0,0.08);color:inherit;font-size:11px;">${count}</span>`;
             });
 
-            renderCategorySections(categories, countByCat);
+            const totalBadge = document.getElementById('homeStaplesTotalBadge');
+            if (totalBadge) {
+                totalBadge.innerHTML = `<i class="bi bi-box-seam me-1"></i>${allItems.length} Total Products`;
+            }
+        }
 
+        function getFilteredStaplesItems() {
+            const catFilter = homeStaplesState.category;
+            const allowedCats = (catFilter && catFilter !== 'all')
+                ? String(catFilter).split(',').map(x => Number(x.trim()))
+                : null;
+            const q = homeStaplesState.search.trim().toLowerCase();
+            const inStockOnly = homeStaplesState.inStockOnly;
+            const sort = homeStaplesState.sort;
+
+            let list = homeCatalogItems.filter(it => {
+                if (allowedCats && !allowedCats.includes(Number(it.category_id))) return false;
+                if (inStockOnly && !(it.status === 'active' && Number(it.stock_quantity || 0) > 0)) return false;
+                if (q) {
+                    const nameMatch = String(it.name || '').toLowerCase().includes(q);
+                    const catMatch = String(it.category_name || '').toLowerCase().includes(q);
+                    const unitMatch = String(it.unit || '').toLowerCase().includes(q);
+                    if (!nameMatch && !catMatch && !unitMatch) return false;
+                }
+                return true;
+            });
+
+            if (sort === 'price_asc') {
+                list.sort((a, b) => Number(a.price) - Number(b.price));
+            } else if (sort === 'price_desc') {
+                list.sort((a, b) => Number(b.price) - Number(a.price));
+            } else if (sort === 'name_asc') {
+                list.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+            } else {
+                // Featured & Newest first
+                list.sort((a, b) => {
+                    const numA = Number(a.id);
+                    const numB = Number(b.id);
+                    const isCustomA = isNaN(numA) || numA > 30;
+                    const isCustomB = isNaN(numB) || numB > 30;
+                    if (isCustomA && !isCustomB) return -1;
+                    if (!isCustomA && isCustomB) return 1;
+                    const inStockA = Number(a.stock_quantity || 0) > 0 ? 1 : 0;
+                    const inStockB = Number(b.stock_quantity || 0) > 0 ? 0 : 0;
+                    return 0;
+                });
+            }
+
+            return list;
+        }
+
+        function renderHomeStaplesCatalog() {
+            const staplesGrid = document.getElementById('homeStaplesGrid');
+            const paginationWrap = document.getElementById('homeStaplesPagination');
+            const showingText = document.getElementById('homeStaplesShowingText');
+            const progressBar = document.getElementById('homeStaplesProgressBar');
+            const loadMoreBtn = document.getElementById('homeStaplesLoadMoreBtn');
+            const pageList = document.getElementById('homeStaplesPageList');
+            const resetBtn = document.getElementById('homeStaplesResetBtn');
+
+            if (!staplesGrid) return;
+
+            const hasActiveFilter = homeStaplesState.category !== 'all' ||
+                                    homeStaplesState.search.trim() !== '' ||
+                                    homeStaplesState.inStockOnly ||
+                                    homeStaplesState.sort !== 'featured';
+            if (resetBtn) resetBtn.style.display = hasActiveFilter ? 'inline-block' : 'none';
+
+            const filtered = getFilteredStaplesItems();
+            const total = filtered.length;
+
+            if (total === 0) {
+                staplesGrid.innerHTML = `
+                    <div class="text-center py-5 bg-white rounded-4 border p-4" style="grid-column: 1 / -1;">
+                        <i class="bi bi-search fs-1 text-muted d-block mb-2"></i>
+                        <h6 class="fw-bold text-dark mb-1">No Matching Products Found</h6>
+                        <p class="text-muted small mb-3">Try clearing your search filter or switching to another supermarket department.</p>
+                        <button type="button" class="btn btn-outline-success btn-sm rounded-pill px-4 fw-bold" onclick="resetHomeStaplesFilters()">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i>Show All Products
+                        </button>
+                    </div>
+                `;
+                if (paginationWrap) paginationWrap.style.display = 'none';
+                return;
+            }
+
+            const pageSize = homeStaplesState.pageSize;
+            const totalPages = Math.max(1, Math.ceil(total / pageSize));
+            let sliceStart = 0;
+            let sliceEnd = total;
+
+            if (homeStaplesState.mode === 'page') {
+                if (homeStaplesState.currentPage > totalPages) homeStaplesState.currentPage = totalPages;
+                sliceStart = (homeStaplesState.currentPage - 1) * pageSize;
+                sliceEnd = Math.min(total, sliceStart + pageSize);
+            } else {
+                sliceStart = 0;
+                sliceEnd = Math.min(total, homeStaplesState.visibleCount);
+                homeStaplesState.currentPage = Math.ceil(sliceEnd / pageSize);
+            }
+
+            const visibleItems = filtered.slice(sliceStart, sliceEnd);
+            staplesGrid.innerHTML = visibleItems.map(item => renderProductCard(item, homeInCartMap)).join('');
+
+            if (paginationWrap) {
+                paginationWrap.style.display = 'block';
+                const shownCount = sliceEnd - sliceStart;
+                const rangeText = homeStaplesState.mode === 'page'
+                    ? `Showing ${sliceStart + 1}–${sliceEnd} of ${total} products (Page ${homeStaplesState.currentPage} of ${totalPages})`
+                    : `Showing ${shownCount} of ${total} products`;
+                if (showingText) showingText.textContent = rangeText;
+
+                const pct = Math.min(100, Math.round((sliceEnd / total) * 100));
+                if (progressBar) progressBar.style.width = `${pct}%`;
+
+                if (loadMoreBtn) {
+                    const remaining = total - sliceEnd;
+                    if (remaining > 0) {
+                        const nextBatch = Math.min(pageSize, remaining);
+                        loadMoreBtn.style.display = 'inline-flex';
+                        loadMoreBtn.innerHTML = `<i class="bi bi-plus-circle me-1"></i>Load More Products (+${nextBatch} more)`;
+                    } else {
+                        loadMoreBtn.style.display = 'none';
+                    }
+                }
+
+                // Render compact numbered page buttons (handles 500–1,000+ items / 50+ pages cleanly with ellipsis)
+                if (pageList) {
+                    if (totalPages <= 1) {
+                        pageList.innerHTML = '';
+                    } else {
+                        const cur = homeStaplesState.currentPage;
+                        let pagesHtml = '';
+                        pagesHtml += `<li class="page-item ${cur <= 1 ? 'disabled' : ''}">
+                            <button type="button" class="page-link rounded-pill px-2" onclick="goToHomeStaplesPage(${cur - 1})">&laquo;</button>
+                        </li>`;
+
+                        const maxButtons = 5;
+                        let startP = Math.max(1, cur - 2);
+                        let endP = Math.min(totalPages, startP + maxButtons - 1);
+                        if (endP - startP < maxButtons - 1) startP = Math.max(1, endP - maxButtons + 1);
+
+                        if (startP > 1) {
+                            pagesHtml += `<li class="page-item"><button type="button" class="page-link rounded-circle" onclick="goToHomeStaplesPage(1)">1</button></li>`;
+                            if (startP > 2) pagesHtml += `<li class="page-item disabled"><span class="page-link border-0 bg-transparent">&hellip;</span></li>`;
+                        }
+
+                        for (let p = startP; p <= endP; p++) {
+                            const activeClass = p === cur ? 'active' : '';
+                            const activeStyle = p === cur ? 'background:#16a34a;border-color:#16a34a;color:#fff;font-weight:700;' : 'color:#15803d;';
+                            pagesHtml += `<li class="page-item ${activeClass}">
+                                <button type="button" class="page-link rounded-circle" style="${activeStyle}" onclick="goToHomeStaplesPage(${p})">${p}</button>
+                            </li>`;
+                        }
+
+                        if (endP < totalPages) {
+                            if (endP < totalPages - 1) pagesHtml += `<li class="page-item disabled"><span class="page-link border-0 bg-transparent">&hellip;</span></li>`;
+                            pagesHtml += `<li class="page-item"><button type="button" class="page-link rounded-circle" onclick="goToHomeStaplesPage(${totalPages})">${totalPages}</button></li>`;
+                        }
+
+                        pagesHtml += `<li class="page-item ${cur >= totalPages ? 'disabled' : ''}">
+                            <button type="button" class="page-link rounded-pill px-2" onclick="goToHomeStaplesPage(${cur + 1})">&raquo;</button>
+                        </li>`;
+                        pageList.innerHTML = pagesHtml;
+                    }
+                }
+            }
+        }
+
+        window.applyHomeStaplesCategory = function (catId) {
+            homeStaplesState.category = String(catId || 'all');
+            homeStaplesState.currentPage = 1;
+            homeStaplesState.visibleCount = homeStaplesState.pageSize;
+            homeStaplesState.mode = 'loadmore';
+            renderHomeStaplesCatalog();
+        };
+
+        window.loadMoreHomeStaples = function () {
+            homeStaplesState.mode = 'loadmore';
+            homeStaplesState.visibleCount += homeStaplesState.pageSize;
+            renderHomeStaplesCatalog();
+        };
+
+        window.goToHomeStaplesPage = function (pageNum) {
+            const p = Number(pageNum);
+            if (!p || p < 1) return;
+            homeStaplesState.mode = 'page';
+            homeStaplesState.currentPage = p;
+            homeStaplesState.visibleCount = p * homeStaplesState.pageSize;
+            renderHomeStaplesCatalog();
+            const sec = document.getElementById('dailyStaplesSection');
+            if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        };
+
+        window.resetHomeStaplesFilters = function () {
+            homeStaplesState.category = 'all';
+            homeStaplesState.search = '';
+            homeStaplesState.sort = 'featured';
+            homeStaplesState.inStockOnly = false;
+            homeStaplesState.currentPage = 1;
+            homeStaplesState.visibleCount = homeStaplesState.pageSize;
+            homeStaplesState.mode = 'loadmore';
+
+            const sInput = document.getElementById('homeStaplesSearch');
+            const sSort = document.getElementById('homeStaplesSort');
+            const sStock = document.getElementById('homeStaplesInStock');
+            if (sInput) sInput.value = '';
+            if (sSort) sSort.value = 'featured';
+            if (sStock) sStock.checked = false;
+
+            document.querySelectorAll('#homeStaplesTabNav .fc-tab-btn').forEach(btn => {
+                btn.classList.toggle('active', (btn.getAttribute('data-cat-filter') || '') === 'all');
+            });
+
+            renderHomeStaplesCatalog();
+        };
+
+        // Bind inline filter inputs for Daily Grocery & Pantry Staples
+        const staplesSearchEl = document.getElementById('homeStaplesSearch');
+        const staplesSortEl = document.getElementById('homeStaplesSort');
+        const staplesPageSizeEl = document.getElementById('homeStaplesPageSize');
+        const staplesInStockEl = document.getElementById('homeStaplesInStock');
+
+        let staplesSearchTimer = null;
+        if (staplesSearchEl) {
+            staplesSearchEl.addEventListener('input', () => {
+                clearTimeout(staplesSearchTimer);
+                staplesSearchTimer = setTimeout(() => {
+                    homeStaplesState.search = staplesSearchEl.value;
+                    homeStaplesState.currentPage = 1;
+                    homeStaplesState.visibleCount = homeStaplesState.pageSize;
+                    homeStaplesState.mode = 'loadmore';
+                    renderHomeStaplesCatalog();
+                }, 180);
+            });
+        }
+        if (staplesSortEl) {
+            staplesSortEl.addEventListener('change', () => {
+                homeStaplesState.sort = staplesSortEl.value;
+                renderHomeStaplesCatalog();
+            });
+        }
+        if (staplesPageSizeEl) {
+            staplesPageSizeEl.addEventListener('change', () => {
+                homeStaplesState.pageSize = parseInt(staplesPageSizeEl.value, 10) || 12;
+                homeStaplesState.currentPage = 1;
+                homeStaplesState.visibleCount = homeStaplesState.pageSize;
+                homeStaplesState.mode = 'loadmore';
+                renderHomeStaplesCatalog();
+            });
+        }
+        if (staplesInStockEl) {
+            staplesInStockEl.addEventListener('change', () => {
+                homeStaplesState.inStockOnly = staplesInStockEl.checked;
+                homeStaplesState.currentPage = 1;
+                homeStaplesState.visibleCount = homeStaplesState.pageSize;
+                homeStaplesState.mode = 'loadmore';
+                renderHomeStaplesCatalog();
+            });
+        }
+
+        function renderHomepageGrids(allItems, inCartMap) {
             const featuredGrid = document.getElementById('homeFeaturedGrid');
             const staplesGrid = document.getElementById('homeStaplesGrid');
 
-            if (!allItems.length) {
+            if (!allItems || !allItems.length) {
                 const emptyHtml = `
                     <div class="text-center py-5 bg-white rounded-4 border p-4" style="grid-column: 1 / -1;">
                         <i class="bi bi-basket2 fs-1 text-success d-block mb-2"></i>
@@ -537,21 +1058,210 @@
                 return;
             }
 
+            updateDepartmentTabCounts(allItems);
+
+            // Featured Grid: Always prioritize newly added Admin products first, followed by in-stock items!
             const featuredItems = [...allItems]
-                .sort((a, b) => Number(b.stock_quantity || 0) - Number(a.stock_quantity || 0))
+                .sort((a, b) => {
+                    const numA = Number(a.id);
+                    const numB = Number(b.id);
+                    const isCustomA = isNaN(numA) || numA > 30;
+                    const isCustomB = isNaN(numB) || numB > 30;
+                    if (isCustomA && !isCustomB) return -1;
+                    if (!isCustomA && isCustomB) return 1;
+                    const inStockA = Number(a.stock_quantity || 0) > 0 ? 1 : 0;
+                    const inStockB = Number(b.stock_quantity || 0) > 0 ? 1 : 0;
+                    if (inStockA !== inStockB) return inStockB - inStockA;
+                    return Number(b.stock_quantity || 0) - Number(a.stock_quantity || 0);
+                })
                 .slice(0, 8);
 
             if (featuredGrid) {
                 featuredGrid.innerHTML = featuredItems.map(item => renderProductCard(item, inCartMap)).join('');
             }
 
-            const stapleCats = [1, 2, 3, 4, 14, 15, 16];
-            let stapleItems = allItems.filter(i => stapleCats.includes(Number(i.category_id)));
-            if (!stapleItems.length) stapleItems = allItems;
-            stapleItems = stapleItems.slice(0, 12);
+            // Staples / Complete Catalog Grid: Progressive paginated rendering for 500–1,000+ products
+            renderHomeStaplesCatalog();
+        }
 
-            if (staplesGrid) {
-                staplesGrid.innerHTML = stapleItems.map(item => renderProductCard(item, inCartMap)).join('');
+        // Phase 4: Bulk Weight / Volume Picker Modal on Homepage
+        window.openHomeBulkModal = async function (itemId) {
+            const user = await waitForAuthUser();
+            if (!user) {
+                if (typeof window.promptGuestSignIn === 'function') {
+                    window.promptGuestSignIn(itemId, 1);
+                } else {
+                    window.openHomeGuestLoginModal(itemId);
+                }
+                return;
+            }
+
+            const item = homeCatalogItems.find(x => String(x.id) === String(itemId));
+            if (!item) return;
+
+            selectedBulkItem = item;
+            homeBulkPkgQty = 1;
+            document.getElementById('homeBulkItemTitle').textContent = `${item.name} (Rs. ${formatMoney(item.price)} / ${item.unit})`;
+            document.getElementById('homeBulkPkgCount').textContent = '1';
+
+            const weightSelect = document.getElementById('homeWeightSelect');
+            weightSelect.innerHTML = '';
+            const parsedDb = parseUnitToGrams(item.unit);
+            const metric = parsedDb.metric;
+
+            let options = [];
+            if (metric === 'kg' || metric === 'g') {
+                options = [
+                    { text: '500 g', baseVal: 500 },
+                    { text: '1 kg', baseVal: 1000 },
+                    { text: '2 kg', baseVal: 2000 },
+                    { text: '3 kg', baseVal: 3000 },
+                    { text: '4 kg', baseVal: 4000 },
+                    { text: '5 kg', baseVal: 5000 }
+                ];
+            } else if (metric === 'l' || metric === 'ml') {
+                options = [
+                    { text: '250 ml', baseVal: 250 },
+                    { text: '500 ml', baseVal: 500 },
+                    { text: '1 L', baseVal: 1000 },
+                    { text: '2 L', baseVal: 2000 },
+                    { text: '3 L', baseVal: 3000 },
+                    { text: '5 L', baseVal: 5000 }
+                ];
+            }
+
+            options.forEach(opt => {
+                const el = document.createElement('option');
+                el.value = opt.baseVal;
+                el.textContent = opt.text;
+                weightSelect.appendChild(el);
+            });
+
+            const closestOpt = options.find(o => Math.abs(o.baseVal - parsedDb.baseVal) < 1);
+            if (closestOpt) {
+                weightSelect.value = closestOpt.baseVal;
+            } else {
+                const customOpt = document.createElement('option');
+                customOpt.value = parsedDb.baseVal;
+                customOpt.textContent = item.unit;
+                weightSelect.appendChild(customOpt);
+                weightSelect.value = parsedDb.baseVal;
+            }
+
+            updateHomeBulkPreview();
+            const modalEl = document.getElementById('homeBulkModal');
+            homeBulkModalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+            homeBulkModalInstance.show();
+        };
+
+        function updateHomeBulkPreview() {
+            if (!selectedBulkItem) return;
+            const selectedBase = parseFloat(document.getElementById('homeWeightSelect').value);
+            const parsedDb = parseUnitToGrams(selectedBulkItem.unit);
+            const multiplier = selectedBase / parsedDb.baseVal;
+            const totalPrice = homeBulkPkgQty * Number(selectedBulkItem.price) * multiplier;
+            const totalWeightVal = homeBulkPkgQty * selectedBase;
+
+            let weightText = '';
+            if (parsedDb.metric === 'kg' || parsedDb.metric === 'g') {
+                weightText = totalWeightVal >= 1000
+                    ? (totalWeightVal / 1000).toFixed(totalWeightVal % 1000 === 0 ? 0 : 2) + ' kg'
+                    : totalWeightVal + ' g';
+            } else {
+                weightText = totalWeightVal >= 1000
+                    ? (totalWeightVal / 1000).toFixed(totalWeightVal % 1000 === 0 ? 0 : 2) + ' L'
+                    : totalWeightVal + ' ml';
+            }
+            document.getElementById('homeBulkPreview').textContent = `Total: Rs. ${formatMoney(totalPrice)} (${weightText})`;
+        }
+
+        document.getElementById('homeWeightSelect').addEventListener('change', updateHomeBulkPreview);
+
+        window.changeHomeBulkQty = function (delta) {
+            homeBulkPkgQty = Math.max(1, homeBulkPkgQty + delta);
+            document.getElementById('homeBulkPkgCount').textContent = String(homeBulkPkgQty);
+            updateHomeBulkPreview();
+        };
+
+        window.confirmHomeBulkAdd = async function () {
+            if (!selectedBulkItem) return;
+            const user = await waitForAuthUser();
+            if (!user) {
+                if (homeBulkModalInstance) homeBulkModalInstance.hide();
+                window.openHomeGuestLoginModal(selectedBulkItem.id);
+                return;
+            }
+
+            const selectedBase = parseFloat(document.getElementById('homeWeightSelect').value);
+            const parsedDb = parseUnitToGrams(selectedBulkItem.unit);
+            const finalQty = (selectedBase / parsedDb.baseVal) * homeBulkPkgQty;
+
+            const btn = document.getElementById('homeConfirmBulkBtn');
+            btn.disabled = true;
+            try {
+                const res = await addOrUpdateCartItem(user.uid, selectedBulkItem.id, finalQty);
+                if (res.ok) {
+                    homeInCartMap[String(selectedBulkItem.id)] = res.newQuantity;
+                    renderHomepageGrids(homeCatalogItems, homeInCartMap);
+                    await refreshHomepageCartDrawer(false);
+                    if (homeBulkModalInstance) homeBulkModalInstance.hide();
+                    showHomeToast(res.message || 'Added to your cart!', 'success');
+                } else if (res.requiresAuth) {
+                    if (homeBulkModalInstance) homeBulkModalInstance.hide();
+                    window.openHomeGuestLoginModal(selectedBulkItem.id);
+                } else {
+                    showHomeToast(res.message || 'Could not add item to cart.', 'danger');
+                }
+            } finally {
+                btn.disabled = false;
+            }
+        };
+
+        // Pre-render default 19 categories immediately for instant UI paint
+        renderCategorySections(DEFAULT_CATEGORIES, {});
+
+        async function loadHomepageData() {
+            // 1. Load & render categories and products FIRST so catalog NEVER blocks on Auth or Cart
+            let categories = DEFAULT_CATEGORIES;
+            let allItems = [];
+            try {
+                [categories, allItems] = await Promise.all([
+                    ensureCategoriesSeeded(),
+                    getAllItems(true)
+                ]);
+            } catch (err) {
+                console.warn('Catalog load warning:', err);
+            }
+
+            homeCatalogItems = allItems;
+
+            const countByCat = {};
+            allItems.forEach(i => {
+                const cid = Number(i.category_id || 0);
+                countByCat[cid] = (countByCat[cid] || 0) + 1;
+            });
+
+            renderCategorySections(categories, countByCat);
+            renderHomepageGrids(allItems, homeInCartMap);
+
+            // 2. Load Auth & Active Cart independently in its own try/catch
+            try {
+                const user = await waitForAuthUser();
+                if (user) {
+                    setHomeHeaderAuthUI(user, null);
+                    const [profile, cart] = await Promise.all([
+                        getUserProfile(user.uid, user.email),
+                        getActiveCartWithItems(user.uid)
+                    ]);
+                    setHomeHeaderAuthUI(user, profile);
+                    document.getElementById('fcCartBadge').textContent = (cart && cart.count) || 0;
+                    homeInCartMap = (cart && cart.inCartMap) || {};
+                    renderHomepageGrids(allItems, homeInCartMap);
+                } else {
+                    setHomeHeaderAuthUI(null, null);
+                }
+            } catch (authErr) {
+                console.warn('Auth/Cart init warning on homepage:', authErr);
             }
         }
 
@@ -568,11 +1278,12 @@
 
             const user = await waitForAuthUser();
             if (!user) {
+                const encodedReturn = encodeURIComponent(window.location.href);
                 container.innerHTML = `
                     <div class="text-center py-5 text-muted">
                         <i class="bi bi-person-lock fs-1 text-secondary d-block mb-2"></i>
                         <span class="fw-semibold">Please sign in to view your grocery basket.</span>
-                        <div class="mt-3"><a href="login/sign.html" class="btn btn-success btn-sm rounded-pill px-4">Sign In</a></div>
+                        <div class="mt-3"><a href="login/sign.html?redirect=${encodedReturn}" class="btn btn-success btn-sm rounded-pill px-4">Sign In</a></div>
                     </div>
                 `;
                 footer.style.display = 'none';

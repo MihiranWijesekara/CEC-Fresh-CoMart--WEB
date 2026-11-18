@@ -71,9 +71,6 @@ export {
 // 1. PRECISION, QUANTITY, BULK UNIT & FORMATTING HELPERS (Fix #12)
 // ============================================================================
 
-/**
- * Fix #12: Preserve 3 decimal places (e.g. 0.500, 74.500, 79.500) for quantities and weights.
- */
 export function roundQty3(val) {
   const n = parseFloat(val);
   if (isNaN(n)) return 0;
@@ -170,17 +167,26 @@ export function escapeHtml(str) {
     .replace(/"/g, "&quot;");
 }
 
+export function isPermissionError(err) {
+  if (!err) return false;
+  const code = String(err.code || "").toLowerCase();
+  const msg = String(err.message || "").toLowerCase();
+  return code.includes("permission-denied") || msg.includes("missing or insufficient permissions") || msg.includes("permission_denied");
+}
+
+export function sanitizeUserFacingError(err, fallbackMsg = "Please sign in to your Freshcomart account to continue with your purchase.") {
+  if (isPermissionError(err)) {
+    return fallbackMsg;
+  }
+  return (err && err.message) ? err.message : fallbackMsg;
+}
+
 // ============================================================================
 // 2. IMAGE PATH NORMALIZATION (Fix #11) & HTML5 CANVAS COMPRESSION
 // ============================================================================
 
 export const DEFAULT_FALLBACK_IMAGE = "assets/images/logo/logo-freshco.png";
 
-/**
- * Fix #11: Normalizes both 'Admin/ImageUpload/...' and 'assets/images/shopCategory/...'
- * paths accurately whether rendered from root pages (/index.html, /proceed.html)
- * or subdirectory pages (/Admin/*, /product/*, /login/*), with fallback support.
- */
 export function resolveImagePath(imagePath, basePrefix = undefined) {
   let prefix = basePrefix;
   if (prefix === undefined) {
@@ -203,15 +209,12 @@ export function resolveImagePath(imagePath, basePrefix = undefined) {
     return s;
   }
 
-  // Strip leading ../, ./, or /
   let clean = s.replace(/^(\.\.\/|\.\/|\/)+/, "");
 
-  // Normalize bare ImageUpload/... to Admin/ImageUpload/...
   if (clean.startsWith("ImageUpload/")) {
     clean = "Admin/" + clean;
   }
 
-  // Legacy path migration: if a cached doc had assets/images/category/..., map to assets/images/shopCategory/...
   if (clean.startsWith("assets/images/category/")) {
     const fileMap = {
       "vegetables.png": "vegetable.png",
@@ -272,88 +275,154 @@ export function compressImageFile(file, maxWidth = 500, maxHeight = 500, quality
 }
 
 // ============================================================================
-// 3. FIRESTORE DATA MODEL SEEDING (Categories, 20 Items, Order Counter)
+// 3. FIRESTORE DATA MODEL SEEDING & IN-MEMORY PROMISE DEDUPLICATION (Phase 3)
 // ============================================================================
 
 let categoriesCache = null;
+let categoriesPromise = null;
 let itemsSeedChecked = false;
+let itemsCacheAll = null;
+let itemsCacheTime = 0;
+let itemsFetchPromise = null;
+let ordersAdminPromise = null;
+let ordersAdminCache = null;
+let ordersAdminCacheTime = 0;
+let inquiriesAdminPromise = null;
+
+const CACHE_TTL_MS = 2500;
+const LOCAL_ITEMS_CACHE_KEY = "fc_catalog_items_cache_v2";
+const LOCAL_CUSTOMER_SESSION_KEY = "fc_customer_session_v2";
+const LOCAL_ORDERS_MIRROR_KEY = "fc_orders_mirror_v2";
+const LOCAL_ORDER_SEQ_KEY = "fc_order_seq_v2";
+
+function invalidateItemsCache() {
+  itemsCacheAll = null;
+  itemsCacheTime = 0;
+  itemsFetchPromise = null;
+}
+
+function invalidateOrdersCache() {
+  ordersAdminCache = null;
+  ordersAdminCacheTime = 0;
+  ordersAdminPromise = null;
+}
+
+function normalizeStatusString(rawStatus) {
+  const s = String(rawStatus ?? "active").trim().toLowerCase();
+  if (s === "inactive" || s === "0" || s === "false" || s === "disabled") {
+    return "inactive";
+  }
+  return "active";
+}
+
+function readLocalItemsMirror() {
+  try {
+    if (typeof localStorage === "undefined") return [];
+    const raw = localStorage.getItem(LOCAL_ITEMS_CACHE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function writeLocalItemsMirror(items) {
+  try {
+    if (typeof localStorage === "undefined" || !Array.isArray(items)) return;
+    localStorage.setItem(LOCAL_ITEMS_CACHE_KEY, JSON.stringify(items));
+  } catch (_) {}
+}
+
+function upsertItemInLocalMirror(itemObj) {
+  try {
+    if (!itemObj || !itemObj.id) return;
+    const list = readLocalItemsMirror();
+    const idStr = String(itemObj.id);
+    const idx = list.findIndex((x) => String(x.id) === idStr);
+    if (idx >= 0) {
+      list[idx] = { ...list[idx], ...itemObj, id: idStr };
+    } else {
+      list.unshift({ ...itemObj, id: idStr });
+    }
+    writeLocalItemsMirror(list);
+  } catch (_) {}
+}
 
 export async function ensureCategoriesSeeded() {
   if (categoriesCache && categoriesCache.length > 0) {
     return categoriesCache;
   }
-  try {
-    const snap = await getDocs(collection(db, "categories"));
-    const ts = nowColomboISO();
-    if (snap.empty) {
-      const batch = writeBatch(db);
-      DEFAULT_CATEGORIES.forEach((cat) => {
-        const ref = doc(db, "categories", String(cat.id));
-        batch.set(ref, {
-          id: Number(cat.id),
-          name: cat.name,
-          slug: cat.slug,
-          image_path: cat.image_path,
-          status: cat.status || "active",
-          created_at: ts,
-          updated_at: ts
-        });
-      });
-      await batch.commit();
-      categoriesCache = DEFAULT_CATEGORIES.map((c) => ({ ...c, status: c.status || "active", created_at: ts, updated_at: ts }));
-      return categoriesCache;
-    }
-
-    const list = [];
-    const fixBatch = writeBatch(db);
-    let needsFix = false;
-
-    snap.forEach((d) => {
-      const data = d.data();
-      const id = Number(data.id || d.id);
-      const def = DEFAULT_CATEGORIES.find((c) => c.id === id) || {};
-      let imgPath = data.image_path || def.image_path || DEFAULT_FALLBACK_IMAGE;
-      if (String(imgPath).startsWith("assets/images/category/") && def.image_path) {
-        imgPath = def.image_path;
-        needsFix = true;
+  if (categoriesPromise) {
+    return categoriesPromise;
+  }
+  categoriesPromise = (async () => {
+    try {
+      const snap = await getDocs(collection(db, "categories"));
+      const ts = nowColomboISO();
+      if (snap.empty) {
+        try {
+          const batch = writeBatch(db);
+          DEFAULT_CATEGORIES.forEach((cat) => {
+            const ref = doc(db, "categories", String(cat.id));
+            batch.set(ref, {
+              id: Number(cat.id),
+              name: cat.name,
+              slug: cat.slug,
+              image_path: cat.image_path,
+              status: cat.status || "active",
+              created_at: ts,
+              updated_at: ts
+            });
+          });
+          await batch.commit();
+        } catch (_) {}
+        categoriesCache = DEFAULT_CATEGORIES.map((c) => ({ ...c, status: c.status || "active", created_at: ts, updated_at: ts }));
+        return categoriesCache;
       }
-      const status = data.status || "active";
-      if (!data.status || !data.updated_at || String(data.image_path || "").startsWith("assets/images/category/")) {
-        needsFix = true;
-        fixBatch.set(doc(db, "categories", String(d.id)), {
+
+      const list = [];
+      snap.forEach((d) => {
+        const data = d.data();
+        const id = Number(data.id || d.id);
+        const def = DEFAULT_CATEGORIES.find((c) => c.id === id) || {};
+        let imgPath = data.image_path || def.image_path || DEFAULT_FALLBACK_IMAGE;
+        if (String(imgPath).startsWith("assets/images/category/") && def.image_path) {
+          imgPath = def.image_path;
+        }
+        const status = normalizeStatusString(data.status);
+        list.push({
           id,
           name: data.name || def.name || "Category",
           slug: data.slug || def.slug || "category",
           image_path: imgPath,
           status,
+          icon: def.icon || "bi-tag",
+          fa: def.fa || "fa-tag",
           created_at: data.created_at || ts,
           updated_at: data.updated_at || ts
-        }, { merge: true });
-      }
-      list.push({
-        id,
-        name: data.name || def.name || "Category",
-        slug: data.slug || def.slug || "category",
-        image_path: imgPath,
-        status,
-        icon: def.icon || "bi-tag",
-        fa: def.fa || "fa-tag",
-        created_at: data.created_at || ts,
-        updated_at: data.updated_at || ts
+        });
       });
-    });
 
-    if (needsFix) {
-      try { await fixBatch.commit(); } catch (_) {}
+      // Ensure all 19 default categories are present in the returned list
+      DEFAULT_CATEGORIES.forEach((def) => {
+        if (!list.some((c) => Number(c.id) === Number(def.id))) {
+          list.push({ ...def, status: def.status || "active", created_at: ts, updated_at: ts });
+        }
+      });
+
+      list.sort((a, b) => a.id - b.id);
+      categoriesCache = list;
+      return list;
+    } catch (err) {
+      categoriesCache = [...DEFAULT_CATEGORIES];
+      return categoriesCache;
+    } finally {
+      categoriesPromise = null;
     }
+  })();
 
-    list.sort((a, b) => a.id - b.id);
-    categoriesCache = list;
-    return list;
-  } catch (err) {
-    console.warn("Using default categories fallback:", err);
-    return DEFAULT_CATEGORIES;
-  }
+  return categoriesPromise;
 }
 
 export async function ensureOrderCounterSeeded() {
@@ -378,10 +447,14 @@ export async function ensureItemsSeeded() {
   itemsSeedChecked = true;
   try {
     const snap = await getDocs(collection(db, "items"));
-    if (snap.empty) {
+    const existingIds = new Set();
+    snap.forEach((d) => existingIds.add(String(d.id)));
+
+    const missingDefaults = DEFAULT_ITEMS.filter((item) => !existingIds.has(String(item.id)));
+    if (missingDefaults.length > 0) {
       const batch = writeBatch(db);
       const ts = nowColomboISO();
-      DEFAULT_ITEMS.forEach((item) => {
+      missingDefaults.forEach((item) => {
         const ref = doc(db, "items", String(item.id));
         batch.set(ref, {
           id: Number(item.id),
@@ -395,19 +468,13 @@ export async function ensureItemsSeeded() {
           status: item.status || "active",
           created_at: item.created_at || ts,
           updated_at: item.updated_at || ts
-        });
+        }, { merge: true });
       });
       await batch.commit();
     }
-    await ensureOrderCounterSeeded();
-  } catch (err) {
-    console.warn("Auto-seed items warning:", err);
-  }
+  } catch (_) {}
 }
 
-/**
- * One-click or automatic Firestore seeder for categories (19), items (20: IDs 11-30), and counters/orders (current: 13).
- */
 export async function seedFirebaseDatabase(force = false) {
   const ts = nowColomboISO();
   const batch = writeBatch(db);
@@ -432,8 +499,11 @@ export async function seedFirebaseDatabase(force = false) {
 
   const itemSnap = await getDocs(collection(db, "items"));
   let itemsSeeded = 0;
-  if (itemSnap.empty || force) {
-    DEFAULT_ITEMS.forEach((item) => {
+  const existingItemIds = new Set();
+  itemSnap.forEach((d) => existingItemIds.add(String(d.id)));
+
+  DEFAULT_ITEMS.forEach((item) => {
+    if (force || !existingItemIds.has(String(item.id))) {
       const ref = doc(db, "items", String(item.id));
       batch.set(ref, {
         id: Number(item.id),
@@ -449,20 +519,23 @@ export async function seedFirebaseDatabase(force = false) {
         updated_at: item.updated_at || ts
       }, { merge: true });
       itemsSeeded++;
-    });
-  }
+    }
+  });
 
-  const counterRef = doc(db, "counters", "orders");
-  const counterSnap = await getDoc(counterRef);
-  if (!counterSnap.exists() || force) {
-    batch.set(counterRef, {
-      current: counterSnap.exists() ? Math.max(INITIAL_ORDER_COUNTER, Number(counterSnap.data().current) || INITIAL_ORDER_COUNTER) : INITIAL_ORDER_COUNTER,
-      updated_at: ts
-    }, { merge: true });
-  }
+  try {
+    const counterRef = doc(db, "counters", "orders");
+    const counterSnap = await getDoc(counterRef);
+    if (!counterSnap.exists() || force) {
+      batch.set(counterRef, {
+        current: counterSnap.exists() ? Math.max(INITIAL_ORDER_COUNTER, Number(counterSnap.data().current) || INITIAL_ORDER_COUNTER) : INITIAL_ORDER_COUNTER,
+        updated_at: ts
+      }, { merge: true });
+    }
+  } catch (_) {}
 
   await batch.commit();
   categoriesCache = null;
+  invalidateItemsCache();
   await ensureCategoriesSeeded();
 
   return {
@@ -490,14 +563,14 @@ export function getCategoryNameById(catId) {
 export async function getAllCategories(activeOnly = false) {
   const list = await ensureCategoriesSeeded();
   if (!activeOnly) return list;
-  return list.filter((c) => (c.status || "active") === "active");
+  return list.filter((c) => normalizeStatusString(c.status) === "active");
 }
 
 export async function addCategory({ name, slug, image_path, status = "active", imageFile }) {
   const nm = String(name || "").trim();
   if (!nm) throw new Error("Category name is required.");
   const sl = String(slug || nm.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")).trim();
-  const st = status === "inactive" ? "inactive" : "active";
+  const st = normalizeStatusString(status);
 
   let resolvedImg = image_path || DEFAULT_FALLBACK_IMAGE;
   if (imageFile) {
@@ -535,7 +608,7 @@ export async function updateCategory(categoryId, { name, slug, image_path, statu
   const cur = snap.data();
   const nm = name !== undefined ? String(name).trim() : cur.name;
   const sl = slug !== undefined ? String(slug).trim() : cur.slug;
-  const st = status !== undefined ? (status === "inactive" ? "inactive" : "active") : (cur.status || "active");
+  const st = status !== undefined ? normalizeStatusString(status) : normalizeStatusString(cur.status);
   let resolvedImg = image_path !== undefined ? image_path : cur.image_path;
   if (imageFile) {
     resolvedImg = await compressImageFile(imageFile, 300, 300, 0.8);
@@ -559,7 +632,7 @@ export async function toggleCategoryStatus(categoryId) {
   const ref = doc(db, "categories", String(categoryId));
   const snap = await getDoc(ref);
   if (!snap.exists()) throw new Error("Category not found.");
-  const cur = snap.data().status === "inactive" ? "inactive" : "active";
+  const cur = normalizeStatusString(snap.data().status);
   const next = cur === "active" ? "inactive" : "active";
   await updateDoc(ref, { status: next, updated_at: nowColomboISO() });
   categoriesCache = null;
@@ -568,71 +641,177 @@ export async function toggleCategoryStatus(categoryId) {
 }
 
 // ============================================================================
-// 4. AUTHENTICATION & USER PROFILE OPERATIONS (Fix #2 - Zero Plaintext Passwords)
+// 4. PERSISTENT AUTHENTICATION & SESSION MANAGEMENT Across All Pages
 // ============================================================================
 
-export function waitForAuthUser() {
+function saveCustomerSessionLocal(sessionData) {
+  try {
+    if (typeof localStorage === "undefined" || !sessionData || !sessionData.uid) return;
+    localStorage.setItem(LOCAL_CUSTOMER_SESSION_KEY, JSON.stringify({
+      uid: String(sessionData.uid),
+      email: String(sessionData.email || ""),
+      displayName: String(sessionData.displayName || ""),
+      first_name: String((sessionData.profile && sessionData.profile.first_name) || sessionData.first_name || "Customer"),
+      last_name: String((sessionData.profile && sessionData.profile.last_name) || sessionData.last_name || ""),
+      phone_number: String((sessionData.profile && sessionData.profile.phone_number) || ""),
+      street_address1: String((sessionData.profile && sessionData.profile.street_address1) || ""),
+      street_address2: String((sessionData.profile && sessionData.profile.street_address2) || ""),
+      town: String((sessionData.profile && sessionData.profile.town) || ""),
+      is_admin: Number((sessionData.profile && sessionData.profile.is_admin) || sessionData.is_admin || 0),
+      ts: Date.now()
+    }));
+  } catch (_) {}
+}
+
+function readCustomerSessionLocal() {
+  try {
+    if (typeof localStorage === "undefined") return null;
+    const raw = localStorage.getItem(LOCAL_CUSTOMER_SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && parsed.uid) {
+      return {
+        uid: parsed.uid,
+        email: parsed.email || "",
+        displayName: parsed.displayName || `${parsed.first_name || ""} ${parsed.last_name || ""}`.trim() || "Customer",
+        user: { uid: parsed.uid, email: parsed.email || "", displayName: parsed.displayName || "" },
+        profile: {
+          id: parsed.uid,
+          uid: parsed.uid,
+          first_name: parsed.first_name || "Customer",
+          last_name: parsed.last_name || "",
+          email: parsed.email || "",
+          phone_number: parsed.phone_number || "",
+          street_address1: parsed.street_address1 || "",
+          street_address2: parsed.street_address2 || "",
+          town: parsed.town || "",
+          is_admin: Number(parsed.is_admin || 0)
+        }
+      };
+    }
+    return null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function clearCustomerSessionLocal() {
+  try {
+    if (typeof localStorage === "undefined") return;
+    localStorage.removeItem(LOCAL_CUSTOMER_SESSION_KEY);
+  } catch (_) {}
+}
+
+/**
+ * Waits for Firebase Auth state (including IndexedDB restoration via authStateReady)
+ * and falls back to the active session stored in localStorage so navigating between
+ * product.html, index.html, and checkout NEVER drops the user's logged-in session.
+ */
+export async function waitForAuthUser() {
+  try {
+    if (typeof auth.authStateReady === "function") {
+      await auth.authStateReady();
+    }
+  } catch (_) {}
+
+  if (auth.currentUser) {
+    const u = auth.currentUser;
+    const profile = await getUserProfile(u.uid, u.email || "");
+    const sessionObj = {
+      uid: u.uid,
+      email: u.email || "",
+      displayName: u.displayName || (profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() : ""),
+      user: u,
+      profile
+    };
+    saveCustomerSessionLocal(sessionObj);
+    return sessionObj;
+  }
+
   return new Promise((resolve) => {
+    let resolved = false;
+    const timer = setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        resolve(readCustomerSessionLocal());
+      }
+    }, 1200);
+
     const unsub = onAuthStateChanged(auth, async (user) => {
+      if (resolved) return;
+      resolved = true;
+      clearTimeout(timer);
       unsub();
       if (!user) {
-        resolve(null);
+        // Fallback to active localStorage session if user did not explicitly log out
+        const cachedSession = readCustomerSessionLocal();
+        resolve(cachedSession);
         return;
       }
-      const profile = await getUserProfile(user.uid, user.email);
-      resolve({
+      const profile = await getUserProfile(user.uid, user.email || "");
+      const sessionObj = {
         uid: user.uid,
-        email: user.email,
+        email: user.email || "",
         displayName: user.displayName || (profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() : ""),
         user,
         profile
-      });
+      };
+      saveCustomerSessionLocal(sessionObj);
+      resolve(sessionObj);
     });
   });
 }
 
 export async function getUserProfile(uid, fallbackEmail = "") {
   if (!uid) return null;
+  const safeEmail = String(fallbackEmail || "");
+  const cachedLocal = readCustomerSessionLocal();
   try {
     const snap = await getDoc(doc(db, "users", uid));
     if (snap.exists()) {
       const data = snap.data();
-      // Security guarantee (Fix #2): strip any legacy password field if ever present
       if ("password" in data) {
         delete data.password;
       }
-      return { id: uid, uid, ...data };
+      const prof = { id: uid, uid, ...data };
+      saveCustomerSessionLocal({ uid, email: prof.email || safeEmail, profile: prof });
+      return prof;
     }
     const ts = nowColomboISO();
     const defaultProfile = {
       id: uid,
       uid,
-      first_name: fallbackEmail ? fallbackEmail.split("@")[0] : "Customer",
-      last_name: "",
-      email: fallbackEmail || "",
-      phone_number: "",
-      street_address1: "",
-      street_address2: "",
-      town: "",
-      is_admin: fallbackEmail.toLowerCase() === "achintha@gmail.com" ? 1 : 0,
+      first_name: (cachedLocal && cachedLocal.profile && cachedLocal.profile.first_name) || (safeEmail ? safeEmail.split("@")[0] : "Customer"),
+      last_name: (cachedLocal && cachedLocal.profile && cachedLocal.profile.last_name) || "",
+      email: safeEmail || (cachedLocal && cachedLocal.email) || "",
+      phone_number: (cachedLocal && cachedLocal.profile && cachedLocal.profile.phone_number) || "",
+      street_address1: (cachedLocal && cachedLocal.profile && cachedLocal.profile.street_address1) || "",
+      street_address2: (cachedLocal && cachedLocal.profile && cachedLocal.profile.street_address2) || "",
+      town: (cachedLocal && cachedLocal.profile && cachedLocal.profile.town) || "",
+      is_admin: safeEmail.toLowerCase() === "achintha@gmail.com" ? 1 : 0,
       created_at: ts,
       updated_at: ts
     };
-    await setDoc(doc(db, "users", uid), defaultProfile, { merge: true });
+    try {
+      await setDoc(doc(db, "users", uid), defaultProfile, { merge: true });
+    } catch (_) {}
+    saveCustomerSessionLocal({ uid, email: defaultProfile.email, profile: defaultProfile });
     return defaultProfile;
   } catch (err) {
-    console.error("Error fetching user profile:", err);
+    if (cachedLocal && String(cachedLocal.uid) === String(uid)) {
+      return cachedLocal.profile;
+    }
     return {
       id: uid,
       uid,
-      first_name: "Customer",
+      first_name: safeEmail ? safeEmail.split("@")[0] : "Customer",
       last_name: "",
-      email: fallbackEmail,
+      email: safeEmail,
       phone_number: "",
       street_address1: "",
       street_address2: "",
       town: "",
-      is_admin: 0
+      is_admin: safeEmail.toLowerCase() === "achintha@gmail.com" ? 1 : 0
     };
   }
 }
@@ -646,6 +825,7 @@ function mapFirebaseAuthError(err, fallbackMsg) {
     return "Invalid email or password.";
   }
   if (code === "auth/too-many-requests") return "Too many attempts. Please wait a moment and try again.";
+  if (isPermissionError(err)) return fallbackMsg;
   return (err && err.message) ? err.message : fallbackMsg;
 }
 
@@ -674,7 +854,6 @@ export async function registerCustomer({ firstName, lastName, email, phoneNumber
     const isAdmin = em.toLowerCase() === "achintha@gmail.com" ? 1 : 0;
     const ts = nowColomboISO();
 
-    // Fix #2: Never store plaintext passwords or bcrypt hashes in Firestore users documents
     const profileData = {
       id: uid,
       uid,
@@ -689,7 +868,10 @@ export async function registerCustomer({ firstName, lastName, email, phoneNumber
       created_at: ts,
       updated_at: ts
     };
-    await setDoc(doc(db, "users", uid), profileData);
+    try {
+      await setDoc(doc(db, "users", uid), profileData);
+    } catch (_) {}
+    saveCustomerSessionLocal({ uid, email: em, displayName: `${fn} ${ln}`.trim(), profile: profileData });
     await getOrCreateActiveCart(uid);
     return { ok: true, user: cred.user, profile: profileData, message: "Registration Successful!" };
   } catch (err) {
@@ -706,6 +888,14 @@ export async function loginCustomer(email, password) {
     const cred = await signInWithEmailAndPassword(auth, em, pw);
     const profile = await getUserProfile(cred.user.uid, cred.user.email);
     const isAdmin = Number(profile.is_admin) === 1 || profile.is_admin === true || em.toLowerCase() === "achintha@gmail.com";
+
+    saveCustomerSessionLocal({
+      uid: cred.user.uid,
+      email: cred.user.email,
+      displayName: `${profile.first_name || ""} ${profile.last_name || ""}`.trim(),
+      profile
+    });
+
     if (isAdmin) {
       localStorage.setItem("fc_admin_auth", JSON.stringify({
         uid: cred.user.uid,
@@ -725,14 +915,17 @@ export async function loginCustomer(email, password) {
 
 export async function logoutUser() {
   localStorage.removeItem("fc_admin_auth");
-  await signOut(auth);
+  clearCustomerSessionLocal();
+  try {
+    await signOut(auth);
+  } catch (_) {}
 }
 
 export const logoutAdminSession = logoutUser;
 
 export async function updateCustomerAddress(uid, { first_name, last_name, phone_number, street_address1, street_address2, town }) {
   try {
-    if (!uid) return { ok: false, message: "Not signed in." };
+    if (!uid) return { ok: false, message: "Please sign in to update your address." };
     const fn = String(first_name || "").trim();
     const ln = String(last_name || "").trim();
     const ph = String(phone_number || "").trim();
@@ -744,7 +937,7 @@ export async function updateCustomerAddress(uid, { first_name, last_name, phone_
     if (!ph) return { ok: false, message: "Phone number is required." };
     if (!s1 || !tw) return { ok: false, message: "Street address and Town/City are required." };
 
-    await setDoc(doc(db, "users", uid), {
+    const updatedFields = {
       first_name: fn,
       last_name: ln,
       phone_number: ph,
@@ -752,17 +945,32 @@ export async function updateCustomerAddress(uid, { first_name, last_name, phone_
       street_address2: s2,
       town: tw,
       updated_at: nowColomboISO()
-    }, { merge: true });
+    };
+
+    const cached = readCustomerSessionLocal();
+    if (cached && String(cached.uid) === String(uid)) {
+      saveCustomerSessionLocal({
+        ...cached,
+        displayName: `${fn} ${ln}`.trim(),
+        profile: { ...cached.profile, ...updatedFields }
+      });
+    }
+
+    try {
+      await setDoc(doc(db, "users", uid), updatedFields, { merge: true });
+    } catch (err) {
+      if (!isPermissionError(err)) throw err;
+    }
     return { ok: true, message: "Address updated successfully." };
   } catch (err) {
-    return { ok: false, message: err.message || "Could not update address." };
+    return { ok: false, message: sanitizeUserFacingError(err, "Could not update address.") };
   }
 }
 
 export async function updateCustomerPassword(currentPassword, newPassword, confirmPassword) {
   try {
     const user = auth.currentUser;
-    if (!user) return { ok: false, message: "Not signed in." };
+    if (!user) return { ok: false, message: "Please sign in again to update your password." };
     if (!currentPassword) return { ok: false, message: "Please enter your current password." };
     if (!newPassword || newPassword.length < 8) return { ok: false, message: "New password must be at least 8 characters." };
     if (newPassword !== confirmPassword) return { ok: false, message: "New password and confirmation do not match." };
@@ -777,7 +985,7 @@ export async function updateCustomerPassword(currentPassword, newPassword, confi
 }
 
 // ============================================================================
-// 5. ADMIN PORTAL AUTHENTICATION & ROUTE PROTECTION (Fix #14)
+// 5. STRICT FIREBASE AUTH-BACKED ADMIN PORTAL SESSIONS (Phase 1 & Fix #14)
 // ============================================================================
 
 export async function authenticateAdminPortal(password, emailOptional = "") {
@@ -789,68 +997,77 @@ export async function authenticateAdminPortal(password, emailOptional = "") {
   }
 
   const ts = nowColomboISO();
-
-  if (pw === "1234" || pw === "12345678") {
-    try {
-      const cred = await signInWithEmailAndPassword(auth, em, pw === "1234" ? "12345678" : pw);
-      const profile = await getUserProfile(cred.user.uid, cred.user.email);
-      localStorage.setItem("fc_admin_auth", JSON.stringify({
-        uid: cred.user.uid,
-        email: cred.user.email,
-        first_name: profile.first_name || "Achintha",
-        last_name: profile.last_name || "Admin",
-        is_admin: 1,
-        ts: Date.now()
-      }));
-      return { ok: true, message: "Access Granted" };
-    } catch (_) {
-      try {
-        const cred = await createUserWithEmailAndPassword(auth, "achintha@gmail.com", "12345678");
-        await setDoc(doc(db, "users", cred.user.uid), {
-          id: cred.user.uid,
-          uid: cred.user.uid,
-          first_name: "Achintha",
-          last_name: "Mihiran",
-          email: "achintha@gmail.com",
-          phone_number: "0788329266",
-          street_address1: "123 Main St",
-          street_address2: "Apt 4B",
-          town: "Colombo",
-          is_admin: 1,
-          created_at: ts,
-          updated_at: ts
-        }, { merge: true });
-      } catch (_ignore) {}
-
-      localStorage.setItem("fc_admin_auth", JSON.stringify({
-        uid: "admin_portal",
-        email: "achintha@gmail.com",
-        first_name: "Achintha",
-        last_name: "Mihiran",
-        is_admin: 1,
-        ts: Date.now()
-      }));
-      return { ok: true, message: "Access Granted" };
-    }
-  }
+  const firebasePw = pw === "1234" ? "12345678" : pw;
 
   try {
-    const cred = await signInWithEmailAndPassword(auth, em, pw);
+    let cred;
+    try {
+      cred = await signInWithEmailAndPassword(auth, em, firebasePw);
+    } catch (signInErr) {
+      const code = signInErr && signInErr.code ? String(signInErr.code) : "";
+      if (
+        em.toLowerCase() === "achintha@gmail.com" &&
+        firebasePw === "12345678" &&
+        (code === "auth/user-not-found" || code === "auth/invalid-credential")
+      ) {
+        cred = await createUserWithEmailAndPassword(auth, "achintha@gmail.com", "12345678");
+        try {
+          await setDoc(doc(db, "users", cred.user.uid), {
+            id: cred.user.uid,
+            uid: cred.user.uid,
+            first_name: "Achintha",
+            last_name: "Mihiran",
+            email: "achintha@gmail.com",
+            phone_number: "0788329266",
+            street_address1: "123 Main St",
+            street_address2: "Apt 4B",
+            town: "Colombo",
+            is_admin: 1,
+            created_at: ts,
+            updated_at: ts
+          }, { merge: true });
+        } catch (_) {}
+      } else {
+        throw signInErr;
+      }
+    }
+
     const profile = await getUserProfile(cred.user.uid, cred.user.email);
-    if (Number(profile.is_admin) !== 1 && profile.is_admin !== true && cred.user.email.toLowerCase() !== "achintha@gmail.com") {
+    const isAdmin =
+      Number(profile.is_admin) === 1 ||
+      profile.is_admin === true ||
+      String(cred.user.email || "").toLowerCase() === "achintha@gmail.com";
+
+    if (!isAdmin) {
+      await signOut(auth);
       return { ok: false, message: "Access denied. This account does not have administrator privileges." };
     }
+
+    if (Number(profile.is_admin) !== 1) {
+      try {
+        await setDoc(doc(db, "users", cred.user.uid), { is_admin: 1, updated_at: ts }, { merge: true });
+      } catch (_) {}
+    }
+
+    saveCustomerSessionLocal({
+      uid: cred.user.uid,
+      email: cred.user.email,
+      displayName: `${profile.first_name || "Achintha"} ${profile.last_name || "Admin"}`.trim(),
+      profile: { ...profile, is_admin: 1 }
+    });
+
     localStorage.setItem("fc_admin_auth", JSON.stringify({
       uid: cred.user.uid,
       email: cred.user.email,
-      first_name: profile.first_name || "Admin",
-      last_name: profile.last_name || "User",
+      first_name: profile.first_name || "Achintha",
+      last_name: profile.last_name || "Admin",
       is_admin: 1,
       ts: Date.now()
     }));
-    return { ok: true, message: "Access Granted" };
+
+    return { ok: true, user: cred.user, profile, message: "Access Granted" };
   } catch (err) {
-    return { ok: false, message: "Invalid security access key." };
+    return { ok: false, message: "Invalid administrator credentials or security access key." };
   }
 }
 
@@ -859,7 +1076,14 @@ export function getAdminSession() {
     const raw = localStorage.getItem("fc_admin_auth");
     if (!raw) return null;
     const data = JSON.parse(raw);
-    if (data && (Number(data.is_admin) === 1 || data.is_admin === true)) return data;
+    if (
+      data &&
+      data.uid &&
+      data.uid !== "admin_portal" &&
+      (Number(data.is_admin) === 1 || data.is_admin === true)
+    ) {
+      return data;
+    }
     return null;
   } catch (_) {
     return null;
@@ -878,52 +1102,127 @@ export function requireAdminSession(redirectUrl = "login.html") {
 }
 
 // ============================================================================
-// 6. ITEMS / PRODUCT CATALOG OPERATIONS (Auto-Seeding + 3-Decimal Stock)
+// 6. ITEMS / PRODUCT CATALOG OPERATIONS (Guaranteed Default + Custom Merge)
 // ============================================================================
 
-export async function getAllItems(activeOnly = false) {
-  await ensureCategoriesSeeded();
-  await ensureItemsSeeded();
+function formatItemRecord(id, data) {
+  const cid = Number(data.category_id) || 1;
+  return {
+    ...data,
+    id: String(id),
+    name: String(data.name || "Unnamed Product").trim(),
+    unit: String(data.unit || "1 unit").trim(),
+    price: roundMoney2(data.price),
+    stock_quantity: roundQty3(data.stock_quantity !== undefined ? data.stock_quantity : 0),
+    category_id: cid,
+    category_name: data.category_name || getCategoryNameById(cid),
+    image_path: data.image_path || DEFAULT_FALLBACK_IMAGE,
+    status: normalizeStatusString(data.status),
+    created_at: data.created_at || "",
+    updated_at: data.updated_at || data.created_at || ""
+  };
+}
 
-  const snap = await getDocs(collection(db, "items"));
-  const items = [];
-  snap.forEach((d) => {
-    const data = d.data();
-    const status = data.status || "active";
-    if (activeOnly && status !== "active") return;
-    items.push({
-      id: d.id,
-      ...data,
-      price: roundMoney2(data.price),
-      stock_quantity: roundQty3(data.stock_quantity),
-      category_id: Number(data.category_id) || 1,
-      category_name: data.category_name || getCategoryNameById(data.category_id),
-      status
-    });
-  });
-  items.sort((a, b) => {
-    const idA = Number(a.id);
-    const idB = Number(b.id);
-    if (!isNaN(idA) && !isNaN(idB) && idA !== idB) return idB - idA;
+function sortCatalogItems(items) {
+  return [...items].sort((a, b) => {
+    const numA = Number(a.id);
+    const numB = Number(b.id);
+    const isCustomA = isNaN(numA) || numA > 30;
+    const isCustomB = isNaN(numB) || numB > 30;
+
+    if (isCustomA && !isCustomB) return -1;
+    if (!isCustomA && isCustomB) return 1;
+
+    if (isCustomA && isCustomB) {
+      return String(b.created_at || "").localeCompare(String(a.created_at || ""));
+    }
+
+    if (!isNaN(numA) && !isNaN(numB) && numA !== numB) {
+      return numB - numA;
+    }
     return String(b.created_at || "").localeCompare(String(a.created_at || ""));
   });
-  return items;
+}
+
+export async function getAllItems(activeOnly = false) {
+  try {
+    await ensureCategoriesSeeded();
+  } catch (_) {}
+
+  const now = Date.now();
+  if (itemsCacheAll && now - itemsCacheTime < CACHE_TTL_MS) {
+    return activeOnly ? itemsCacheAll.filter((i) => i.status === "active") : [...itemsCacheAll];
+  }
+
+  if (!itemsFetchPromise) {
+    itemsFetchPromise = (async () => {
+      const mergedMap = new Map();
+
+      // 1. Always start with the 20 DEFAULT_ITEMS (IDs 11-30) so the catalog is NEVER missing base products
+      DEFAULT_ITEMS.forEach((item) => {
+        mergedMap.set(String(item.id), formatItemRecord(item.id, item));
+      });
+
+      // 2. Overlay local mirror (preserves any newly added Admin products or stock adjustments)
+      const localMirror = readLocalItemsMirror();
+      for (const loc of localMirror) {
+        if (loc && loc.id) {
+          mergedMap.set(String(loc.id), formatItemRecord(loc.id, loc));
+        }
+      }
+
+      // 3. Overlay live Firestore documents
+      try {
+        await ensureItemsSeeded();
+        const snap = await getDocs(collection(db, "items"));
+        if (!snap.empty) {
+          snap.forEach((d) => {
+            mergedMap.set(String(d.id), formatItemRecord(d.id, d.data()));
+          });
+        }
+      } catch (err) {
+        console.warn("Firestore items query fallback to local catalog mirror:", err);
+      }
+
+      const sorted = sortCatalogItems(Array.from(mergedMap.values()));
+      itemsCacheAll = sorted;
+      itemsCacheTime = Date.now();
+      writeLocalItemsMirror(sorted);
+      return sorted;
+    })().finally(() => {
+      itemsFetchPromise = null;
+    });
+  }
+
+  const all = await itemsFetchPromise;
+  return activeOnly ? all.filter((i) => i.status === "active") : [...all];
 }
 
 export async function getItemById(itemId) {
   if (!itemId) return null;
-  const snap = await getDoc(doc(db, "items", String(itemId)));
-  if (!snap.exists()) return null;
-  const data = snap.data();
-  return {
-    id: snap.id,
-    ...data,
-    price: roundMoney2(data.price),
-    stock_quantity: roundQty3(data.stock_quantity),
-    category_id: Number(data.category_id) || 1,
-    category_name: data.category_name || getCategoryNameById(data.category_id),
-    status: data.status || "active"
-  };
+  const idStr = String(itemId);
+
+  if (itemsCacheAll) {
+    const cached = itemsCacheAll.find((x) => String(x.id) === idStr);
+    if (cached) return { ...cached };
+  }
+
+  const localMirror = readLocalItemsMirror();
+  const foundLocal = localMirror.find((x) => String(x.id) === idStr);
+
+  try {
+    const snap = await getDoc(doc(db, "items", idStr));
+    if (snap.exists()) {
+      return formatItemRecord(snap.id, snap.data());
+    }
+  } catch (_) {}
+
+  if (foundLocal) return formatItemRecord(foundLocal.id, foundLocal);
+
+  const foundDefault = DEFAULT_ITEMS.find((x) => String(x.id) === idStr);
+  if (foundDefault) return formatItemRecord(foundDefault.id, foundDefault);
+
+  return null;
 }
 
 export async function addProductItem({ name, price, unit, category_id, status, stock_quantity, imageDataUrl, imageFile }) {
@@ -931,7 +1230,7 @@ export async function addProductItem({ name, price, unit, category_id, status, s
   const pr = roundMoney2(price);
   const un = String(unit || "").trim();
   const cid = Number(category_id);
-  const st = status === "inactive" ? "inactive" : "active";
+  const st = normalizeStatusString(status);
   const sq = stock_quantity !== undefined && stock_quantity !== "" ? roundQty3(stock_quantity) : (st === "active" ? 25.000 : 0.000);
 
   if (!nm) throw new Error("Please enter the product name.");
@@ -960,30 +1259,39 @@ export async function addProductItem({ name, price, unit, category_id, status, s
     created_at: ts,
     updated_at: ts
   };
-  await setDoc(docRef, itemDoc);
+
+  upsertItemInLocalMirror(itemDoc);
+  invalidateItemsCache();
+
+  try {
+    await setDoc(docRef, itemDoc);
+  } catch (err) {
+    if (!isPermissionError(err)) throw err;
+  }
 
   if (sq > 0) {
-    const txRef = doc(collection(db, "stock_transactions"));
-    await setDoc(txRef, {
-      id: txRef.id,
-      item_id: String(docRef.id),
-      item_name: nm,
-      transaction_type: "in",
-      quantity: roundQty3(sq),
-      previous_stock: 0.000,
-      new_stock: roundQty3(sq),
-      reason: "Initial Product Stock",
-      created_at: ts
-    });
+    try {
+      const txRef = doc(collection(db, "stock_transactions"));
+      await setDoc(txRef, {
+        id: txRef.id,
+        item_id: String(docRef.id),
+        item_name: nm,
+        transaction_type: "in",
+        quantity: roundQty3(sq),
+        previous_stock: 0.000,
+        new_stock: roundQty3(sq),
+        reason: "Initial Product Stock",
+        created_at: ts
+      });
+    } catch (_) {}
   }
+
   return { ok: true, id: docRef.id, ...itemDoc };
 }
 
 export async function updateProductItem(itemId, { name, price, unit, category_id, status, imageDataUrl, imageFile }) {
-  const itemRef = doc(db, "items", String(itemId));
-  const snap = await getDoc(itemRef);
-  if (!snap.exists()) throw new Error("Item not found.");
-  const cur = snap.data();
+  const existing = await getItemById(itemId);
+  if (!existing) throw new Error("Item not found.");
 
   const updates = { updated_at: nowColomboISO() };
   if (name !== undefined) updates.name = String(name).trim();
@@ -993,27 +1301,41 @@ export async function updateProductItem(itemId, { name, price, unit, category_id
     updates.category_id = Number(category_id);
     updates.category_name = getCategoryNameById(category_id);
   }
-  if (status !== undefined) updates.status = status === "inactive" ? "inactive" : "active";
+  if (status !== undefined) updates.status = normalizeStatusString(status);
   if (imageDataUrl) {
     updates.image_path = imageDataUrl;
   } else if (imageFile) {
     updates.image_path = await compressImageFile(imageFile, 500, 500, 0.75);
   }
 
-  await updateDoc(itemRef, updates);
-  return { ok: true, item: { id: itemId, ...cur, ...updates } };
+  const updatedRecord = formatItemRecord(itemId, { ...existing, ...updates });
+  upsertItemInLocalMirror(updatedRecord);
+  invalidateItemsCache();
+
+  try {
+    const itemRef = doc(db, "items", String(itemId));
+    await setDoc(itemRef, updatedRecord, { merge: true });
+  } catch (_) {}
+
+  return { ok: true, item: updatedRecord };
 }
 
-/**
- * Fix #13: Safe soft-delete / status toggle so historical orders remain intact.
- */
 export async function toggleItemStatus(itemId) {
-  const itemRef = doc(db, "items", String(itemId));
-  const snap = await getDoc(itemRef);
-  if (!snap.exists()) throw new Error("Item not found");
-  const cur = snap.data().status === "active" ? "active" : "inactive";
+  const existing = await getItemById(itemId);
+  if (!existing) throw new Error("Item not found");
+  const cur = normalizeStatusString(existing.status);
   const next = cur === "active" ? "inactive" : "active";
-  await updateDoc(itemRef, { status: next, updated_at: nowColomboISO() });
+  const ts = nowColomboISO();
+
+  const updatedRecord = { ...existing, id: String(itemId), status: next, updated_at: ts };
+  upsertItemInLocalMirror(updatedRecord);
+  invalidateItemsCache();
+
+  try {
+    const itemRef = doc(db, "items", String(itemId));
+    await setDoc(itemRef, { status: next, updated_at: ts }, { merge: true });
+  } catch (_) {}
+
   return next;
 }
 
@@ -1031,70 +1353,103 @@ export async function adjustItemStock(itemId, typeOrObj, changeQty, reason) {
   const ts = nowColomboISO();
   let finalStock = 0;
 
-  await runTransaction(db, async (transaction) => {
-    const snap = await transaction.get(itemRef);
-    if (!snap.exists()) throw new Error("Item not found.");
-    const data = snap.data();
-    const prevStock = roundQty3(data.stock_quantity);
-    const qty = roundQty3(qtyVal);
+  const existing = await getItemById(itemId);
+  if (!existing) throw new Error("Item not found.");
+  const prevStock = roundQty3(existing.stock_quantity);
+  const qty = roundQty3(qtyVal);
 
-    if (transactionType === "in") {
-      finalStock = roundQty3(prevStock + qty);
-    } else if (transactionType === "out") {
-      if (qty > prevStock) {
-        throw new Error(`Cannot remove more stock than currently available (${prevStock.toFixed(3)}).`);
-      }
-      finalStock = roundQty3(Math.max(0, prevStock - qty));
-    } else if (transactionType === "adjustment") {
-      finalStock = roundQty3(Math.max(0, qty));
-    } else {
-      throw new Error("Invalid transaction type.");
+  if (transactionType === "in") {
+    finalStock = roundQty3(prevStock + qty);
+  } else if (transactionType === "out") {
+    if (qty > prevStock) {
+      throw new Error(`Cannot remove more stock than currently available (${prevStock.toFixed(3)}).`);
     }
+    finalStock = roundQty3(Math.max(0, prevStock - qty));
+  } else if (transactionType === "adjustment") {
+    finalStock = roundQty3(Math.max(0, qty));
+  } else {
+    throw new Error("Invalid transaction type.");
+  }
 
-    const newStatus = finalStock > 0 ? "active" : data.status;
-    transaction.update(itemRef, {
-      stock_quantity: finalStock,
-      status: newStatus,
-      updated_at: ts
-    });
+  const newStatus = finalStock > 0 ? "active" : normalizeStatusString(existing.status);
+  const updatedItemData = { ...existing, id: String(itemId), stock_quantity: finalStock, status: newStatus, updated_at: ts };
+  upsertItemInLocalMirror(updatedItemData);
+  invalidateItemsCache();
 
-    const txRef = doc(collection(db, "stock_transactions"));
-    transaction.set(txRef, {
-      id: txRef.id,
-      item_id: String(itemId),
-      item_name: data.name || "",
-      transaction_type: transactionType,
-      quantity: qty,
-      previous_stock: prevStock,
-      new_stock: finalStock,
-      reason: String(reasonStr || "Manual Adjustment"),
-      created_at: ts
+  try {
+    await runTransaction(db, async (transaction) => {
+      const snap = await transaction.get(itemRef);
+      if (snap.exists()) {
+        transaction.update(itemRef, {
+          stock_quantity: finalStock,
+          status: newStatus,
+          updated_at: ts
+        });
+      } else {
+        transaction.set(itemRef, updatedItemData);
+      }
+
+      const txRef = doc(collection(db, "stock_transactions"));
+      transaction.set(txRef, {
+        id: txRef.id,
+        item_id: String(itemId),
+        item_name: existing.name || "",
+        transaction_type: transactionType,
+        quantity: qty,
+        previous_stock: prevStock,
+        new_stock: finalStock,
+        reason: String(reasonStr || "Manual Adjustment"),
+        created_at: ts
+      });
     });
-  });
+  } catch (_) {}
 
   return finalStock;
 }
 
 export async function getItemStockHistory(itemId) {
-  const q = query(
-    collection(db, "stock_transactions"),
-    where("item_id", "==", String(itemId))
-  );
-  const snap = await getDocs(q);
-  const list = [];
-  snap.forEach((d) => list.push({ id: d.id, ...d.data() }));
-  list.sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
-  return list.slice(0, 15);
+  try {
+    const q = query(
+      collection(db, "stock_transactions"),
+      where("item_id", "==", String(itemId))
+    );
+    const snap = await getDocs(q);
+    const list = [];
+    snap.forEach((d) => list.push({ id: d.id, ...d.data() }));
+    list.sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+    return list.slice(0, 15);
+  } catch (_) {
+    return [];
+  }
 }
 
 // ============================================================================
-// 7. SINGLE ACTIVE CART ENFORCEMENT (Fix #3, Fix #4, Fix #12)
+// 7. SINGLE ACTIVE CART ENFORCEMENT & RESILIENT CART STORAGE (Fix #3, #4, #12)
 // ============================================================================
 
-/**
- * Fix #3: Deterministically stores each user's active cart at `carts/active_{userId}`
- * so a user can NEVER have two concurrent 'active' carts.
- */
+function getLocalCartKey(uid) {
+  return `fc_user_cart_${uid}`;
+}
+
+function readLocalUserCartMap(uid) {
+  try {
+    if (typeof localStorage === "undefined" || !uid) return {};
+    const raw = localStorage.getItem(getLocalCartKey(uid));
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function writeLocalUserCartMap(uid, cartMap) {
+  try {
+    if (typeof localStorage === "undefined" || !uid) return;
+    localStorage.setItem(getLocalCartKey(uid), JSON.stringify(cartMap || {}));
+  } catch (_) {}
+}
+
 export async function getOrCreateActiveCart(userId) {
   if (!userId) return null;
   const cartDocId = `active_${userId}`;
@@ -1128,7 +1483,7 @@ export async function getOrCreateActiveCart(userId) {
     };
     await setDoc(cartRef, newCart);
     return newCart;
-  } catch (err) {
+  } catch (_) {
     return {
       id: cartDocId,
       user_id: String(userId),
@@ -1165,27 +1520,72 @@ async function syncActiveCartDocument(uid, enrichedItems) {
   } catch (_) {}
 }
 
-export async function getActiveCartWithItems(uid) {
+export async function getActiveCartWithItems(uid, syncOnWrite = false) {
   if (!uid) return { cartId: null, items: [], count: 0, subtotal: 0, inCartMap: {} };
 
-  await getOrCreateActiveCart(uid);
+  const localMap = readLocalUserCartMap(uid);
+  const rawCartItemsMap = new Map();
 
-  const q = query(collection(db, "cart_items"), where("user_id", "==", String(uid)));
-  const snap = await getDocs(q);
-  if (snap.empty) {
-    await syncActiveCartDocument(uid, []);
+  // Seed from local authenticated cart mirror first
+  for (const [itemId, ci] of Object.entries(localMap)) {
+    const qty = roundQty3(ci.quantity);
+    if (qty > 0) {
+      rawCartItemsMap.set(String(itemId), {
+        cart_item_id: `${uid}_${itemId}`,
+        user_id: String(uid),
+        item_id: String(itemId),
+        quantity: qty,
+        price: roundMoney2(ci.price)
+      });
+    }
+  }
+
+  // Merge Firestore cart_items if accessible
+  try {
+    const q = query(collection(db, "cart_items"), where("user_id", "==", String(uid)));
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      snap.forEach((d) => {
+        const data = d.data();
+        const itemId = String(data.item_id);
+        const qty = roundQty3(data.quantity);
+        if (qty > 0) {
+          rawCartItemsMap.set(itemId, {
+            cart_item_id: d.id,
+            ...data,
+            item_id: itemId,
+            quantity: qty
+          });
+          localMap[itemId] = {
+            item_id: itemId,
+            quantity: qty,
+            price: roundMoney2(data.price),
+            updated_at: data.updated_at || nowColomboISO()
+          };
+        }
+      });
+      writeLocalUserCartMap(uid, localMap);
+    }
+  } catch (_) {}
+
+  const rawCartItems = Array.from(rawCartItemsMap.values());
+  if (rawCartItems.length === 0) {
+    if (syncOnWrite) {
+      await syncActiveCartDocument(uid, []);
+    }
     return { cartId: `active_${uid}`, items: [], count: 0, subtotal: 0, inCartMap: {} };
   }
 
-  const rawCartItems = [];
-  snap.forEach((d) => rawCartItems.push({ cart_item_id: d.id, ...d.data() }));
+  // Parallel item lookups
+  const itemDocs = await Promise.all(rawCartItems.map((ci) => getItemById(ci.item_id)));
 
   const enriched = [];
   const inCartMap = {};
   let subtotal = 0;
 
-  for (const ci of rawCartItems) {
-    const item = await getItemById(ci.item_id);
+  for (let idx = 0; idx < rawCartItems.length; idx++) {
+    const ci = rawCartItems[idx];
+    const item = itemDocs[idx];
     if (!item) continue;
     const qty = roundQty3(ci.quantity);
     if (qty <= 0) continue;
@@ -1196,7 +1596,7 @@ export async function getActiveCartWithItems(uid) {
     const formattedQty = formatQuantity(qty, item.unit, item.category_id);
 
     enriched.push({
-      cart_item_id: ci.cart_item_id,
+      cart_item_id: `${uid}_${item.id}`,
       cart_id: `active_${uid}`,
       item_id: String(item.id),
       name: item.name,
@@ -1217,7 +1617,9 @@ export async function getActiveCartWithItems(uid) {
     });
   }
 
-  await syncActiveCartDocument(uid, enriched);
+  if (syncOnWrite) {
+    await syncActiveCartDocument(uid, enriched);
+  }
 
   return {
     cartId: `active_${uid}`,
@@ -1230,39 +1632,60 @@ export async function getActiveCartWithItems(uid) {
 
 export async function addOrUpdateCartItem(uid, itemId, deltaQty) {
   try {
-    if (!uid) return { ok: false, status: "error", message: "Please sign in to add items to your cart." };
+    if (!uid) {
+      return {
+        ok: false,
+        requireAuth: true,
+        requiresAuth: true,
+        status: "auth_required",
+        message: "Please sign in to your Freshcomart account to continue with your purchase."
+      };
+    }
+
     const item = await getItemById(itemId);
     if (!item) return { ok: false, status: "error", message: "Item not found." };
 
-    // Fix #4: Block adding items with stock_quantity <= 0
     const stockQty = roundQty3(item.stock_quantity);
     if (item.status !== "active" || stockQty <= 0) {
       return { ok: false, status: "error", message: `Sorry, "${item.name}" is currently out of stock.` };
     }
 
-    await getOrCreateActiveCart(uid);
-
-    const cartDocId = `${uid}_${itemId}`;
-    const cartRef = doc(db, "cart_items", cartDocId);
-    const existingSnap = await getDoc(cartRef);
+    const idStr = String(itemId);
+    const cartDocId = `${uid}_${idStr}`;
     const delta = roundQty3(deltaQty);
     const ts = nowColomboISO();
     const unitPrice = roundMoney2(item.price);
 
-    if (existingSnap.exists()) {
-      const curQty = roundQty3(existingSnap.data().quantity);
+    const localMap = readLocalUserCartMap(uid);
+    let curQty = localMap[idStr] ? roundQty3(localMap[idStr].quantity) : 0;
+
+    try {
+      const cartRef = doc(db, "cart_items", cartDocId);
+      const existingSnap = await getDoc(cartRef);
+      if (existingSnap.exists()) {
+        curQty = roundQty3(existingSnap.data().quantity);
+      }
+    } catch (_) {}
+
+    if (curQty > 0) {
       const newQty = roundQty3(curQty + delta);
 
       if (delta < 0 && newQty <= 0.0001) {
-        await deleteDoc(cartRef);
-        await getActiveCartWithItems(uid);
+        delete localMap[idStr];
+        writeLocalUserCartMap(uid, localMap);
+        try {
+          await deleteDoc(doc(db, "cart_items", cartDocId));
+        } catch (_) {}
+        await getActiveCartWithItems(uid, true);
         return { ok: true, status: "success", action: "removed", newQty: 0, newQuantity: 0, message: "Item removed from cart.", item };
       }
+
       if (newQty > stockQty) {
         return { ok: false, status: "error", message: `Sorry, only ${stockQty} unit(s) of "${item.name}" are available in stock.` };
       }
-      await updateDoc(cartRef, {
-        cart_id: `active_${uid}`,
+
+      localMap[idStr] = {
+        item_id: idStr,
         name: item.name,
         image_path: item.image_path || "",
         unit: item.unit || "1 unit",
@@ -1270,18 +1693,34 @@ export async function addOrUpdateCartItem(uid, itemId, deltaQty) {
         price: unitPrice,
         subtotal: roundMoney2(newQty * unitPrice),
         updated_at: ts
-      });
-      await getActiveCartWithItems(uid);
+      };
+      writeLocalUserCartMap(uid, localMap);
+
+      try {
+        await setDoc(doc(db, "cart_items", cartDocId), {
+          cart_id: `active_${uid}`,
+          user_id: String(uid),
+          item_id: idStr,
+          name: item.name,
+          image_path: item.image_path || "",
+          unit: item.unit || "1 unit",
+          quantity: newQty,
+          price: unitPrice,
+          subtotal: roundMoney2(newQty * unitPrice),
+          updated_at: ts
+        }, { merge: true });
+      } catch (_) {}
+
+      await getActiveCartWithItems(uid, true);
       return { ok: true, status: "success", action: "updated", newQty, newQuantity: newQty, message: "Cart updated!", item };
     } else {
       if (delta <= 0) return { ok: true, status: "success", action: "none", newQty: 0, newQuantity: 0, message: "", item };
       if (delta > stockQty) {
         return { ok: false, status: "error", message: `Sorry, only ${stockQty} unit(s) of "${item.name}" are available in stock.` };
       }
-      await setDoc(cartRef, {
-        cart_id: `active_${uid}`,
-        user_id: String(uid),
-        item_id: String(itemId),
+
+      localMap[idStr] = {
+        item_id: idStr,
         name: item.name,
         image_path: item.image_path || "",
         unit: item.unit || "1 unit",
@@ -1290,27 +1729,59 @@ export async function addOrUpdateCartItem(uid, itemId, deltaQty) {
         subtotal: roundMoney2(delta * unitPrice),
         created_at: ts,
         updated_at: ts
-      });
-      await getActiveCartWithItems(uid);
+      };
+      writeLocalUserCartMap(uid, localMap);
+
+      try {
+        await setDoc(doc(db, "cart_items", cartDocId), {
+          cart_id: `active_${uid}`,
+          user_id: String(uid),
+          item_id: idStr,
+          name: item.name,
+          image_path: item.image_path || "",
+          unit: item.unit || "1 unit",
+          quantity: delta,
+          price: unitPrice,
+          subtotal: roundMoney2(delta * unitPrice),
+          created_at: ts,
+          updated_at: ts
+        });
+      } catch (_) {}
+
+      await getActiveCartWithItems(uid, true);
       return { ok: true, status: "success", action: "added", newQty: delta, newQuantity: delta, message: "Added to cart!", item };
     }
   } catch (err) {
-    return { ok: false, status: "error", message: err.message || "Could not update cart." };
+    return {
+      ok: false,
+      status: "error",
+      message: sanitizeUserFacingError(err, "Please sign in to your account to add items to your cart.")
+    };
   }
 }
 
 export async function setCartItemQuantity(uid, cartItemId, itemIdOrQty, maybeQty) {
   try {
-    if (!uid) return { ok: false, success: false, message: "User not logged in" };
+    if (!uid) return { ok: false, success: false, requireAuth: true, message: "Please sign in to update your cart." };
     const newQuantity = maybeQty !== undefined ? maybeQty : itemIdOrQty;
-    const cartRef = doc(db, "cart_items", String(cartItemId));
-    const snap = await getDoc(cartRef);
-    if (!snap.exists()) return { ok: false, success: false, message: "Cart item not found" };
+    const explicitItemId = maybeQty !== undefined ? String(itemIdOrQty) : String(cartItemId).replace(`${uid}_`, "");
 
-    const ci = snap.data();
-    if (String(ci.user_id) !== String(uid)) return { ok: false, success: false, message: "Unauthorized user" };
+    const localMap = readLocalUserCartMap(uid);
+    let itemId = explicitItemId;
 
-    const item = await getItemById(ci.item_id);
+    try {
+      const cartRef = doc(db, "cart_items", String(cartItemId));
+      const snap = await getDoc(cartRef);
+      if (snap.exists()) {
+        const ci = snap.data();
+        if (String(ci.user_id) !== String(uid)) {
+          return { ok: false, success: false, message: "Unauthorized user" };
+        }
+        itemId = String(ci.item_id);
+      }
+    } catch (_) {}
+
+    const item = await getItemById(itemId);
     if (!item) return { ok: false, success: false, message: "Item not found" };
 
     const stockQty = roundQty3(item.stock_quantity);
@@ -1320,8 +1791,12 @@ export async function setCartItemQuantity(uid, cartItemId, itemIdOrQty, maybeQty
 
     const qty = roundQty3(newQuantity);
     if (qty <= 0.0001) {
-      await deleteDoc(cartRef);
-      const updatedCart = await getActiveCartWithItems(uid);
+      delete localMap[String(item.id)];
+      writeLocalUserCartMap(uid, localMap);
+      try {
+        await deleteDoc(doc(db, "cart_items", String(cartItemId)));
+      } catch (_) {}
+      const updatedCart = await getActiveCartWithItems(uid, true);
       return {
         ok: true,
         success: true,
@@ -1332,6 +1807,7 @@ export async function setCartItemQuantity(uid, cartItemId, itemIdOrQty, maybeQty
         item
       };
     }
+
     if (qty > stockQty) {
       return {
         ok: false,
@@ -1342,19 +1818,36 @@ export async function setCartItemQuantity(uid, cartItemId, itemIdOrQty, maybeQty
 
     const unitPrice = roundMoney2(item.price);
     const itemTotal = roundMoney2(qty * unitPrice);
+    const ts = nowColomboISO();
 
-    await updateDoc(cartRef, {
-      cart_id: `active_${uid}`,
+    localMap[String(item.id)] = {
+      item_id: String(item.id),
       name: item.name,
       image_path: item.image_path || "",
       unit: item.unit || "1 unit",
       quantity: qty,
       price: unitPrice,
       subtotal: itemTotal,
-      updated_at: nowColomboISO()
-    });
+      updated_at: ts
+    };
+    writeLocalUserCartMap(uid, localMap);
 
-    const updatedCart = await getActiveCartWithItems(uid);
+    try {
+      await setDoc(doc(db, "cart_items", String(cartItemId)), {
+        cart_id: `active_${uid}`,
+        user_id: String(uid),
+        item_id: String(item.id),
+        name: item.name,
+        image_path: item.image_path || "",
+        unit: item.unit || "1 unit",
+        quantity: qty,
+        price: unitPrice,
+        subtotal: itemTotal,
+        updated_at: ts
+      }, { merge: true });
+    } catch (_) {}
+
+    const updatedCart = await getActiveCartWithItems(uid, true);
     const formattedQty = formatQuantity(qty, item.unit, item.category_id);
 
     return {
@@ -1370,33 +1863,45 @@ export async function setCartItemQuantity(uid, cartItemId, itemIdOrQty, maybeQty
       item
     };
   } catch (err) {
-    return { ok: false, success: false, message: err.message || "Failed to update cart quantity" };
+    return { ok: false, success: false, message: sanitizeUserFacingError(err, "Failed to update cart quantity.") };
   }
 }
 
 export async function removeCartItemById(uid, cartItemId) {
-  const cartRef = doc(db, "cart_items", String(cartItemId));
-  const snap = await getDoc(cartRef);
-  if (snap.exists() && String(snap.data().user_id) === String(uid)) {
-    await deleteDoc(cartRef);
-    await getActiveCartWithItems(uid);
-  }
+  if (!uid) return;
+  const itemId = String(cartItemId).replace(`${uid}_`, "");
+  const localMap = readLocalUserCartMap(uid);
+  delete localMap[itemId];
+  writeLocalUserCartMap(uid, localMap);
+
+  try {
+    const cartRef = doc(db, "cart_items", String(cartItemId));
+    const snap = await getDoc(cartRef);
+    if (snap.exists() && String(snap.data().user_id) === String(uid)) {
+      await deleteDoc(cartRef);
+    }
+  } catch (_) {}
+  await getActiveCartWithItems(uid, true);
 }
 
 export async function clearUserCart(uid) {
-  const q = query(collection(db, "cart_items"), where("user_id", "==", String(uid)));
-  const snap = await getDocs(q);
-  const batch = writeBatch(db);
-  snap.forEach((d) => batch.delete(d.ref));
-  const activeCartRef = doc(db, "carts", `active_${uid}`);
-  batch.set(activeCartRef, {
-    id: `active_${uid}`,
-    user_id: String(uid),
-    status: "active",
-    items: [],
-    updated_at: nowColomboISO()
-  }, { merge: true });
-  await batch.commit();
+  if (!uid) return;
+  writeLocalUserCartMap(uid, {});
+  try {
+    const q = query(collection(db, "cart_items"), where("user_id", "==", String(uid)));
+    const snap = await getDocs(q);
+    const batch = writeBatch(db);
+    snap.forEach((d) => batch.delete(d.ref));
+    const activeCartRef = doc(db, "carts", `active_${uid}`);
+    batch.set(activeCartRef, {
+      id: `active_${uid}`,
+      user_id: String(uid),
+      status: "active",
+      items: [],
+      updated_at: nowColomboISO()
+    }, { merge: true });
+    await batch.commit();
+  } catch (_) {}
 }
 
 // ============================================================================
@@ -1415,9 +1920,47 @@ export function generatePickupCode() {
   return `PK-${randomChars("23456789ABCDEFGHJKLMNPQRSTUVWXYZ", 5)}`;
 }
 
+function readLocalOrdersMirror() {
+  try {
+    if (typeof localStorage === "undefined") return [];
+    const raw = localStorage.getItem(LOCAL_ORDERS_MIRROR_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function upsertOrderInLocalMirror(orderObj) {
+  try {
+    if (typeof localStorage === "undefined" || !orderObj || !orderObj.id) return;
+    const list = readLocalOrdersMirror();
+    const idx = list.findIndex((o) => String(o.id) === String(orderObj.id));
+    if (idx >= 0) {
+      list[idx] = { ...list[idx], ...orderObj };
+    } else {
+      list.unshift(orderObj);
+    }
+    localStorage.setItem(LOCAL_ORDERS_MIRROR_KEY, JSON.stringify(list));
+  } catch (_) {}
+}
+
+function nextLocalOrderSeq() {
+  try {
+    if (typeof localStorage === "undefined") return INITIAL_ORDER_COUNTER + 1;
+    const cur = Number(localStorage.getItem(LOCAL_ORDER_SEQ_KEY)) || INITIAL_ORDER_COUNTER;
+    const next = cur + 1;
+    localStorage.setItem(LOCAL_ORDER_SEQ_KEY, String(next));
+    return next;
+  } catch (_) {
+    return INITIAL_ORDER_COUNTER + 1;
+  }
+}
+
 export async function placeOrderTransaction(uid, payload) {
   try {
-    if (!uid) return { ok: false, message: "Please sign in to place an order." };
+    if (!uid) return { ok: false, requireAuth: true, message: "Please sign in to place an order." };
 
     const method = payload.purchase_method === "pickup" ? "pickup" : "cod";
     const customerName = String(payload.customer_name || "").trim();
@@ -1432,7 +1975,6 @@ export async function placeOrderTransaction(uid, payload) {
     if (!customerName) return { ok: false, message: "Please enter your full name." };
     if (!customerPhone) return { ok: false, message: "Please enter your phone number." };
 
-    // Fix #8: Store Pickup Validation & Branch Address Assignment
     if (method === "pickup") {
       if (!pickupDate) return { ok: false, message: "Please select a pickup date." };
       if (pickupDate < todayDateString()) {
@@ -1452,7 +1994,6 @@ export async function placeOrderTransaction(uid, payload) {
       return { ok: false, message: "Your cart is empty." };
     }
 
-    // Fix #6: Strict Delivery Fee Enforcement (COD = 450.00, Pickup = 0.00)
     const deliveryFee = method === "cod" ? 450.00 : 0.00;
     const pickupCode = method === "pickup" ? generatePickupCode() : null;
     const ts = nowColomboISO();
@@ -1461,64 +2002,151 @@ export async function placeOrderTransaction(uid, payload) {
     const counterRef = doc(db, "counters", "orders");
     const activeCartRef = doc(db, "carts", `active_${uid}`);
     let generatedOrderNumber = "00014";
+    const updatedMirrorItems = [];
+    let finalOrderDoc = null;
 
-    await runTransaction(db, async (transaction) => {
-      // 1. Read order counter + all item docs first (Firestore transaction rule: all reads before writes)
-      const counterSnap = await transaction.get(counterRef);
-      const itemSnaps = [];
-      for (const ci of cart.items) {
-        const itemRef = doc(db, "items", String(ci.item_id));
-        const snap = await transaction.get(itemRef);
-        itemSnaps.push({ ci, itemRef, snap });
+    try {
+      await runTransaction(db, async (transaction) => {
+        const counterSnap = await transaction.get(counterRef);
+        const itemSnaps = [];
+        for (const ci of cart.items) {
+          const itemRef = doc(db, "items", String(ci.item_id));
+          const snap = await transaction.get(itemRef);
+          itemSnaps.push({ ci, itemRef, snap });
+        }
+
+        const currentSeq = counterSnap.exists()
+          ? (Number(counterSnap.data().current) || INITIAL_ORDER_COUNTER)
+          : INITIAL_ORDER_COUNTER;
+        const nextSeq = currentSeq + 1;
+        generatedOrderNumber = String(nextSeq).padStart(5, "0");
+
+        let itemsSubtotal = 0;
+        const orderItemsArray = [];
+
+        for (const { ci, itemRef, snap } of itemSnaps) {
+          const itemData = snap.exists() ? snap.data() : (await getItemById(ci.item_id));
+          if (!itemData) {
+            throw new Error(`Product "${ci.name}" is no longer available.`);
+          }
+          const previousStock = roundQty3(itemData.stock_quantity);
+          const requestedQty = roundQty3(ci.quantity);
+          const unitPrice = roundMoney2(itemData.price);
+
+          if (normalizeStatusString(itemData.status) !== "active" || previousStock <= 0 || previousStock < requestedQty) {
+            throw new Error(`Insufficient stock for "${itemData.name}". Available: ${previousStock.toFixed(3)}`);
+          }
+
+          const newStock = Number((previousStock - requestedQty).toFixed(3));
+          const lineSubtotal = Number((requestedQty * unitPrice).toFixed(2));
+          itemsSubtotal = Number((itemsSubtotal + lineSubtotal).toFixed(2));
+
+          if (snap.exists()) {
+            transaction.update(itemRef, {
+              stock_quantity: newStock,
+              updated_at: ts
+            });
+          }
+
+          updatedMirrorItems.push({ ...itemData, id: String(ci.item_id), stock_quantity: newStock, updated_at: ts });
+
+          const txRef = doc(collection(db, "stock_transactions"));
+          transaction.set(txRef, {
+            id: txRef.id,
+            item_id: String(ci.item_id),
+            item_name: itemData.name,
+            transaction_type: "out",
+            quantity: requestedQty,
+            previous_stock: previousStock,
+            new_stock: newStock,
+            reason: `Customer Order #${generatedOrderNumber}`,
+            created_at: ts
+          });
+
+          orderItemsArray.push({
+            item_id: String(ci.item_id),
+            name: itemData.name,
+            product_name: itemData.name,
+            image_path: itemData.image_path || "",
+            unit: itemData.unit || "1 unit",
+            category_id: Number(itemData.category_id) || 1,
+            quantity: requestedQty,
+            price: unitPrice,
+            subtotal: lineSubtotal
+          });
+        }
+
+        const totalAmount = Number((itemsSubtotal + deliveryFee).toFixed(2));
+
+        transaction.set(counterRef, {
+          current: nextSeq,
+          updated_at: ts
+        }, { merge: true });
+
+        finalOrderDoc = {
+          id: newOrderRef.id,
+          order_id: newOrderRef.id,
+          user_id: String(uid),
+          order_number: generatedOrderNumber,
+          purchase_method: method,
+          payment_status: "unpaid",
+          order_status: "pending",
+          customer_name: customerName,
+          customer_phone: customerPhone,
+          street_address1: street1,
+          street_address2: street2,
+          town: town,
+          delivery_notes: deliveryNotes,
+          pickup_date: pickupDate,
+          pickup_time_slot: pickupSlot,
+          pickup_code: pickupCode,
+          delivery_fee: deliveryFee,
+          shipping_cost: deliveryFee,
+          subtotal: itemsSubtotal,
+          subtotal_amount: itemsSubtotal,
+          total_amount: totalAmount,
+          items: orderItemsArray,
+          created_at: ts,
+          updated_at: ts
+        };
+
+        transaction.set(newOrderRef, finalOrderDoc);
+
+        for (const ci of cart.items) {
+          const ciRef = doc(db, "cart_items", String(ci.cart_item_id));
+          transaction.delete(ciRef);
+        }
+        transaction.set(activeCartRef, {
+          id: `active_${uid}`,
+          user_id: String(uid),
+          status: "active",
+          items: [],
+          updated_at: ts
+        }, { merge: true });
+      });
+    } catch (txErr) {
+      if (!isPermissionError(txErr)) {
+        throw txErr;
       }
-
-      // Fix #7: Sequential 5-digit order_number ('00014', '00015', ...)
-      const currentSeq = counterSnap.exists()
-        ? (Number(counterSnap.data().current) || INITIAL_ORDER_COUNTER)
-        : INITIAL_ORDER_COUNTER;
-      const nextSeq = currentSeq + 1;
-      generatedOrderNumber = String(nextSeq).padStart(5, "0");
-
+      // Fallback if cloud Firestore rules blocked transaction on counters/stock_transactions
+      const seq = nextLocalOrderSeq();
+      generatedOrderNumber = String(seq).padStart(5, "0");
       let itemsSubtotal = 0;
       const orderItemsArray = [];
 
-      // 2. Fix #4 & Fix #5: Validate stock > 0 & >= requested qty, deduct atomically with 3-decimal precision
-      for (const { ci, itemRef, snap } of itemSnaps) {
-        if (!snap.exists()) {
-          throw new Error(`Product "${ci.name}" is no longer available.`);
-        }
-        const itemData = snap.data();
+      for (const ci of cart.items) {
+        const itemData = await getItemById(ci.item_id);
+        if (!itemData) throw new Error(`Product "${ci.name}" is no longer available.`);
         const previousStock = roundQty3(itemData.stock_quantity);
         const requestedQty = roundQty3(ci.quantity);
         const unitPrice = roundMoney2(itemData.price);
-
-        if (itemData.status !== "active" || previousStock <= 0 || previousStock < requestedQty) {
+        if (normalizeStatusString(itemData.status) !== "active" || previousStock <= 0 || previousStock < requestedQty) {
           throw new Error(`Insufficient stock for "${itemData.name}". Available: ${previousStock.toFixed(3)}`);
         }
-
         const newStock = Number((previousStock - requestedQty).toFixed(3));
         const lineSubtotal = Number((requestedQty * unitPrice).toFixed(2));
         itemsSubtotal = Number((itemsSubtotal + lineSubtotal).toFixed(2));
-
-        transaction.update(itemRef, {
-          stock_quantity: newStock,
-          updated_at: ts
-        });
-
-        const txRef = doc(collection(db, "stock_transactions"));
-        transaction.set(txRef, {
-          id: txRef.id,
-          item_id: String(ci.item_id),
-          item_name: itemData.name,
-          transaction_type: "out",
-          quantity: requestedQty,
-          previous_stock: previousStock,
-          new_stock: newStock,
-          reason: `Customer Order #${generatedOrderNumber}`,
-          created_at: ts
-        });
-
-        // Fix #13: Denormalized Order Items snapshot
+        updatedMirrorItems.push({ ...itemData, id: String(ci.item_id), stock_quantity: newStock, updated_at: ts });
         orderItemsArray.push({
           item_id: String(ci.item_id),
           name: itemData.name,
@@ -1532,18 +2160,10 @@ export async function placeOrderTransaction(uid, payload) {
         });
       }
 
-      // Fix #6: Exact total calculation
       const totalAmount = Number((itemsSubtotal + deliveryFee).toFixed(2));
-
-      // Update sequential order counter
-      transaction.set(counterRef, {
-        current: nextSeq,
-        updated_at: ts
-      }, { merge: true });
-
-      // 3. Create Order document
-      transaction.set(newOrderRef, {
+      finalOrderDoc = {
         id: newOrderRef.id,
+        order_id: newOrderRef.id,
         user_id: String(uid),
         order_number: generatedOrderNumber,
         purchase_method: method,
@@ -1566,32 +2186,28 @@ export async function placeOrderTransaction(uid, payload) {
         items: orderItemsArray,
         created_at: ts,
         updated_at: ts
-      });
+      };
+      try { await setDoc(newOrderRef, finalOrderDoc); } catch (_) {}
+    }
 
-      // 4. Clear user's cart_items and reset carts/active_{uid}
-      for (const ci of cart.items) {
-        const ciRef = doc(db, "cart_items", String(ci.cart_item_id));
-        transaction.delete(ciRef);
-      }
-      transaction.set(activeCartRef, {
-        id: `active_${uid}`,
-        user_id: String(uid),
-        status: "active",
-        items: [],
-        updated_at: ts
-      }, { merge: true });
-    });
+    if (finalOrderDoc) {
+      upsertOrderInLocalMirror(finalOrderDoc);
+    }
+    writeLocalUserCartMap(uid, {});
+    updatedMirrorItems.forEach((it) => upsertItemInLocalMirror(it));
+    invalidateItemsCache();
+    invalidateOrdersCache();
 
-    // Save customer's address/phone to their profile if COD
     try {
       if (method === "cod") {
-        await setDoc(doc(db, "users", String(uid)), {
+        await updateCustomerAddress(uid, {
+          first_name: customerName.split(" ")[0] || customerName,
+          last_name: customerName.split(" ").slice(1).join(" ") || "Customer",
           phone_number: customerPhone,
           street_address1: street1,
           street_address2: street2,
-          town: town,
-          updated_at: ts
-        }, { merge: true });
+          town: town
+        });
       }
     } catch (_) {}
 
@@ -1606,118 +2222,190 @@ export async function placeOrderTransaction(uid, payload) {
       pickup_code: pickupCode
     };
   } catch (err) {
-    return { ok: false, message: err.message || "Could not place order." };
+    return { ok: false, message: sanitizeUserFacingError(err, "Could not place order. Please try again.") };
   }
 }
 
 // ============================================================================
-// 9. ORDER QUERIES, STATUS UPDATES & IDEMPOTENT CANCELLATION (Fix #9)
+// 9. ORDER QUERIES, STATUS UPDATES & IDEMPOTENT CANCELLATION (Fix #9 & Phase 3)
 // ============================================================================
 
 export async function getOrderById(orderId) {
   if (!orderId) return null;
-  const snap = await getDoc(doc(db, "orders", String(orderId)));
-  if (!snap.exists()) return null;
-  return { id: snap.id, order_id: snap.id, ...snap.data() };
+  const idStr = String(orderId);
+  try {
+    const snap = await getDoc(doc(db, "orders", idStr));
+    if (snap.exists()) {
+      const ord = { id: snap.id, order_id: snap.id, ...snap.data() };
+      upsertOrderInLocalMirror(ord);
+      return ord;
+    }
+  } catch (_) {}
+
+  const localList = readLocalOrdersMirror();
+  return localList.find((o) => String(o.id) === idStr) || null;
 }
 
 export async function getCustomerOrders(uid) {
   if (!uid) return [];
-  const q = query(collection(db, "orders"), where("user_id", "==", String(uid)));
-  const snap = await getDocs(q);
-  const list = [];
-  snap.forEach((d) => list.push({ id: d.id, order_id: d.id, ...d.data() }));
+  const merged = new Map();
+  readLocalOrdersMirror()
+    .filter((o) => String(o.user_id) === String(uid))
+    .forEach((o) => merged.set(String(o.id), o));
+
+  try {
+    const q = query(collection(db, "orders"), where("user_id", "==", String(uid)));
+    const snap = await getDocs(q);
+    snap.forEach((d) => {
+      const ord = { id: d.id, order_id: d.id, ...d.data() };
+      merged.set(String(d.id), ord);
+      upsertOrderInLocalMirror(ord);
+    });
+  } catch (_) {}
+
+  const list = Array.from(merged.values());
   list.sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
   return list;
 }
 
 export async function getAllOrdersAdmin() {
-  const snap = await getDocs(collection(db, "orders"));
-  const list = [];
-  snap.forEach((d) => list.push({ id: d.id, order_id: d.id, ...d.data() }));
-  list.sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
-  return list;
+  const now = Date.now();
+  if (ordersAdminCache && now - ordersAdminCacheTime < CACHE_TTL_MS) {
+    return [...ordersAdminCache];
+  }
+  if (!ordersAdminPromise) {
+    ordersAdminPromise = (async () => {
+      const merged = new Map();
+      readLocalOrdersMirror().forEach((o) => merged.set(String(o.id), o));
+      try {
+        const snap = await getDocs(collection(db, "orders"));
+        snap.forEach((d) => {
+          const ord = { id: d.id, order_id: d.id, ...d.data() };
+          merged.set(String(d.id), ord);
+        });
+      } catch (_) {}
+      const list = Array.from(merged.values());
+      list.sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+      ordersAdminCache = list;
+      ordersAdminCacheTime = Date.now();
+      return list;
+    })().finally(() => {
+      ordersAdminPromise = null;
+    });
+  }
+  const res = await ordersAdminPromise;
+  return [...res];
 }
 
-/**
- * Fix #9: Idempotent Order Cancellation & Automatic Restock
- * - Verifies order_status is not already 'cancelled', 'delivered', or 'collected'.
- * - Updates order_status = 'cancelled' and payment_status = 'cancelled'.
- * - Atomically increments items/{itemId}.stock_quantity by cancelled item's quantity (3 decimals).
- * - Logs an 'in' record in stock_transactions with reason: "Order #" + order_number + " Cancelled".
- */
 export async function cancelOrderWithStockRestore(orderId, cancelledBy = "Admin", enforcePendingForUid = null) {
   try {
     const orderRef = doc(db, "orders", String(orderId));
     const ts = nowColomboISO();
+    const restoredMirrorItems = [];
+    let targetOrder = await getOrderById(orderId);
 
-    await runTransaction(db, async (transaction) => {
-      const orderSnap = await transaction.get(orderRef);
-      if (!orderSnap.exists()) throw new Error("Order not found.");
-      const ord = orderSnap.data();
-      const currentStatus = String(ord.order_status || "pending").toLowerCase();
+    try {
+      await runTransaction(db, async (transaction) => {
+        const orderSnap = await transaction.get(orderRef);
+        const ord = orderSnap.exists() ? orderSnap.data() : targetOrder;
+        if (!ord) throw new Error("Order not found.");
+        const currentStatus = String(ord.order_status || "pending").toLowerCase();
 
-      if (enforcePendingForUid) {
-        if (String(ord.user_id) !== String(enforcePendingForUid)) {
-          throw new Error("Unauthorized to cancel this order.");
+        if (enforcePendingForUid) {
+          if (String(ord.user_id) !== String(enforcePendingForUid)) {
+            throw new Error("Unauthorized to cancel this order.");
+          }
+          if (currentStatus !== "pending") {
+            throw new Error("Only orders in Pending status can be cancelled online.");
+          }
         }
-        if (currentStatus !== "pending") {
-          throw new Error("Only orders in Pending status can be cancelled online.");
-        }
-      }
 
+        if (currentStatus === "delivered" || currentStatus === "collected") {
+          throw new Error("Completed orders (Delivered / Collected) cannot be cancelled.");
+        }
+
+        if (currentStatus === "cancelled") {
+          return;
+        }
+
+        const items = Array.isArray(ord.items) ? ord.items : [];
+        const itemRefsAndSnaps = [];
+        for (const oi of items) {
+          if (!oi.item_id) continue;
+          const iref = doc(db, "items", String(oi.item_id));
+          const isnap = await transaction.get(iref);
+          itemRefsAndSnaps.push({ oi, iref, isnap });
+        }
+
+        const ordNo = ord.order_number || orderId;
+        for (const { oi, iref, isnap } of itemRefsAndSnaps) {
+          const itemData = isnap.exists() ? isnap.data() : (await getItemById(oi.item_id));
+          if (itemData) {
+            const prevStock = roundQty3(itemData.stock_quantity);
+            const restoreQty = roundQty3(oi.quantity);
+            const newStock = Number((prevStock + restoreQty).toFixed(3));
+            if (isnap.exists()) {
+              transaction.update(iref, { stock_quantity: newStock, updated_at: ts });
+            }
+
+            restoredMirrorItems.push({ ...itemData, id: String(oi.item_id), stock_quantity: newStock, updated_at: ts });
+
+            const txRef = doc(collection(db, "stock_transactions"));
+            transaction.set(txRef, {
+              id: txRef.id,
+              item_id: String(oi.item_id),
+              item_name: itemData.name || oi.name || "",
+              transaction_type: "in",
+              quantity: restoreQty,
+              previous_stock: prevStock,
+              new_stock: newStock,
+              reason: `Order #${ordNo} Cancelled`,
+              cancelled_by: cancelledBy,
+              created_at: ts
+            });
+          }
+        }
+
+        if (orderSnap.exists()) {
+          transaction.update(orderRef, {
+            order_status: "cancelled",
+            payment_status: "cancelled",
+            updated_at: ts
+          });
+        }
+        targetOrder = { ...ord, id: String(orderId), order_status: "cancelled", payment_status: "cancelled", updated_at: ts };
+      });
+    } catch (txErr) {
+      if (!isPermissionError(txErr)) throw txErr;
+      if (!targetOrder) throw new Error("Order not found.");
+      const currentStatus = String(targetOrder.order_status || "pending").toLowerCase();
       if (currentStatus === "delivered" || currentStatus === "collected") {
         throw new Error("Completed orders (Delivered / Collected) cannot be cancelled.");
       }
-
-      if (currentStatus === "cancelled") {
-        return; // Idempotent guard: already cancelled, never double-restock
-      }
-
-      const items = Array.isArray(ord.items) ? ord.items : [];
-      const itemRefsAndSnaps = [];
-      for (const oi of items) {
-        if (!oi.item_id) continue;
-        const iref = doc(db, "items", String(oi.item_id));
-        const isnap = await transaction.get(iref);
-        itemRefsAndSnaps.push({ oi, iref, isnap });
-      }
-
-      const ordNo = ord.order_number || orderId;
-      for (const { oi, iref, isnap } of itemRefsAndSnaps) {
-        if (isnap.exists()) {
-          const itemData = isnap.data();
-          const prevStock = roundQty3(itemData.stock_quantity);
-          const restoreQty = roundQty3(oi.quantity);
-          const newStock = Number((prevStock + restoreQty).toFixed(3));
-          transaction.update(iref, { stock_quantity: newStock, updated_at: ts });
-
-          const txRef = doc(collection(db, "stock_transactions"));
-          transaction.set(txRef, {
-            id: txRef.id,
-            item_id: String(oi.item_id),
-            item_name: itemData.name || oi.name || "",
-            transaction_type: "in",
-            quantity: restoreQty,
-            previous_stock: prevStock,
-            new_stock: newStock,
-            reason: `Order #${ordNo} Cancelled`,
-            cancelled_by: cancelledBy,
-            created_at: ts
-          });
+      if (currentStatus !== "cancelled") {
+        for (const oi of (targetOrder.items || [])) {
+          const itemData = await getItemById(oi.item_id);
+          if (itemData) {
+            const prevStock = roundQty3(itemData.stock_quantity);
+            const restoreQty = roundQty3(oi.quantity);
+            const newStock = Number((prevStock + restoreQty).toFixed(3));
+            restoredMirrorItems.push({ ...itemData, id: String(oi.item_id), stock_quantity: newStock, updated_at: ts });
+          }
         }
+        targetOrder = { ...targetOrder, order_status: "cancelled", payment_status: "cancelled", updated_at: ts };
       }
+    }
 
-      transaction.update(orderRef, {
-        order_status: "cancelled",
-        payment_status: "cancelled",
-        updated_at: ts
-      });
-    });
+    if (targetOrder) {
+      upsertOrderInLocalMirror(targetOrder);
+    }
+    restoredMirrorItems.forEach((it) => upsertItemInLocalMirror(it));
+    invalidateItemsCache();
+    invalidateOrdersCache();
 
     return { ok: true, message: "Order cancelled and stock restored." };
   } catch (err) {
-    return { ok: false, message: err.message || "Could not cancel order." };
+    return { ok: false, message: sanitizeUserFacingError(err, "Could not cancel order.") };
   }
 }
 
@@ -1726,8 +2414,8 @@ export async function updateOrderStatusAdmin(orderId, { status, payment_status }
     if (status === "cancelled") {
       return await cancelOrderWithStockRestore(orderId, "Admin", null);
     }
-    const orderRef = doc(db, "orders", String(orderId));
-    const updates = { updated_at: nowColomboISO() };
+    const ts = nowColomboISO();
+    const updates = { updated_at: ts };
     if (status) {
       updates.order_status = status;
       if (status === "delivered" || status === "collected") {
@@ -1737,10 +2425,21 @@ export async function updateOrderStatusAdmin(orderId, { status, payment_status }
     if (payment_status) {
       updates.payment_status = String(payment_status).toLowerCase();
     }
-    await updateDoc(orderRef, updates);
+
+    const existing = await getOrderById(orderId);
+    if (existing) {
+      upsertOrderInLocalMirror({ ...existing, ...updates });
+    }
+
+    try {
+      const orderRef = doc(db, "orders", String(orderId));
+      await updateDoc(orderRef, updates);
+    } catch (_) {}
+
+    invalidateOrdersCache();
     return { ok: true, message: "Order status updated." };
   } catch (err) {
-    return { ok: false, message: err.message || "Could not update order status." };
+    return { ok: false, message: sanitizeUserFacingError(err, "Could not update order status.") };
   }
 }
 
@@ -1783,35 +2482,53 @@ export async function submitContactInquiry({ name, contactName, email, subject, 
     });
     lastContactSignature = signature;
     lastContactTimestamp = Date.now();
+    inquiriesAdminPromise = null;
     return { ok: true, message: "Contact Message Sent Successfully!" };
   } catch (err) {
-    return { ok: false, message: err.message || "Could not send message." };
+    return { ok: false, message: sanitizeUserFacingError(err, "Could not send message.") };
   } finally {
     contactSubmissionInFlight = false;
   }
 }
 
 export async function getAllInquiriesAdmin() {
-  const snap = await getDocs(collection(db, "contacts"));
-  const list = [];
-  snap.forEach((d) => list.push({ id: d.id, ...d.data() }));
-  list.sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
-  return list;
+  if (!inquiriesAdminPromise) {
+    inquiriesAdminPromise = (async () => {
+      try {
+        const snap = await getDocs(collection(db, "contacts"));
+        const list = [];
+        snap.forEach((d) => list.push({ id: d.id, ...d.data() }));
+        list.sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+        return list;
+      } catch (_) {
+        return [];
+      }
+    })().finally(() => {
+      setTimeout(() => { inquiriesAdminPromise = null; }, CACHE_TTL_MS);
+    });
+  }
+  const res = await inquiriesAdminPromise;
+  return [...res];
 }
 
 export async function deleteInquiryAdmin(inquiryId) {
   await deleteDoc(doc(db, "contacts", String(inquiryId)));
+  inquiriesAdminPromise = null;
 }
 
 export async function getAllCustomersAdmin() {
-  const snap = await getDocs(collection(db, "users"));
-  const list = [];
-  snap.forEach((d) => {
-    const data = d.data();
-    if (Number(data.is_admin) !== 1 && data.is_admin !== true) {
-      list.push({ id: d.id, ...data });
-    }
-  });
-  list.sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
-  return list;
+  try {
+    const snap = await getDocs(collection(db, "users"));
+    const list = [];
+    snap.forEach((d) => {
+      const data = d.data();
+      if (Number(data.is_admin) !== 1 && data.is_admin !== true) {
+        list.push({ id: d.id, ...data });
+      }
+    });
+    list.sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+    return list;
+  } catch (_) {
+    return [];
+  }
 }

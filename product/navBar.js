@@ -142,8 +142,15 @@ function filterCategory(id) {
       var cartTrigger = document.getElementById("fcCartTrigger");
 
       if (user) {
-        if (guestLogin) guestLogin.style.display = "none";
-        if (guestSignup) guestSignup.style.display = "none";
+        if (guestLogin) {
+          guestLogin.classList.add("d-none");
+          guestLogin.style.setProperty("display", "none", "important");
+        }
+        if (guestSignup) {
+          guestSignup.classList.remove("d-sm-inline-flex");
+          guestSignup.classList.add("d-none");
+          guestSignup.style.setProperty("display", "none", "important");
+        }
         if (authOrders) authOrders.style.display = "";
         if (profileWrap) profileWrap.style.display = "";
         if (mobileLogin) mobileLogin.style.display = "none";
@@ -152,8 +159,9 @@ function filterCategory(id) {
         if (mobileProfile) mobileProfile.style.display = "";
         if (mobileLogout) mobileLogout.style.display = "";
         if (bottomCheckout) bottomCheckout.setAttribute("href", base + "proceed.html");
+        if (cartTrigger) cartTrigger.setAttribute("href", base + "product/shopping-cart.html");
 
-        var profile = await fb.getUserProfile(user.uid);
+        var profile = await fb.getUserProfile(user.uid, user.email);
         var fName = (profile && profile.first_name) ? profile.first_name : (user.displayName || "Customer");
         var lName = (profile && profile.last_name) ? profile.last_name : "";
         var initials = ((fName.charAt(0) || "") + (lName.charAt(0) || "")).toUpperCase() || "FC";
@@ -169,17 +177,33 @@ function filterCategory(id) {
         var cart = await fb.getActiveCartWithItems(user.uid);
         setBadges(cart.count || 0);
       } else {
-        if (guestLogin) guestLogin.style.display = "";
-        if (guestSignup) guestSignup.style.display = "";
+        var loginRedirectHref = base + "login/sign.html?redirect=" + encodeURIComponent(window.location.href);
+        var signupRedirectHref = base + "login/register.html?redirect=" + encodeURIComponent(window.location.href);
+        if (guestLogin) {
+          guestLogin.classList.remove("d-none");
+          guestLogin.style.removeProperty("display");
+          guestLogin.setAttribute("href", loginRedirectHref);
+        }
+        if (guestSignup) {
+          guestSignup.classList.add("d-sm-inline-flex");
+          guestSignup.style.removeProperty("display");
+          guestSignup.setAttribute("href", signupRedirectHref);
+        }
         if (authOrders) authOrders.style.display = "none";
         if (profileWrap) profileWrap.style.display = "none";
-        if (mobileLogin) mobileLogin.style.display = "";
-        if (mobileSignup) mobileSignup.style.display = "";
+        if (mobileLogin) {
+          mobileLogin.style.display = "";
+          mobileLogin.setAttribute("href", loginRedirectHref);
+        }
+        if (mobileSignup) {
+          mobileSignup.style.display = "";
+          mobileSignup.setAttribute("href", signupRedirectHref);
+        }
         if (mobileOrders) mobileOrders.style.display = "none";
         if (mobileProfile) mobileProfile.style.display = "none";
         if (mobileLogout) mobileLogout.style.display = "none";
-        if (bottomCheckout) bottomCheckout.setAttribute("href", base + "login/sign.html");
-        if (cartTrigger) cartTrigger.setAttribute("href", base + "login/sign.html");
+        if (bottomCheckout) bottomCheckout.setAttribute("href", loginRedirectHref);
+        if (cartTrigger) cartTrigger.setAttribute("href", loginRedirectHref);
         setBadges(0);
       }
     });

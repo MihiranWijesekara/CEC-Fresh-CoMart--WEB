@@ -238,7 +238,8 @@
       async function loadShoppingCart() {
         currentUser = await waitForAuthUser();
         if (!currentUser) {
-          window.location.href = '../login/sign.html';
+          sessionStorage.setItem('fc_post_login_redirect', window.location.href);
+          window.location.href = '../login/sign.html?redirect=' + encodeURIComponent(window.location.href);
           return;
         }
 
