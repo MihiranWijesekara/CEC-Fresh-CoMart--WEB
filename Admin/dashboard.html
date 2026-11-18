@@ -358,7 +358,10 @@
             fcMethodBadge,
             fcPaymentBadge,
             fcStatusBadge,
-            fcNextAction
+            fcNextAction,
+            normalizeOrderStatus,
+            isOrderActive,
+            isOrderArchived
         } from './admin-navbar.js';
         import {
             getAllOrdersAdmin,
@@ -427,9 +430,9 @@
 
             orders.forEach(o => {
                 const amt = Number(o.total_amount || 0);
-                const payStatus = String(o.payment_status || 'unpaid').toLowerCase();
-                const ordStatus = String(o.order_status || 'pending').toLowerCase();
                 const method = fcOrderMethod(o.purchase_method);
+                const ordStatus = normalizeOrderStatus(o.order_status, method);
+                const payStatus = String(o.payment_status || 'unpaid').toLowerCase();
                 const oDate = extractOrderDateYMD(o.created_at);
 
                 if (payStatus === 'paid') {
@@ -450,23 +453,23 @@
                     if (method === 'pickup') todayPickupCount++;
                     else todayCodCount++;
 
-                    if (['delivered', 'collected'].includes(ordStatus)) todayCompletedCount++;
+                    if (ordStatus === 'paid') todayCompletedCount++;
                     if (ordStatus === 'cancelled') todayCancelledCount++;
                     if (payStatus === 'paid') todayPaidRevenue += amt;
                     if (payStatus === 'unpaid' && ordStatus !== 'cancelled') todayUnpaidAmount += amt;
 
-                    if (method === 'cod' && ['pending', 'processing', 'shipped'].includes(ordStatus)) {
+                    if (method === 'cod' && isOrderActive(o)) {
                         todayPendingCod++;
                     }
                 }
 
-                if (method === 'cod' && ['pending', 'processing', 'shipped'].includes(ordStatus)) {
+                if (method === 'cod' && isOrderActive(o)) {
                     allActiveCod++;
                 }
-                if (method === 'pickup' && !['collected', 'delivered', 'cancelled'].includes(ordStatus)) {
+                if (method === 'pickup' && isOrderActive(o)) {
                     allActivePickup++;
                 }
-                if (method === 'pickup' && ['ready_for_pickup', 'ready'].includes(ordStatus)) {
+                if (method === 'pickup' && ['ready_for_pickup', 'picked_up'].includes(ordStatus)) {
                     readyForPickupCount++;
                 }
 
@@ -595,14 +598,14 @@
             } else {
                 recentTbody.innerHTML = recentOrders.map(order => {
                     const oid = String(order.id);
-                    const status = (order.order_status || 'pending').toLowerCase();
+                    const method = fcOrderMethod(order.purchase_method);
+                    const status = normalizeOrderStatus(order.order_status, method);
                     const customerName = order.customer_name || 'Customer';
                     const orderNo = order.order_number || oid;
-                    const method = fcOrderMethod(order.purchase_method);
                     const isPickup = method === 'pickup';
                     const next = fcNextAction(status, method);
                     const searchTarget = order.pickup_code || orderNo;
-                    const targetPage = ['delivered', 'collected', 'cancelled'].includes(status) ? 'completOrder.html' : 'order.html';
+                    const targetPage = isOrderArchived(order) ? 'completOrder.html' : 'order.html';
                     const dtStr = order.created_at ? String(order.created_at).slice(5, 16) : '';
 
                     return `

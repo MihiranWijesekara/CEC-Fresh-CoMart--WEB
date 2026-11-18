@@ -35,6 +35,9 @@
   <script type="module">
     import {
       STORE_CONFIG,
+      ORDER_LIFECYCLE_COD,
+      ORDER_LIFECYCLE_PICKUP,
+      normalizeOrderStatus,
       waitForAuthUser,
       getOrderById,
       formatQuantity,
@@ -97,31 +100,21 @@
           : "We've received your order and will process it shortly.");
       document.getElementById('confirmOrderNo').textContent = `ORDER #${orderNumber}`;
 
-      const steps = isPickup
-        ? ['Pending', 'Processing', 'Ready for Pickup', 'Collected']
-        : ['Pending', 'Processing', 'Shipped', 'Delivered'];
-      const statusIndex = {
-        pending: 0,
-        processing: 1,
-        shipped: 2,
-        ready: 2,
-        ready_for_pickup: 2,
-        delivered: 3,
-        collected: 3
-      };
-      const current = statusIndex[rawStatus] ?? 0;
-      const cancelled = rawStatus === 'cancelled';
+      const lifecycleSteps = isPickup ? ORDER_LIFECYCLE_PICKUP : ORDER_LIFECYCLE_COD;
+      const normStatus = normalizeOrderStatus(rawStatus, methodVal);
+      const current = Math.max(0, lifecycleSteps.findIndex(s => s.key === normStatus));
+      const cancelled = normStatus === 'cancelled';
 
-      const stepsHtml = steps.map((label, i) => {
+      const stepsHtml = lifecycleSteps.map((stObj, i) => {
         let cls = '';
         if (cancelled) {
-          cls = (i === current) ? 'cancelled' : '';
-        } else if (i < current || (i === current && current === 3)) {
+          cls = (i === 0) ? 'cancelled' : '';
+        } else if (i < current || normStatus === 'paid') {
           cls = 'done';
         } else if (i === current) {
           cls = 'current';
         }
-        return `<li class="${cls}" data-n="${i + 1}">${esc(label)}</li>`;
+        return `<li class="${cls}" data-n="${i + 1}">${esc(stObj.label)}</li>`;
       }).join('');
 
       const pickupSlotVal = order.pickup_time_slot || order.pickup_slot || '';

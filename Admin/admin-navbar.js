@@ -8,8 +8,21 @@ import {
   logoutUser,
   getAllOrdersAdmin,
   getAllItems,
-  getAllInquiriesAdmin
+  getAllInquiriesAdmin,
+  ORDER_LIFECYCLE_COD,
+  ORDER_LIFECYCLE_PICKUP,
+  normalizeOrderStatus,
+  isOrderActive,
+  isOrderArchived
 } from '../assets/js/firebase-service.js';
+
+export {
+  ORDER_LIFECYCLE_COD,
+  ORDER_LIFECYCLE_PICKUP,
+  normalizeOrderStatus,
+  isOrderActive,
+  isOrderArchived
+};
 
 export function initAdminNavbar(activePage = '') {
   const session = requireAdminSession();
@@ -198,10 +211,7 @@ export async function refreshAdminNavBadges() {
       getAllInquiriesAdmin()
     ]);
 
-    const activeOrdersCount = orders.filter(o => {
-      const st = (o.order_status || 'pending').toLowerCase();
-      return !['delivered', 'collected', 'cancelled'].includes(st);
-    }).length;
+    const activeOrdersCount = orders.filter(o => isOrderActive(o)).length;
 
     const lowStockCount = items.filter(i => Number(i.stock_quantity || 0) <= 5).length;
     const inquiriesCount = inquiries.length;
@@ -232,17 +242,28 @@ export function fcOrderMethod(m) {
   return String(m || '').trim().toLowerCase() === 'pickup' ? 'pickup' : 'cod';
 }
 
+export function fcLifecycleSteps(method = 'cod') {
+  return fcOrderMethod(method) === 'pickup' ? ORDER_LIFECYCLE_PICKUP : ORDER_LIFECYCLE_COD;
+}
+
 export function fcStatusLabel(status, method = 'cod') {
-  const s = String(status || 'pending').toLowerCase();
   const m = fcOrderMethod(method);
+  const s = normalizeOrderStatus(status, m);
   const map = {
-    pending: 'Pending',
+    pending: 'Order Placed',
+    order_placed: 'Order Placed',
+    confirmed: 'Order Confirmed',
+    order_confirmed: 'Order Confirmed',
     processing: 'Processing',
+    ready_for_delivery: 'Ready for Delivery',
+    out_for_delivery: 'Out for Delivery',
+    shipped: m === 'pickup' ? 'Ready for Pickup' : 'Out for Delivery',
     ready_for_pickup: 'Ready for Pickup',
     ready: 'Ready for Pickup',
-    collected: 'Collected',
-    shipped: m === 'pickup' ? 'Ready for Pickup' : 'Shipped',
     delivered: 'Delivered',
+    picked_up: 'Picked Up',
+    collected: 'Picked Up',
+    paid: 'Paid',
     cancelled: 'Cancelled'
   };
   return map[s] || s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
@@ -252,7 +273,7 @@ export function fcMethodBadge(method) {
   if (fcOrderMethod(method) === 'pickup') {
     return '<span class="fc-badge method-pickup"><i class="bi bi-shop"></i>Store Pickup</span>';
   }
-  return '<span class="fc-badge method-delivery"><i class="bi bi-truck"></i>Delivery / COD</span>';
+  return '<span class="fc-badge method-delivery"><i class="bi bi-truck"></i>Cash on Delivery</span>';
 }
 
 export function fcPaymentBadge(status, extraClass = '') {
@@ -266,45 +287,121 @@ export function fcPaymentBadge(status, extraClass = '') {
 }
 
 export function fcStatusBadge(status, method = 'cod', extraClass = '') {
-  const s = String(status || 'pending').toLowerCase();
   const m = fcOrderMethod(method);
-  const cls = (s === 'shipped' && m === 'pickup') ? 'ready' : (s === 'ready_for_pickup' ? 'ready' : s);
-  return `<span class="fc-badge st-${cls} ${extraClass}">${fcStatusLabel(s, m)}</span>`;
+  const s = normalizeOrderStatus(status, m);
+  const iconMap = {
+    pending: 'bi-clock-history',
+    confirmed: 'bi-check2-square',
+    processing: 'bi-box-seam',
+    ready_for_delivery: 'bi-box2-heart',
+    out_for_delivery: 'bi-truck',
+    ready_for_pickup: 'bi-bag-check',
+    delivered: 'bi-house-check-fill',
+    picked_up: 'bi-person-check-fill',
+    paid: 'bi-check2-all',
+    cancelled: 'bi-x-circle-fill'
+  };
+  const icon = iconMap[s] || 'bi-circle-fill';
+  return `<span class="fc-badge st-${s} ${extraClass}"><i class="bi ${icon}"></i>${fcStatusLabel(s, m)}</span>`;
 }
 
+/**
+ * Computes the next transition action in the order lifecycle:
+ * Cash on Delivery (7 steps):
+ *   1. Order Placed (pending) -> 2. Order Confirmed (confirmed) -> 3. Processing (processing)
+ *   -> 4. Ready for Delivery (ready_for_delivery) -> 5. Out for Delivery (out_for_delivery)
+ *   -> 6. Delivered (delivered) -> 7. Paid (paid)
+ *
+ * Store Pickup (6 steps):
+ *   1. Order Placed (pending) -> 2. Order Confirmed (confirmed) -> 3. Processing (processing)
+ *   -> 4. Ready for Pickup (ready_for_pickup) -> 5. Picked Up (picked_up) -> 6. Paid (paid)
+ */
 export function fcNextAction(status, method = 'cod') {
-  const s = String(status || 'pending').toLowerCase();
   const pickup = fcOrderMethod(method) === 'pickup';
+  const s = normalizeOrderStatus(status, method);
   let tuple = null;
   let btnClass = 'btn-success';
+  let requiresPaymentConfirm = false;
+
   switch (s) {
     case 'pending':
-      tuple = ['processing', 'Accept & Pack', 'accept', 'bi-box-seam'];
+      tuple = ['confirmed', 'Confirm Order', 'confirm', 'bi-check2-square'];
+      btnClass = 'btn-warning text-dark';
+      break;
+    case 'confirmed':
+      tuple = ['processing', 'Start Processing', 'process', 'bi-box-seam'];
       btnClass = 'btn-info text-dark';
       break;
     case 'processing':
       tuple = pickup
-        ? ['ready_for_pickup', 'Mark Ready for Pickup', 'ready', 'bi-bag-check']
-        : ['shipped', 'Dispatch Delivery', 'ready', 'bi-truck'];
+        ? ['ready_for_pickup', 'Mark Ready for Pickup', 'ready_pickup', 'bi-bag-check']
+        : ['ready_for_delivery', 'Mark Ready for Delivery', 'ready_delivery', 'bi-box2-heart'];
       btnClass = 'btn-primary';
       break;
-    case 'ready_for_pickup':
-    case 'ready':
-    case 'shipped':
-      tuple = pickup
-        ? ['collected', 'Complete Pickup', 'done', 'bi-check2-circle']
-        : ['delivered', 'Mark Delivered', 'done', 'bi-check2-circle'];
+    case 'ready_for_delivery':
+      tuple = ['out_for_delivery', 'Out for Delivery', 'dispatch', 'bi-truck'];
+      btnClass = 'btn-primary';
+      break;
+    case 'out_for_delivery':
+      tuple = ['delivered', 'Mark Delivered', 'deliver', 'bi-house-check-fill'];
       btnClass = 'btn-success';
+      break;
+    case 'ready_for_pickup':
+      tuple = ['picked_up', 'Mark Picked Up', 'pickup_collect', 'bi-person-check-fill'];
+      btnClass = 'btn-success';
+      break;
+    case 'delivered':
+    case 'picked_up':
+      tuple = ['paid', 'Confirm Payment & Mark Paid', 'confirm_paid', 'bi-cash-coin'];
+      btnClass = 'btn-dark';
+      requiresPaymentConfirm = true;
       break;
     default:
       return null;
   }
+
   tuple.next_status = tuple[0];
   tuple.label = tuple[1];
   tuple.action_key = tuple[2];
   tuple.icon = tuple[3];
   tuple.btn_class = btnClass;
+  tuple.requires_payment_confirm = requiresPaymentConfirm;
   return tuple;
+}
+
+export function fcRenderOrderStepper(status, method = 'cod') {
+  const m = fcOrderMethod(method);
+  const steps = fcLifecycleSteps(m);
+  const s = normalizeOrderStatus(status, m);
+  if (s === 'cancelled') {
+    return `<div class="small text-danger fw-bold"><i class="bi bi-x-circle-fill me-1"></i>Order Cancelled</div>`;
+  }
+  const activeIdx = steps.findIndex(st => st.key === s);
+  const curIdx = activeIdx >= 0 ? activeIdx : 0;
+
+  return `
+    <div class="d-flex flex-wrap align-items-center gap-1" style="font-size: 11px;">
+      ${steps.map((step, idx) => {
+        const isDone = idx < curIdx || s === 'paid';
+        const isCurrent = idx === curIdx && s !== 'paid';
+        let pillStyle = 'background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;';
+        let iconHtml = `<span class="fw-bold">${idx + 1}.</span>`;
+        if (isDone) {
+          pillStyle = 'background:#dcfce7;color:#15803d;border:1px solid #86efac;font-weight:700;';
+          iconHtml = `<i class="bi bi-check-circle-fill text-success"></i>`;
+        } else if (isCurrent) {
+          pillStyle = 'background:#0f172a;color:#ffffff;border:1px solid #0f172a;font-weight:700;box-shadow:0 0 0 2px rgba(22,163,74,0.2);';
+          iconHtml = `<i class="bi bi-arrow-right-circle-fill text-warning"></i>`;
+        }
+        return `
+          <span class="px-2 py-1 rounded-pill d-inline-flex align-items-center gap-1" style="${pillStyle}">
+            ${iconHtml} <span>${step.label}</span>
+          </span>
+          ${idx < steps.length - 1 ? '<i class="bi bi-chevron-right text-muted" style="font-size:9px;"></i>' : ''}
+        `;
+      }).join('')}
+    </div>
+  `;
 }
 
 // Auto-initialize if script is included directly with data-auto-init

@@ -2230,20 +2230,152 @@ export async function placeOrderTransaction(uid, payload) {
 // 9. ORDER QUERIES, STATUS UPDATES & IDEMPOTENT CANCELLATION (Fix #9 & Phase 3)
 // ============================================================================
 
+export const ORDER_LIFECYCLE_COD = [
+  { key: "pending", label: "Order Placed" },
+  { key: "confirmed", label: "Order Confirmed" },
+  { key: "processing", label: "Processing" },
+  { key: "ready_for_delivery", label: "Ready for Delivery" },
+  { key: "out_for_delivery", label: "Out for Delivery" },
+  { key: "delivered", label: "Delivered" },
+  { key: "paid", label: "Paid" }
+];
+
+export const ORDER_LIFECYCLE_PICKUP = [
+  { key: "pending", label: "Order Placed" },
+  { key: "confirmed", label: "Order Confirmed" },
+  { key: "processing", label: "Processing" },
+  { key: "ready_for_pickup", label: "Ready for Pickup" },
+  { key: "picked_up", label: "Picked Up" },
+  { key: "paid", label: "Paid" }
+];
+
+export function normalizeOrderStatus(rawStatus, method = "cod") {
+  const m = String(method || "cod").trim().toLowerCase() === "pickup" ? "pickup" : "cod";
+  const s = String(rawStatus || "pending").trim().toLowerCase();
+  if (s === "order_placed" || s === "pending") return "pending";
+  if (s === "order_confirmed" || s === "confirmed") return "confirmed";
+  if (s === "processing") return "processing";
+  if (s === "ready_for_delivery") return m === "pickup" ? "ready_for_pickup" : "ready_for_delivery";
+  if (s === "out_for_delivery" || s === "shipped") return m === "pickup" ? "ready_for_pickup" : "out_for_delivery";
+  if (s === "ready_for_pickup" || s === "ready") return "ready_for_pickup";
+  if (s === "delivered") return m === "pickup" ? "picked_up" : "delivered";
+  if (s === "picked_up" || s === "collected") return "picked_up";
+  if (s === "paid") return "paid";
+  if (s === "cancelled") return "cancelled";
+  return "pending";
+}
+
+export function isOrderArchived(orderOrStatus) {
+  const st = typeof orderOrStatus === "object" && orderOrStatus !== null
+    ? normalizeOrderStatus(orderOrStatus.order_status, orderOrStatus.purchase_method)
+    : normalizeOrderStatus(orderOrStatus);
+  return st === "paid" || st === "cancelled";
+}
+
+export function isOrderActive(orderOrStatus) {
+  return !isOrderArchived(orderOrStatus);
+}
+
+function normalizeOrderRecord(id, rawData = {}) {
+  const idStr = String(id || rawData.id || rawData.order_id || "");
+  const method = String(rawData.purchase_method || "cod").trim().toLowerCase() === "pickup" ? "pickup" : "cod";
+  const status = normalizeOrderStatus(rawData.order_status || rawData.status || "pending", method);
+
+  let payStatus = String(rawData.payment_status || "unpaid").trim().toLowerCase();
+  if (status === "cancelled") {
+    payStatus = "cancelled";
+  } else if (status === "paid") {
+    payStatus = "paid";
+  } else if ((status === "delivered" || status === "picked_up") && !rawData.payment_confirmed_by_admin) {
+    // Orders at Delivered / Picked Up remain unpaid until Admin explicitly confirms payment to move to Paid
+    payStatus = "unpaid";
+  }
+
+  const rawItems = Array.isArray(rawData.items) ? rawData.items : [];
+  let computedSub = 0;
+  const normalizedItems = rawItems.map((it) => {
+    const qty = roundQty3(it.quantity !== undefined ? it.quantity : 1);
+    const price = roundMoney2(it.price !== undefined ? it.price : (it.unit_price || 0));
+    const lineSub = roundMoney2(it.subtotal !== undefined ? it.subtotal : (qty * price));
+    computedSub = roundMoney2(computedSub + lineSub);
+    const nm = String(it.name || it.product_name || "Product").trim();
+    return {
+      ...it,
+      item_id: String(it.item_id || it.id || ""),
+      name: nm,
+      product_name: nm,
+      image_path: it.image_path || DEFAULT_FALLBACK_IMAGE,
+      unit: String(it.unit || "1 unit").trim(),
+      category_id: Number(it.category_id) || 1,
+      quantity: qty,
+      price,
+      subtotal: lineSub
+    };
+  });
+
+  const subtotal = roundMoney2(rawData.subtotal ?? rawData.subtotal_amount ?? computedSub);
+  const deliveryFee = roundMoney2(
+    rawData.delivery_fee !== undefined
+      ? rawData.delivery_fee
+      : (rawData.shipping_cost !== undefined ? rawData.shipping_cost : (method === "cod" ? 450.00 : 0.00))
+  );
+  const totalAmount = roundMoney2(rawData.total_amount !== undefined ? rawData.total_amount : (subtotal + deliveryFee));
+  const custName = String(
+    rawData.customer_name || `${rawData.first_name || ""} ${rawData.last_name || ""}`.trim() || "Customer"
+  ).trim();
+  const custPhone = String(rawData.customer_phone || rawData.phone_number || "").trim();
+
+  let ordNum = String(rawData.order_number || "").trim();
+  if (!ordNum) {
+    ordNum = /^\d+$/.test(idStr) ? idStr.padStart(5, "0") : idStr.substring(0, 8).toUpperCase();
+  } else if (/^\d+$/.test(ordNum) && ordNum.length < 5) {
+    ordNum = ordNum.padStart(5, "0");
+  }
+
+  return {
+    ...rawData,
+    id: idStr,
+    order_id: idStr,
+    order_number: ordNum,
+    purchase_method: method,
+    order_status: status,
+    payment_status: payStatus,
+    customer_name: custName,
+    customer_phone: custPhone,
+    street_address1: String(rawData.street_address1 || (method === "pickup" ? STORE_CONFIG.address : "")).trim(),
+    street_address2: String(rawData.street_address2 || "").trim(),
+    town: String(rawData.town || (method === "pickup" ? "Rajagiriya" : "")).trim(),
+    delivery_notes: String(rawData.delivery_notes || "").trim(),
+    pickup_date: rawData.pickup_date || null,
+    pickup_time_slot: rawData.pickup_time_slot || null,
+    pickup_code: rawData.pickup_code || (method === "pickup" ? "PK-STORE" : null),
+    subtotal,
+    subtotal_amount: subtotal,
+    delivery_fee: deliveryFee,
+    shipping_cost: deliveryFee,
+    total_amount: totalAmount,
+    items: normalizedItems,
+    created_at: rawData.created_at || nowColomboISO(),
+    updated_at: rawData.updated_at || rawData.created_at || nowColomboISO()
+  };
+}
+
 export async function getOrderById(orderId) {
   if (!orderId) return null;
   const idStr = String(orderId);
   try {
+    if (typeof auth.authStateReady === "function") await auth.authStateReady();
     const snap = await getDoc(doc(db, "orders", idStr));
     if (snap.exists()) {
-      const ord = { id: snap.id, order_id: snap.id, ...snap.data() };
+      const ord = normalizeOrderRecord(snap.id, snap.data());
       upsertOrderInLocalMirror(ord);
       return ord;
     }
   } catch (_) {}
 
   const localList = readLocalOrdersMirror();
-  return localList.find((o) => String(o.id) === idStr) || null;
+  const found = localList.find((o) => String(o.id) === idStr);
+  return found ? normalizeOrderRecord(found.id, found) : null;
 }
 
 export async function getCustomerOrders(uid) {
@@ -2251,13 +2383,14 @@ export async function getCustomerOrders(uid) {
   const merged = new Map();
   readLocalOrdersMirror()
     .filter((o) => String(o.user_id) === String(uid))
-    .forEach((o) => merged.set(String(o.id), o));
+    .forEach((o) => merged.set(String(o.id), normalizeOrderRecord(o.id, o)));
 
   try {
+    if (typeof auth.authStateReady === "function") await auth.authStateReady();
     const q = query(collection(db, "orders"), where("user_id", "==", String(uid)));
     const snap = await getDocs(q);
     snap.forEach((d) => {
-      const ord = { id: d.id, order_id: d.id, ...d.data() };
+      const ord = normalizeOrderRecord(d.id, d.data());
       merged.set(String(d.id), ord);
       upsertOrderInLocalMirror(ord);
     });
@@ -2268,7 +2401,10 @@ export async function getCustomerOrders(uid) {
   return list;
 }
 
-export async function getAllOrdersAdmin() {
+export async function getAllOrdersAdmin(forceRefresh = false) {
+  if (forceRefresh) {
+    invalidateOrdersCache();
+  }
   const now = Date.now();
   if (ordersAdminCache && now - ordersAdminCacheTime < CACHE_TTL_MS) {
     return [...ordersAdminCache];
@@ -2276,12 +2412,16 @@ export async function getAllOrdersAdmin() {
   if (!ordersAdminPromise) {
     ordersAdminPromise = (async () => {
       const merged = new Map();
-      readLocalOrdersMirror().forEach((o) => merged.set(String(o.id), o));
+      readLocalOrdersMirror().forEach((o) => {
+        if (o && o.id) merged.set(String(o.id), normalizeOrderRecord(o.id, o));
+      });
       try {
+        if (typeof auth.authStateReady === "function") await auth.authStateReady();
         const snap = await getDocs(collection(db, "orders"));
         snap.forEach((d) => {
-          const ord = { id: d.id, order_id: d.id, ...d.data() };
+          const ord = normalizeOrderRecord(d.id, d.data());
           merged.set(String(d.id), ord);
+          upsertOrderInLocalMirror(ord);
         });
       } catch (_) {}
       const list = Array.from(merged.values());
@@ -2320,8 +2460,8 @@ export async function cancelOrderWithStockRestore(orderId, cancelledBy = "Admin"
           }
         }
 
-        if (currentStatus === "delivered" || currentStatus === "collected") {
-          throw new Error("Completed orders (Delivered / Collected) cannot be cancelled.");
+        if (currentStatus === "delivered" || currentStatus === "collected" || currentStatus === "picked_up" || currentStatus === "paid") {
+          throw new Error("Orders that have already been Delivered, Picked Up, or Paid cannot be cancelled.");
         }
 
         if (currentStatus === "cancelled") {
@@ -2379,8 +2519,8 @@ export async function cancelOrderWithStockRestore(orderId, cancelledBy = "Admin"
       if (!isPermissionError(txErr)) throw txErr;
       if (!targetOrder) throw new Error("Order not found.");
       const currentStatus = String(targetOrder.order_status || "pending").toLowerCase();
-      if (currentStatus === "delivered" || currentStatus === "collected") {
-        throw new Error("Completed orders (Delivered / Collected) cannot be cancelled.");
+      if (currentStatus === "delivered" || currentStatus === "collected" || currentStatus === "picked_up" || currentStatus === "paid") {
+        throw new Error("Orders that have already been Delivered, Picked Up, or Paid cannot be cancelled.");
       }
       if (currentStatus !== "cancelled") {
         for (const oi of (targetOrder.items || [])) {
@@ -2414,24 +2554,47 @@ export async function updateOrderStatusAdmin(orderId, { status, payment_status }
     if (status === "cancelled") {
       return await cancelOrderWithStockRestore(orderId, "Admin", null);
     }
+    const existing = await getOrderById(orderId);
+    const method = existing ? existing.purchase_method : "cod";
     const ts = nowColomboISO();
     const updates = { updated_at: ts };
+
     if (status) {
-      updates.order_status = status;
-      if (status === "delivered" || status === "collected") {
+      const normalizedSt = normalizeOrderStatus(status, method);
+      updates.order_status = normalizedSt;
+
+      if (normalizedSt === "delivered" || normalizedSt === "picked_up") {
+        updates.fulfillment_completed_at = ts;
+        updates.fulfillment_final_stage = normalizedSt;
+        // Do NOT auto-mark paid or archive here; order remains in Active Orders awaiting Admin payment confirmation
+        if (!payment_status && !(existing && existing.payment_confirmed_by_admin)) {
+          updates.payment_status = "unpaid";
+          updates.payment_confirmed_by_admin = false;
+        }
+      } else if (normalizedSt === "paid") {
+        // Final Paid status: requires payment confirmation and archives the order
         updates.payment_status = "paid";
+        updates.payment_confirmed_by_admin = true;
+        updates.paid_at = ts;
+        updates.fulfillment_final_stage = method === "pickup" ? "picked_up" : "delivered";
       }
     }
+
     if (payment_status) {
-      updates.payment_status = String(payment_status).toLowerCase();
+      const normalizedPay = String(payment_status).toLowerCase();
+      updates.payment_status = normalizedPay;
+      updates.payment_confirmed_by_admin = normalizedPay === "paid";
+      if (normalizedPay === "paid") {
+        updates.paid_at = ts;
+      }
     }
 
-    const existing = await getOrderById(orderId);
     if (existing) {
-      upsertOrderInLocalMirror({ ...existing, ...updates });
+      upsertOrderInLocalMirror(normalizeOrderRecord(orderId, { ...existing, ...updates }));
     }
 
     try {
+      if (typeof auth.authStateReady === "function") await auth.authStateReady();
       const orderRef = doc(db, "orders", String(orderId));
       await updateDoc(orderRef, updates);
     } catch (_) {}
