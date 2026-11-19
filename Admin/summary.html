@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business &amp; Operations Summary - Freshcomart Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+    <link rel="stylesheet" href="../assets/css/custom-ui.css">
+    <style>
+      .main-container {
+        max-width: 1340px;
+        margin: 28px auto 40px auto;
+        padding: 0 20px;
+      }
+      .summary-card {
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+        padding: 24px;
+        margin-bottom: 24px;
+        border: 1px solid #f1f5f9;
+      }
+      .progress-bar-custom {
+          background-color: #16a34a;
+      }
+    </style>
+</head>
+<body class="fc-admin">
+    <div id="adminNavbarMount"></div>
+
+    <div class="main-container">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+          <div>
+              <h1 class="fw-bold mb-1" style="color: #0f172a; font-size:1.65rem;">Business Analytics &amp; Operations Summary</h1>
+              <p class="text-muted mb-0">Showing data for: <strong class="text-success" id="periodLabelDisplay">All Time</strong> &middot; Excludes cancelled orders from revenue totals.</p>
+          </div>
+          <div class="d-flex align-items-center flex-wrap gap-2">
+              <div class="btn-group btn-group-sm" role="group" aria-label="Period Filter">
+                  <button type="button" id="period-today" class="btn btn-outline-secondary" onclick="setPeriod('today')">Today</button>
+                  <button type="button" id="period-7d" class="btn btn-outline-secondary" onclick="setPeriod('7d')">Last 7 Days</button>
+                  <button type="button" id="period-month" class="btn btn-outline-secondary" onclick="setPeriod('month')">This Month</button>
+                  <button type="button" id="period-all" class="btn btn-success fw-bold" onclick="setPeriod('all')">All Time</button>
+              </div>
+              <button type="button" onclick="window.print()" class="btn btn-outline-dark btn-sm rounded-pill px-3 py-2 fw-semibold">
+                  <i class="bi bi-printer me-1"></i>Print Report
+              </button>
+              <a href="dashboard.html" class="btn btn-outline-secondary btn-sm rounded-pill px-3 py-2 fw-semibold">
+                <i class="bi bi-speedometer2 me-1"></i>Dashboard
+              </a>
+          </div>
+      </div>
+      
+      <!-- Top Row: Purchasing Method Performance Cards -->
+      <div class="row g-3 mb-4">
+          <!-- COD Channel Card -->
+          <div class="col-md-6">
+              <div class="summary-card h-100">
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                      <div>
+                          <h5 class="fw-bold mb-0 text-dark">
+                              <i class="bi bi-truck text-primary me-2"></i>Cash on Delivery (COD) Channel
+                          </h5>
+                          <small class="text-muted">Home deliveries with cash collection at doorstep</small>
+                      </div>
+                      <span class="badge bg-primary text-white rounded-pill px-3 py-2" id="codCountBadge">0 Orders</span>
+                  </div>
+                  <div class="row g-2 text-center mt-2">
+                      <div class="col-4">
+                          <div class="p-2 border rounded-3 bg-light">
+                              <small class="text-muted d-block">Total Value</small>
+                              <span class="fw-bold text-dark" id="codTotalVal">Rs. 0.00</span>
+                          </div>
+                      </div>
+                      <div class="col-4">
+                          <div class="p-2 border rounded-3" style="background:#f0fdf4;">
+                              <small class="text-muted d-block">Collected (Paid)</small>
+                              <span class="fw-bold text-success" id="codPaidVal">Rs. 0.00</span>
+                          </div>
+                      </div>
+                      <div class="col-4">
+                          <div class="p-2 border rounded-3" style="background:#fef2f2;">
+                              <small class="text-muted d-block">In Transit (Unpaid)</small>
+                              <span class="fw-bold text-danger" id="codUnpaidVal">Rs. 0.00</span>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </div>
+
+          <!-- Store Pickup Channel Card -->
+          <div class="col-md-6">
+              <div class="summary-card h-100">
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                      <div>
+                          <h5 class="fw-bold mb-0 text-dark">
+                              <i class="bi bi-shop text-warning me-2"></i>In-Store Purchase / Pickup Channel
+                          </h5>
+                          <small class="text-muted">Orders collected &amp; paid at supermarket store counter</small>
+                      </div>
+                      <span class="badge bg-warning text-dark rounded-pill px-3 py-2" id="pickupCountBadge">0 Orders</span>
+                  </div>
+                  <div class="row g-2 text-center mt-2">
+                      <div class="col-4">
+                          <div class="p-2 border rounded-3 bg-light">
+                              <small class="text-muted d-block">Total Value</small>
+                              <span class="fw-bold text-dark" id="pickupTotalVal">Rs. 0.00</span>
+                          </div>
+                      </div>
+                      <div class="col-4">
+                          <div class="p-2 border rounded-3" style="background:#f0fdf4;">
+                              <small class="text-muted d-block">Collected (Paid)</small>
+                              <span class="fw-bold text-success" id="pickupPaidVal">Rs. 0.00</span>
+                          </div>
+                      </div>
+                      <div class="col-4">
+                          <div class="p-2 border rounded-3" style="background:#fef2f2;">
+                              <small class="text-muted d-block">Awaiting Pickup</small>
+                              <span class="fw-bold text-danger" id="pickupUnpaidVal">Rs. 0.00</span>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      </div>
+
+      <div class="row">
+          <!-- Left Column: Sales by Category & Order Status breakdown -->
+          <div class="col-lg-6">
+              <div class="summary-card">
+                  <h5 class="fw-bold mb-3"><i class="bi bi-pie-chart-fill text-success me-2"></i>Sales by Supermarket Category</h5>
+                  <div id="categorySalesContainer">
+                      <p class="text-muted py-3 text-center">Loading category sales...</p>
+                  </div>
+              </div>
+              
+              <div class="summary-card">
+                  <h5 class="fw-bold mb-3"><i class="bi bi-activity text-primary me-2"></i>Order Status Distribution</h5>
+                  <div class="row g-2" id="statusBreakdownContainer">
+                      <p class="text-muted py-2 text-center w-100">Loading status breakdown...</p>
+                  </div>
+              </div>
+          </div>
+          
+          <!-- Right Column: Top Products & Recent Sign-ups -->
+          <div class="col-lg-6">
+              <div class="summary-card">
+                  <h5 class="fw-bold mb-3"><i class="bi bi-star-fill text-warning me-2"></i>Top Selling Supermarket Items</h5>
+                  <div class="table-responsive">
+                      <table class="table align-middle table-hover table-sm">
+                          <thead class="table-light">
+                              <tr>
+                                  <th>Product</th>
+                                  <th class="text-center">QTY Sold</th>
+                                  <th class="text-end">Sales Value</th>
+                              </tr>
+                          </thead>
+                          <tbody id="topProductsBody">
+                              <tr>
+                                  <td colspan="3" class="text-center py-3 text-muted">Loading top products...</td>
+                              </tr>
+                          </tbody>
+                      </table>
+                  </div>
+              </div>
+              
+              <div class="summary-card">
+                  <h5 class="fw-bold mb-3"><i class="bi bi-people-fill text-info me-2"></i>Recent Customers Joined</h5>
+                  <div class="table-responsive">
+                      <table class="table align-middle table-hover table-sm">
+                          <thead class="table-light">
+                              <tr>
+                                  <th>Customer Name</th>
+                                  <th>Phone / Email</th>
+                                  <th>Joined</th>
+                              </tr>
+                          </thead>
+                          <tbody id="recentCustomersBody">
+                              <tr>
+                                  <td colspan="3" class="text-center py-3 text-muted">Loading customers...</td>
+                              </tr>
+                          </tbody>
+                      </table>
+                  </div>
+              </div>
+          </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module">
+        import {
+            initAdminNavbar,
+            fcOrderMethod,
+            fcStatusBadge
+        } from './admin-navbar.js';
+        import {
+            ensureCategoriesSeeded,
+            getAllOrdersAdmin,
+            getAllItems,
+            getAllCustomersAdmin,
+            formatQuantity,
+            formatMoney
+        } from '../assets/js/firebase-service.js';
+
+        await initAdminNavbar('summary.html');
+
+        let allOrders = [];
+        let categories = [];
+        let itemsMap = {};
+        let currentPeriod = 'all';
+
+        const urlParams = new URLSearchParams(window.location.search);
+        if (['today', '7d', 'month', 'all'].includes(urlParams.get('period'))) {
+            currentPeriod = urlParams.get('period');
+        }
+
+        function escapeHtml(str) {
+            return String(str ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function isOrderInPeriod(order, period) {
+            if (period === 'all') return true;
+            if (!order.created_at) return false;
+            const d = new Date(order.created_at);
+            const now = new Date();
+            if (period === 'today') {
+                return d.toISOString().slice(0, 10) === now.toISOString().slice(0, 10);
+            }
+            if (period === '7d') {
+                const cutoff = new Date();
+                cutoff.setDate(now.getDate() - 6);
+                cutoff.setHours(0, 0, 0, 0);
+                return d >= cutoff;
+            }
+            if (period === 'month') {
+                return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+            }
+            return true;
+        }
+
+        window.setPeriod = function (period) {
+            currentPeriod = period;
+            ['today', '7d', 'month', 'all'].forEach(p => {
+                const btn = document.getElementById('period-' + p);
+                if (btn) {
+                    btn.className = p === period ? 'btn btn-success fw-bold' : 'btn btn-outline-secondary';
+                }
+            });
+
+            const now = new Date();
+            let label = 'All Time';
+            if (period === 'today') {
+                label = `Today (${now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })})`;
+            } else if (period === '7d') {
+                label = 'Last 7 Days';
+            } else if (period === 'month') {
+                label = `This Month (${now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })})`;
+            }
+            document.getElementById('periodLabelDisplay').textContent = label;
+
+            renderSummary();
+        };
+
+        function renderSummary() {
+            const periodOrders = allOrders.filter(o => isOrderInPeriod(o, currentPeriod));
+
+            const methodStats = {
+                cod: { count: 0, sales: 0, paid: 0, unpaid: 0 },
+                pickup: { count: 0, sales: 0, paid: 0, unpaid: 0 }
+            };
+
+            const catSales = {};
+            categories.forEach(c => {
+                catSales[Number(c.id)] = { name: c.name, sales: 0 };
+            });
+
+            const productAgg = {};
+            const statusBreakdown = {};
+
+            periodOrders.forEach(o => {
+                const status = String(o.order_status || 'pending').toLowerCase();
+                statusBreakdown[status] = (statusBreakdown[status] || 0) + 1;
+
+                if (status !== 'cancelled') {
+                    const mKey = fcOrderMethod(o.purchase_method);
+                    const val = Number(o.total_amount || 0);
+                    const pStatus = String(o.payment_status || 'unpaid').toLowerCase();
+
+                    methodStats[mKey].count += 1;
+                    methodStats[mKey].sales += val;
+                    if (pStatus === 'paid') {
+                        methodStats[mKey].paid += val;
+                    } else {
+                        methodStats[mKey].unpaid += val;
+                    }
+
+                    // Order items
+                    const orderItems = Array.isArray(o.items) ? o.items : [];
+                    orderItems.forEach(oi => {
+                        const itemDoc = itemsMap[String(oi.item_id)] || {};
+                        const cid = Number(oi.category_id || itemDoc.category_id || 0);
+                        const sub = Number(oi.subtotal || (Number(oi.price || 0) * Number(oi.quantity || 0)));
+                        const qty = Number(oi.quantity || 0);
+
+                        if (catSales[cid]) {
+                            catSales[cid].sales += sub;
+                        }
+
+                        const pid = String(oi.item_id || oi.name);
+                        if (!productAgg[pid]) {
+                            productAgg[pid] = {
+                                name: oi.name || itemDoc.name || 'Item',
+                                unit: oi.unit || itemDoc.unit || 'unit',
+                                category_id: cid,
+                                total_qty: 0,
+                                total_sales: 0
+                            };
+                        }
+                        productAgg[pid].total_qty += qty;
+                        productAgg[pid].total_sales += sub;
+                    });
+                }
+            });
+
+            // Render COD & Pickup cards
+            document.getElementById('codCountBadge').textContent = `${methodStats.cod.count} Orders`;
+            document.getElementById('codTotalVal').textContent = `Rs. ${formatMoney(methodStats.cod.sales)}`;
+            document.getElementById('codPaidVal').textContent = `Rs. ${formatMoney(methodStats.cod.paid)}`;
+            document.getElementById('codUnpaidVal').textContent = `Rs. ${formatMoney(methodStats.cod.unpaid)}`;
+
+            document.getElementById('pickupCountBadge').textContent = `${methodStats.pickup.count} Orders`;
+            document.getElementById('pickupTotalVal').textContent = `Rs. ${formatMoney(methodStats.pickup.sales)}`;
+            document.getElementById('pickupPaidVal').textContent = `Rs. ${formatMoney(methodStats.pickup.paid)}`;
+            document.getElementById('pickupUnpaidVal').textContent = `Rs. ${formatMoney(methodStats.pickup.unpaid)}`;
+
+            // Category sales progress bars
+            const activeCats = Object.values(catSales).filter(c => c.sales > 0);
+            const catContainer = document.getElementById('categorySalesContainer');
+            if (!activeCats.length) {
+                catContainer.innerHTML = `<p class="text-muted py-3 text-center">No category sales recorded yet.</p>`;
+            } else {
+                const maxSales = Math.max(...activeCats.map(c => c.sales), 0.01);
+                catContainer.innerHTML = activeCats.map(c => {
+                    const percent = Math.min(100, (c.sales / maxSales) * 100);
+                    return `
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="fw-semibold text-dark small">${escapeHtml(c.name)}</span>
+                                <span class="fw-bold text-success small">Rs. ${formatMoney(c.sales)}</span>
+                            </div>
+                            <div class="progress" style="height: 8px; border-radius: 999px;">
+                                <div class="progress-bar progress-bar-custom" role="progressbar" style="width: ${percent}%;"></div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // Status breakdown
+            const statusKeys = Object.keys(statusBreakdown);
+            const statusContainer = document.getElementById('statusBreakdownContainer');
+            if (!statusKeys.length) {
+                statusContainer.innerHTML = `<p class="text-muted py-2 text-center w-100">No status details available.</p>`;
+            } else {
+                statusContainer.innerHTML = statusKeys.map(st => `
+                    <div class="col-6 col-sm-4">
+                        <div class="p-3 border rounded-3 bg-light text-center">
+                            <p class="mb-1">${fcStatusBadge(st)}</p>
+                            <h3 class="fw-bold mb-0 text-dark">${statusBreakdown[st]}</h3>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            // Top selling products
+            const topList = Object.values(productAgg)
+                .sort((a, b) => b.total_qty - a.total_qty)
+                .slice(0, 6);
+            const topBody = document.getElementById('topProductsBody');
+            if (!topList.length) {
+                topBody.innerHTML = `<tr><td colspan="3" class="text-center py-3 text-muted">No product sales logged yet.</td></tr>`;
+            } else {
+                topBody.innerHTML = topList.map(row => `
+                    <tr>
+                        <td class="fw-semibold text-dark">${escapeHtml(row.name)}</td>
+                        <td class="text-center fw-bold">${escapeHtml(formatQuantity(row.total_qty, row.unit, row.category_id))}</td>
+                        <td class="text-end text-success fw-bold">Rs. ${formatMoney(row.total_sales)}</td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        async function initPage() {
+            const [cats, orders, items, customers] = await Promise.all([
+                ensureCategoriesSeeded(),
+                getAllOrdersAdmin(),
+                getAllItems(false),
+                getAllCustomersAdmin()
+            ]);
+
+            categories = cats;
+            allOrders = orders;
+            items.forEach(i => { itemsMap[String(i.id)] = i; });
+
+            // Recent Customers
+            const recentCustBody = document.getElementById('recentCustomersBody');
+            const recentFive = customers.slice(0, 5);
+            if (!recentFive.length) {
+                recentCustBody.innerHTML = `<tr><td colspan="3" class="text-center py-3 text-muted">No customers registered yet.</td></tr>`;
+            } else {
+                recentCustBody.innerHTML = recentFive.map(u => {
+                    const name = `${u.first_name || ''} ${u.last_name || ''}`.trim() || 'Customer';
+                    const contact = u.phone_number || u.email || '—';
+                    const joined = u.created_at ? new Date(u.created_at).toISOString().slice(0, 10) : '—';
+                    return `
+                        <tr>
+                            <td class="fw-semibold text-dark">${escapeHtml(name)}</td>
+                            <td class="small">${escapeHtml(contact)}</td>
+                            <td class="text-muted small">${escapeHtml(joined)}</td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            window.setPeriod(currentPeriod);
+        }
+
+        await initPage();
+    </script>
+</body>
+</html>
+

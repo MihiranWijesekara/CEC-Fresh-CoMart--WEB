@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Active Orders Management - Freshcomart Admin</title>
+    <link rel="shortcut icon" type="image/x-icon" href="../assets/images/logo/logo-freshco.png">
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <!-- Google Fonts (Inter) -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+    <!-- Freshcomart Admin Design System -->
+    <link rel="stylesheet" href="../assets/css/custom-ui.css">
+    <style>
+        .main-container {
+            max-width: 1380px;
+            margin: 24px auto 48px auto;
+            padding: 0 20px;
+        }
+        .kpi-mini-card {
+            background: #ffffff;
+            border-radius: 14px;
+            border: 1px solid #e2e8f0;
+            padding: 16px 18px;
+            box-shadow: 0 2px 12px rgba(15, 23, 42, 0.04);
+            height: 100%;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        .kpi-mini-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.07);
+        }
+        .kpi-icon-box {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+        .order-card-row {
+            transition: background 0.15s ease;
+        }
+        .order-card-row:hover > td {
+            background: #f0fdf4 !important;
+        }
+        .order-card-row.awaiting-payment-row > td {
+            background: #f0fdfa;
+        }
+        .filter-tab {
+            padding: 8px 18px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 13px;
+            border: 1.5px solid #E2E8F0;
+            background: #ffffff;
+            color: #475569;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .filter-tab:hover {
+            border-color: #cbd5e1;
+            color: #0f172a;
+        }
+        .filter-tab.active-all { background: #0F172A; color: #fff; border-color: #0F172A; }
+        .filter-tab.active-cod { background: #1D4ED8; color: #fff; border-color: #1D4ED8; }
+        .filter-tab.active-pickup { background: #D97706; color: #fff; border-color: #D97706; }
+        .stage-pill {
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 12.5px;
+            font-weight: 700;
+            border: 1.5px solid #E2E8F0;
+            background: #ffffff;
+            color: #475569;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .stage-pill:hover { border-color: #94A3B8; color: #0F172A; }
+        .stage-pill.active { background: #16A34A; color: #ffffff; border-color: #16A34A; }
+        .pickup-code-pill {
+            display: inline-flex;
+            align-items: center;
+            background: #FEF3C7;
+            color: #92400E;
+            border: 1.5px dashed #F59E0B;
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-weight: 800;
+            font-size: 12.5px;
+            letter-spacing: 0.8px;
+        }
+        .order-num-badge {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-weight: 800;
+            font-size: 0.95rem;
+            color: #0f172a;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            padding: 2px 9px;
+            border-radius: 6px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body class="fc-admin bg-light">
+    <div id="adminNavbarMount"></div>
+
+    <div class="main-container">
+        <!-- Page Header -->
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+            <div>
+                <h2 class="fw-bold mb-1" style="color: #0F172A; font-size: 1.6rem;">
+                    <i class="bi bi-basket2-fill text-success me-2"></i>Active Orders Management
+                </h2>
+                <p class="text-muted small mb-0">
+                    Manage the complete Cash on Delivery (7-stage) and Store Pickup (6-stage) fulfillment &amp; payment collection lifecycle
+                </p>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <button type="button" id="refreshOrdersBtn" class="btn btn-outline-success btn-sm rounded-pill px-3 fw-bold" onclick="refreshActiveOrders()">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Refresh Queue
+                </button>
+                <button type="button" class="btn btn-outline-dark btn-sm rounded-pill px-3 fw-bold" onclick="exportActiveOrdersCSV()">
+                    <i class="bi bi-download me-1"></i>Export CSV
+                </button>
+                <a href="completOrder.html" class="btn btn-secondary btn-sm rounded-pill px-3 fw-bold">
+                    <i class="bi bi-archive me-1"></i>Order Archive (<span id="navArchiveCountBadge">0</span>)
+                </a>
+            </div>
+        </div>
+
+        <div id="alertHost"></div>
+
+        <!-- 4 Live Operational KPI Cards -->
+        <div class="row g-3 mb-3">
+            <div class="col-sm-6 col-xl-3">
+                <div class="kpi-mini-card d-flex align-items-center justify-content-between" style="cursor:pointer;" onclick="filterByStage('all')">
+                    <div>
+                        <div class="text-muted text-uppercase fw-bold" style="font-size: 0.72rem; letter-spacing: 0.5px;">Total Active Queue</div>
+                        <div class="fs-3 fw-bold text-dark mt-1" id="kpiTotalActive">0</div>
+                        <div class="small text-muted" id="kpiActiveSplit">0 COD &bull; 0 Pickup</div>
+                    </div>
+                    <div class="kpi-icon-box" style="background: #dcfce7; color: #15803d;">
+                        <i class="bi bi-lightning-charge-fill"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-xl-3">
+                <div class="kpi-mini-card d-flex align-items-center justify-content-between" style="cursor:pointer;" onclick="filterByStage('placed')">
+                    <div>
+                        <div class="text-muted text-uppercase fw-bold" style="font-size: 0.72rem; letter-spacing: 0.5px;">Placed &amp; Confirmed</div>
+                        <div class="fs-3 fw-bold text-warning-emphasis mt-1" id="kpiStageNew">0</div>
+                        <div class="small text-muted" id="kpiStageNewSub">0 Placed &bull; 0 Confirmed</div>
+                    </div>
+                    <div class="kpi-icon-box" style="background: #fef9c3; color: #a16207;">
+                        <i class="bi bi-bell-fill"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-xl-3">
+                <div class="kpi-mini-card d-flex align-items-center justify-content-between" style="cursor:pointer;" onclick="filterByStage('ready')">
+                    <div>
+                        <div class="text-muted text-uppercase fw-bold" style="font-size: 0.72rem; letter-spacing: 0.5px;">Processing &amp; In Transit</div>
+                        <div class="fs-3 fw-bold text-primary mt-1" id="kpiStageInTransit">0</div>
+                        <div class="small text-muted" id="kpiStageTransitSub">0 Processing &bull; 0 Ready/Out</div>
+                    </div>
+                    <div class="kpi-icon-box" style="background: #dbeafe; color: #1d4ed8;">
+                        <i class="bi bi-truck"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-6 col-xl-3">
+                <div class="kpi-mini-card d-flex align-items-center justify-content-between" style="cursor:pointer;" onclick="filterByStage('awaiting_payment')">
+                    <div>
+                        <div class="text-muted text-uppercase fw-bold" style="font-size: 0.72rem; letter-spacing: 0.5px;">Delivered / Picked Up</div>
+                        <div class="fs-4 fw-bold text-teal mt-1" style="color:#0f766e;" id="kpiAwaitingPaymentCount">0 Orders</div>
+                        <div class="small text-danger fw-semibold" id="kpiActiveUnpaidValue">Unpaid: Rs. 0.00</div>
+                    </div>
+                    <div class="kpi-icon-box" style="background: #ccfbf1; color: #0f766e;">
+                        <i class="bi bi-cash-coin"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter Tabs & Search Bar -->
+        <div class="card border-0 shadow-sm mb-3" style="border-radius: 14px;">
+            <div class="card-body p-3">
+                <div class="row g-3 align-items-center justify-content-between">
+                    <div class="col-lg-auto d-flex flex-wrap gap-2">
+                        <button type="button" class="filter-tab active-all" id="tab-all" onclick="filterByMethod('all')">
+                            <i class="bi bi-grid-fill"></i> All Active (<span id="count-all">0</span>)
+                        </button>
+                        <button type="button" class="filter-tab" id="tab-cod" onclick="filterByMethod('cod')">
+                            <i class="bi bi-truck"></i> Cash on Delivery (<span id="count-cod">0</span>)
+                        </button>
+                        <button type="button" class="filter-tab" id="tab-pickup" onclick="filterByMethod('pickup')">
+                            <i class="bi bi-shop"></i> Store Pickup (<span id="count-pickup">0</span>)
+                        </button>
+                    </div>
+                    <div class="col-lg-5">
+                        <div class="input-group">
+                            <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-success"></i></span>
+                            <input type="text" id="orderSearchInput" class="form-control border-start-0"
+                                   placeholder="Search Order #, Pickup Code (PK-...), Customer Name, Phone, or Town..."
+                                   oninput="applyFilters()">
+                            <button class="btn btn-outline-secondary" type="button" onclick="resetAllOrderFilters()">Reset</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stage Quick-Filter Bar -->
+                <div class="d-flex flex-wrap align-items-center gap-2 mt-3 pt-3 border-top">
+                    <span class="text-muted small fw-bold me-1"><i class="bi bi-funnel-fill text-success me-1"></i>Lifecycle Stage:</span>
+                    <button type="button" class="stage-pill active" id="stage-all" onclick="filterByStage('all')">
+                        All Active (<span id="stage-count-all">0</span>)
+                    </button>
+                    <button type="button" class="stage-pill" id="stage-placed" onclick="filterByStage('placed')">
+                        <span class="badge bg-warning text-dark rounded-pill" id="stage-count-placed">0</span> 1. Order Placed
+                    </button>
+                    <button type="button" class="stage-pill" id="stage-confirmed" onclick="filterByStage('confirmed')">
+                        <span class="badge bg-info text-dark rounded-pill" id="stage-count-confirmed">0</span> 2. Order Confirmed
+                    </button>
+                    <button type="button" class="stage-pill" id="stage-processing" onclick="filterByStage('processing')">
+                        <span class="badge bg-primary-subtle text-primary rounded-pill" id="stage-count-processing">0</span> 3. Processing
+                    </button>
+                    <button type="button" class="stage-pill" id="stage-ready" onclick="filterByStage('ready')">
+                        <span class="badge bg-primary rounded-pill" id="stage-count-ready">0</span> 4. Ready / Out for Delivery
+                    </button>
+                    <button type="button" class="stage-pill" id="stage-awaiting_payment" onclick="filterByStage('awaiting_payment')">
+                        <span class="badge rounded-pill" style="background:#0f766e;color:#fff;" id="stage-count-awaiting_payment">0</span> 5. Delivered / Picked Up (Awaiting Payment)
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Orders Table -->
+        <div class="card border-0 shadow-sm" style="border-radius: 14px; overflow: hidden;">
+            <div class="table-responsive">
+                <table class="table fc-admin-table align-middle mb-0" id="activeOrdersTable">
+                    <thead class="table-light text-uppercase small fw-bold text-secondary">
+                        <tr>
+                            <th class="ps-3">Order &amp; Timestamp</th>
+                            <th>Fulfillment Method</th>
+                            <th>Customer &amp; Contact</th>
+                            <th>Delivery Address / Pickup Schedule</th>
+                            <th>Amount &amp; Payment</th>
+                            <th>Order Lifecycle Status</th>
+                            <th class="text-end pe-3" style="min-width: 300px;">Next Action &amp; Controls</th>
+                        </tr>
+                    </thead>
+                    <tbody id="activeOrdersBody">
+                        <tr>
+                            <td colspan="7" class="text-center py-5 text-muted">
+                                <div class="spinner-border spinner-border-sm text-success me-2"></div> Loading active orders...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Collection Confirmation Modal (Required before moving Delivered / Picked Up -> Paid & Archive) -->
+    <div class="modal fade" id="confirmPaymentModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 18px; overflow: hidden;">
+                <div class="modal-header border-0 text-white py-3 px-4" style="background: linear-gradient(135deg, #16a34a, #15803d);">
+                    <h5 class="modal-title fw-bold">
+                        <i class="bi bi-cash-coin me-2"></i>Confirm Payment Collection
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="text-center mb-3">
+                        <div class="mx-auto mb-2 d-flex align-items-center justify-content-center rounded-circle"
+                             style="width: 58px; height: 58px; background: #dcfce7; color: #16a34a; font-size: 1.7rem;">
+                            <i class="bi bi-check2-all"></i>
+                        </div>
+                        <h6 class="fw-bold text-dark mb-1" id="payModalHeadline">Confirm cash payment received</h6>
+                        <p class="small text-muted mb-0" id="payModalSubtext"></p>
+                    </div>
+
+                    <div class="p-3 rounded-3 bg-light border mb-3">
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span class="text-muted">Order Number:</span>
+                            <strong class="text-dark" id="payModalOrderNo">#00000</strong>
+                        </div>
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span class="text-muted">Customer:</span>
+                            <strong class="text-dark" id="payModalCustomer">Customer</strong>
+                        </div>
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span class="text-muted">Fulfillment Status:</span>
+                            <span id="payModalFulfillmentBadge"></span>
+                        </div>
+                        <hr class="my-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="fw-bold text-dark">Cash Amount Collected:</span>
+                            <span class="fs-5 fw-bold text-success" id="payModalAmount">Rs. 0.00</span>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info small mb-0 border-0" style="background: #e0f2fe; color: #0369a1;">
+                        <i class="bi bi-info-circle-fill me-1"></i>
+                        Confirming payment will mark this order as <strong>Paid</strong> and move it to the <strong>Order Archive</strong>.
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0 px-4 pb-4">
+                    <input type="hidden" id="payModalOrderId" value="">
+                    <button type="button" class="btn btn-light rounded-pill px-3 fw-semibold" data-bs-dismiss="modal">Not Yet</button>
+                    <button type="button" id="confirmPaymentSubmitBtn" class="btn btn-success rounded-pill px-4 fw-bold shadow-sm">
+                        <i class="bi bi-check-circle-fill me-1"></i>Confirm Payment Received &amp; Mark Paid
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Full Order Details & Status Override Modal -->
+    <div class="modal fade" id="orderDetailsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+                <div class="modal-header border-bottom bg-light">
+                    <div>
+                        <h5 class="modal-title fw-bold text-dark mb-0" id="detailModalTitle">Order Details</h5>
+                        <small class="text-muted" id="detailModalSubtitle"></small>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4" id="detailModalBody"></div>
+                <div class="modal-footer bg-light border-top d-flex justify-content-between flex-wrap gap-2">
+                    <button type="button" class="btn btn-outline-dark btn-sm rounded-pill px-3 fw-bold" id="detailModalPrintBtn">
+                        <i class="bi bi-printer me-1"></i>Print Packing Slip
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm rounded-pill px-4 fw-bold" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cancel Order Confirmation Modal -->
+    <div class="modal fade" id="cancelOrderModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold text-danger">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>Cancel Order &amp; Restore Stock
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-2">Are you sure you want to cancel order <strong id="cancelModalOrderNum"></strong>?</p>
+                    <div class="alert alert-warning small mb-0 border-0" style="background: #fef3c7; color: #92400e;">
+                        <i class="bi bi-box-seam me-1"></i>
+                        <strong>Automatic Inventory Restoration:</strong> All product quantities from this order will be automatically added back to supermarket stock, and an audit log will be recorded.
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <input type="hidden" id="cancelModalOrderId" value="">
+                    <button type="button" class="btn btn-light rounded-pill px-3 fw-semibold" data-bs-dismiss="modal">Keep Order</button>
+                    <button type="button" id="confirmCancelOrderBtn" class="btn btn-danger rounded-pill px-4 fw-bold">
+                        <i class="bi bi-x-circle me-1"></i>Yes, Cancel &amp; Restore Stock
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS Bundle (CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module">
+        import {
+            initAdminNavbar,
+            refreshAdminNavBadges,
+            fcOrderMethod,
+            fcMethodBadge,
+            fcPaymentBadge,
+            fcStatusBadge,
+            fcStatusLabel,
+            fcNextAction,
+            fcLifecycleSteps,
+            fcRenderOrderStepper,
+            normalizeOrderStatus,
+            isOrderActive
+        } from './admin-navbar.js';
+        import {
+            getAllOrdersAdmin,
+            updateOrderStatusAdmin,
+            cancelOrderWithStockRestore,
+            formatQuantity,
+            formatMoney,
+            resolveImagePath
+        } from '../assets/js/firebase-service.js';
+
+        await initAdminNavbar('order.html');
+
+        let allOrdersCache = [];
+        let activeOrders = [];
+        let currentMethod = 'all';
+        let currentStage = 'all';
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const initialSearch = urlParams.get('search') || '';
+        const initialFilter = (urlParams.get('filter') || '').toLowerCase();
+        if (initialSearch) {
+            document.getElementById('orderSearchInput').value = initialSearch;
+        }
+        if (initialFilter === 'cod' || initialFilter === 'pickup') {
+            currentMethod = initialFilter;
+            document.getElementById('tab-all').className = 'filter-tab';
+            document.getElementById('tab-cod').className = 'filter-tab' + (initialFilter === 'cod' ? ' active-cod' : '');
+            document.getElementById('tab-pickup').className = 'filter-tab' + (initialFilter === 'pickup' ? ' active-pickup' : '');
+        }
+
+        function escapeHtml(str) {
+            return String(str ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function formatAdminDate(rawDateStr) {
+            if (!rawDateStr) return { date: 'Today', time: '' };
+            const normalized = String(rawDateStr).replace(' ', 'T');
+            const d = new Date(normalized);
+            if (isNaN(d.getTime())) return { date: String(rawDateStr), time: '' };
+            return {
+                date: d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
+                time: d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+            };
+        }
+
+        function formatPickupDay(dateStr) {
+            if (!dateStr) return 'Today';
+            const parts = String(dateStr).split('-');
+            if (parts.length === 3) {
+                const dt = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+                if (!isNaN(dt.getTime())) {
+                    return dt.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+                }
+            }
+            return String(dateStr);
+        }
+
+        function showAlert(msg, type = 'success') {
+            const host = document.getElementById('alertHost');
+            host.innerHTML = `
+                <div class="alert alert-${type} alert-dismissible fade show shadow-sm border-0 mb-3 rounded-3" role="alert">
+                    <i class="bi ${type === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'} me-2"></i>
+                    <strong>${escapeHtml(msg)}</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+        }
+
+        function getOrderStageGroup(status, method) {
+            const st = normalizeOrderStatus(status, method);
+            if (st === 'pending') return 'placed';
+            if (st === 'confirmed') return 'confirmed';
+            if (st === 'processing') return 'processing';
+            if (st === 'ready_for_delivery' || st === 'out_for_delivery' || st === 'ready_for_pickup') return 'ready';
+            if (st === 'delivered' || st === 'picked_up') return 'awaiting_payment';
+            return 'placed';
+        }
+
+        async function loadOrders(forceRefresh = false) {
+            const refreshBtn = document.getElementById('refreshOrdersBtn');
+            if (refreshBtn) refreshBtn.disabled = true;
+
+            try {
+                allOrdersCache = await getAllOrdersAdmin(forceRefresh);
+                // Active orders include all stages UP TO Delivered / Picked Up (until final Paid or Cancelled)
+                activeOrders = allOrdersCache.filter(o => isOrderActive(o));
+                const archivedCount = allOrdersCache.length - activeOrders.length;
+                const archBadge = document.getElementById('navArchiveCountBadge');
+                if (archBadge) archBadge.textContent = archivedCount;
+
+                // Method & Stage Counts
+                const countAll = activeOrders.length;
+                const countCod = activeOrders.filter(o => fcOrderMethod(o.purchase_method) === 'cod').length;
+                const countPickup = activeOrders.filter(o => fcOrderMethod(o.purchase_method) === 'pickup').length;
+
+                const stagePlaced = activeOrders.filter(o => getOrderStageGroup(o.order_status, o.purchase_method) === 'placed').length;
+                const stageConfirmed = activeOrders.filter(o => getOrderStageGroup(o.order_status, o.purchase_method) === 'confirmed').length;
+                const stageProcessing = activeOrders.filter(o => getOrderStageGroup(o.order_status, o.purchase_method) === 'processing').length;
+                const stageReady = activeOrders.filter(o => getOrderStageGroup(o.order_status, o.purchase_method) === 'ready').length;
+                const stageAwaitingPay = activeOrders.filter(o => getOrderStageGroup(o.order_status, o.purchase_method) === 'awaiting_payment').length;
+
+                let unpaidTotal = 0;
+                activeOrders.forEach(o => {
+                    const amt = Number(o.total_amount || 0);
+                    if (String(o.payment_status || 'unpaid').toLowerCase() !== 'paid') {
+                        unpaidTotal += amt;
+                    }
+                });
+
+                document.getElementById('count-all').textContent = countAll;
+                document.getElementById('count-cod').textContent = countCod;
+                document.getElementById('count-pickup').textContent = countPickup;
+
+                document.getElementById('stage-count-all').textContent = countAll;
+                document.getElementById('stage-count-placed').textContent = stagePlaced;
+                document.getElementById('stage-count-confirmed').textContent = stageConfirmed;
+                document.getElementById('stage-count-processing').textContent = stageProcessing;
+                document.getElementById('stage-count-ready').textContent = stageReady;
+                document.getElementById('stage-count-awaiting_payment').textContent = stageAwaitingPay;
+
+                // Update top KPI cards
+                document.getElementById('kpiTotalActive').textContent = countAll;
+                document.getElementById('kpiActiveSplit').textContent = `${countCod} COD • ${countPickup} Store Pickup`;
+                document.getElementById('kpiStageNew').textContent = stagePlaced + stageConfirmed;
+                document.getElementById('kpiStageNewSub').textContent = `${stagePlaced} Placed • ${stageConfirmed} Confirmed`;
+                document.getElementById('kpiStageInTransit').textContent = stageProcessing + stageReady;
+                document.getElementById('kpiStageTransitSub').textContent = `${stageProcessing} Processing • ${stageReady} Ready/Out`;
+                document.getElementById('kpiAwaitingPaymentCount').textContent = `${stageAwaitingPay} Order${stageAwaitingPay === 1 ? '' : 's'}`;
+                document.getElementById('kpiActiveUnpaidValue').textContent = 'To Collect: Rs. ' + formatMoney(unpaidTotal);
+
+                renderOrdersTable();
+                applyFilters();
+            } catch (err) {
+                console.error('Error loading active orders:', err);
+                showAlert('Unable to load active orders. Please try refreshing.', 'danger');
+            } finally {
+                if (refreshBtn) refreshBtn.disabled = false;
+            }
+        }
+
+        window.refreshActiveOrders = async function () {
+            await loadOrders(true);
+            await refreshAdminNavBadges();
+            showAlert('Active orders queue refreshed.', 'success');
+        };
+
+        function renderOrdersTable() {
+            const tbody = document.getElementById('activeOrdersBody');
+            if (!activeOrders.length) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="text-center py-5 text-muted">
+                            <i class="bi bi-check2-circle fs-1 text-success d-block mb-2"></i>
+                            <div class="fw-bold text-dark">All caught up! No active orders pending fulfillment or payment.</div>
+                            <div class="small mt-1">New customer orders placed via Cash on Delivery or Store Pickup will appear here automatically.</div>
+                            <a href="completOrder.html" class="btn btn-outline-secondary btn-sm rounded-pill px-3 mt-3 fw-semibold">
+                                <i class="bi bi-archive me-1"></i>Browse Paid &amp; Cancelled Order Archive
+                            </a>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = activeOrders.map(order => {
+                const oid = String(order.id);
+                const ordNo = order.order_number ? `#${order.order_number}` : `#${oid}`;
+                const method = fcOrderMethod(order.purchase_method);
+                const status = normalizeOrderStatus(order.order_status, method);
+                const payStatus = String(order.payment_status || 'unpaid').toLowerCase();
+                const stageGroup = getOrderStageGroup(status, method);
+                const nextAction = fcNextAction(status, method);
+                const isAwaitingPaymentStage = (status === 'delivered' || status === 'picked_up');
+
+                const custName = (order.customer_name || `${order.first_name || ''} ${order.last_name || ''}`).trim() || 'Customer';
+                const custPhone = (order.customer_phone || order.phone_number || 'N/A').trim();
+                const items = Array.isArray(order.items) ? order.items : [];
+                const dt = formatAdminDate(order.created_at);
+                const delFee = Number(order.delivery_fee ?? order.shipping_cost ?? (method === 'cod' ? 450 : 0));
+                const subTotal = Number(order.subtotal ?? order.subtotal_amount ?? 0);
+                const grandTotal = Number(order.total_amount ?? (subTotal + delFee));
+
+                const stepsList = fcLifecycleSteps(method);
+                const stepIdx = stepsList.findIndex(s => s.key === status);
+                const stepProgressText = stepIdx >= 0
+                    ? `Step ${stepIdx + 1} of ${stepsList.length}: ${stepsList[stepIdx].label}`
+                    : fcStatusLabel(status, method);
+
+                const searchIndex = `${order.order_number || ''} ${oid} ${order.pickup_code || ''} ${custName} ${custPhone} ${order.town || ''} ${order.street_address1 || ''}`.toLowerCase();
+
+                let fulfillmentHtml = '';
+                if (method === 'pickup') {
+                    const pDate = formatPickupDay(order.pickup_date);
+                    fulfillmentHtml = `
+                        <div class="mb-1">
+                            <span class="pickup-code-pill"><i class="bi bi-qr-code-scan me-1"></i>${escapeHtml(order.pickup_code || 'PK-STORE')}</span>
+                        </div>
+                        <div class="small text-dark fw-semibold">
+                            <i class="bi bi-calendar-event text-warning me-1"></i>${escapeHtml(pDate)}
+                            &bull; <i class="bi bi-clock text-warning me-1"></i>${escapeHtml(order.pickup_time_slot || 'Standard Slot')}
+                        </div>
+                        <div class="small text-muted">Branch: Rajagiriya Main Counter</div>
+                        ${order.delivery_notes ? `<div class="small text-muted fst-italic mt-1"><i class="bi bi-chat-left-text me-1"></i>${escapeHtml(order.delivery_notes)}</div>` : ''}
+                    `;
+                } else {
+                    fulfillmentHtml = `
+                        <div class="small text-dark fw-semibold">
+                            <i class="bi bi-geo-alt-fill text-primary me-1"></i>
+                            ${escapeHtml(order.street_address1 || 'Address not specified')}
+                            ${order.street_address2 ? ', ' + escapeHtml(order.street_address2) : ''}
+                            ${order.town ? ', <span class="badge bg-light text-dark border">' + escapeHtml(order.town) + '</span>' : ''}
+                        </div>
+                        ${order.delivery_notes ? `<div class="small text-muted fst-italic mt-1"><i class="bi bi-chat-left-text me-1"></i>${escapeHtml(order.delivery_notes)}</div>` : ''}
+                    `;
+                }
+
+                let nextBtnHtml = '';
+                if (nextAction) {
+                    if (nextAction.requires_payment_confirm) {
+                        nextBtnHtml = `
+                            <button type="button" class="btn btn-sm btn-success fw-bold open-confirm-payment-btn shadow-sm"
+                                    data-id="${escapeHtml(oid)}"
+                                    title="Confirm Cash Payment Collected & Move to Paid Archive">
+                                <i class="bi bi-cash-coin me-1"></i>${escapeHtml(nextAction.label)}
+                            </button>
+                        `;
+                    } else {
+                        nextBtnHtml = `
+                            <button type="button" class="btn btn-sm ${nextAction.btn_class} fw-bold next-status-btn shadow-sm"
+                                    data-id="${escapeHtml(oid)}"
+                                    data-next="${escapeHtml(nextAction.next_status)}">
+                                <i class="bi ${nextAction.icon} me-1"></i>${escapeHtml(nextAction.label)}
+                            </button>
+                        `;
+                    }
+                }
+
+                // Only allow cancellation before physical delivery or store pickup handover
+                const canCancel = !['delivered', 'picked_up', 'paid'].includes(status);
+                const cancelBtnHtml = canCancel ? `
+                    <button type="button" class="btn btn-sm btn-outline-danger fw-semibold open-cancel-btn"
+                            data-id="${escapeHtml(oid)}"
+                            data-num="${escapeHtml(ordNo)}"
+                            title="Cancel Order & Restore Stock">
+                        <i class="bi bi-x-circle"></i>
+                    </button>
+                ` : '';
+
+                const itemsRowsHtml = items.length ? items.map(item => {
+                    const imgSrc = resolveImagePath(item.image_path, '../');
+                    const qtyFormatted = formatQuantity(item.quantity, item.unit, item.category_id);
+                    const unitLabel = item.unit ? ` (${escapeHtml(item.unit)})` : '';
+                    return `
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <img src="${escapeHtml(imgSrc)}" alt="" style="width:38px;height:38px;object-fit:contain;border-radius:6px;background:#fff;border:1px solid #E2E8F0;" onerror="this.src='../assets/images/logo/logo-freshco.png'">
+                                    <div>
+                                        <div class="fw-semibold text-dark">${escapeHtml(item.name || item.product_name || 'Item')}</div>
+                                        <div class="text-muted" style="font-size:11px;">Unit: ${escapeHtml(item.unit || '1 unit')}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="text-center">Rs. ${formatMoney(item.price)}</td>
+                            <td class="text-center fw-bold">${escapeHtml(qtyFormatted)}${unitLabel}</td>
+                            <td class="text-end fw-bold text-dark">Rs. ${formatMoney(item.subtotal)}</td>
+                        </tr>
+                    `;
+                }).join('') : `<tr><td colspan="4" class="text-center text-muted py-3">No line items recorded for this order.</td></tr>`;
+
+                return `
+                    <tr class="order-card-row ${isAwaitingPaymentStage ? 'awaiting-payment-row' : ''}"
+                        data-order-id="${escapeHtml(oid)}"
+                        data-method="${method}"
+                        data-stage="${stageGroup}"
+                        data-search="${escapeHtml(searchIndex)}">
+                        <td class="ps-3">
+                            <span class="order-num-badge">${escapeHtml(ordNo)}</span>
+                            <div class="text-muted small mt-1">${escapeHtml(dt.date)}${dt.time ? ' &bull; ' + escapeHtml(dt.time) : ''}</div>
+                            <div class="d-flex align-items-center gap-2 mt-1">
+                                <button class="btn btn-link btn-sm p-0 text-decoration-none fw-semibold text-success"
+                                        type="button" data-bs-toggle="collapse" data-bs-target="#itemsCollapse${escapeHtml(oid)}">
+                                    <i class="bi bi-basket2 me-1"></i>${items.length} item(s)
+                                </button>
+                                <span class="text-muted">&middot;</span>
+                                <button class="btn btn-link btn-sm p-0 text-decoration-none fw-semibold text-primary open-detail-btn"
+                                        type="button" data-id="${escapeHtml(oid)}">
+                                    Manage
+                                </button>
+                            </div>
+                        </td>
+                        <td>${fcMethodBadge(method)}</td>
+                        <td>
+                            <div class="fw-bold text-dark">${escapeHtml(custName)}</div>
+                            <div class="small text-muted"><i class="bi bi-telephone me-1"></i>${escapeHtml(custPhone)}</div>
+                        </td>
+                        <td style="max-width: 280px;">${fulfillmentHtml}</td>
+                        <td>
+                            <div class="fw-bold fs-6 text-dark">Rs. ${formatMoney(grandTotal)}</div>
+                            <div class="small text-muted mb-1">
+                                Sub: Rs. ${formatMoney(subTotal)} | Fee: Rs. ${formatMoney(delFee)}
+                            </div>
+                            ${fcPaymentBadge(payStatus)}
+                        </td>
+                        <td>
+                            <div>${fcStatusBadge(status, method)}</div>
+                            <div class="text-muted mt-1" style="font-size: 11.5px; font-weight: 600;">
+                                ${escapeHtml(stepProgressText)}
+                            </div>
+                            ${isAwaitingPaymentStage ? `
+                                <div class="badge bg-warning-subtle text-dark border border-warning-subtle rounded-pill mt-1" style="font-size:10.5px;">
+                                    <i class="bi bi-hourglass-split me-1"></i>Awaiting Payment Confirmation
+                                </div>
+                            ` : ''}
+                        </td>
+                        <td class="text-end pe-3">
+                            <div class="d-flex flex-wrap justify-content-end gap-1">
+                                ${nextBtnHtml}
+                                <button type="button" class="btn btn-sm btn-outline-secondary open-detail-btn"
+                                        data-id="${escapeHtml(oid)}" title="Full Lifecycle & Details">
+                                    <i class="bi bi-sliders"></i>
+                                </button>
+                                ${cancelBtnHtml}
+                            </div>
+                        </td>
+                    </tr>
+                    <tr class="collapse bg-light order-detail-collapse" id="itemsCollapse${escapeHtml(oid)}" data-parent-order="${escapeHtml(oid)}">
+                        <td colspan="7" class="p-3 border-bottom">
+                            <div class="card border-0 shadow-sm" style="border-radius: 12px;" id="printableSlip${escapeHtml(oid)}">
+                                <div class="card-body p-3">
+                                    <div class="mb-3 pb-2 border-bottom">
+                                        <div class="small fw-bold text-muted text-uppercase mb-2">
+                                            <i class="bi bi-diagram-3-fill text-success me-1"></i>${method === 'pickup' ? 'Store Pickup (6-Stage Lifecycle)' : 'Cash on Delivery (7-Stage Lifecycle)'}
+                                        </div>
+                                        ${fcRenderOrderStepper(status, method)}
+                                    </div>
+                                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 gap-2">
+                                        <div>
+                                            <h6 class="fw-bold mb-0 text-dark">
+                                                <i class="bi bi-card-checklist text-success me-1"></i>Order Items Breakdown — ${escapeHtml(ordNo)}
+                                            </h6>
+                                            <div class="small text-muted">
+                                                Customer: <strong>${escapeHtml(custName)}</strong> (${escapeHtml(custPhone)})
+                                                ${method === 'pickup'
+                                                    ? ` &bull; Pickup Code: <strong>${escapeHtml(order.pickup_code || 'PK-STORE')}</strong>`
+                                                    : ` &bull; Address: ${escapeHtml((order.street_address1 || '') + ' ' + (order.town || ''))}`}
+                                            </div>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <button type="button" class="btn btn-sm btn-outline-dark rounded-pill px-3 fw-semibold print-slip-btn"
+                                                    data-id="${escapeHtml(oid)}" data-num="${escapeHtml(ordNo)}">
+                                                <i class="bi bi-printer me-1"></i>Print Packing Slip
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-bordered align-middle mb-0 bg-white">
+                                            <thead class="table-light small">
+                                                <tr>
+                                                    <th>Product</th>
+                                                    <th class="text-center">Unit Price</th>
+                                                    <th class="text-center">Quantity</th>
+                                                    <th class="text-end">Line Total</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="small">${itemsRowsHtml}</tbody>
+                                            <tfoot class="table-light small">
+                                                <tr>
+                                                    <td colspan="3" class="text-end fw-semibold">Items Subtotal:</td>
+                                                    <td class="text-end fw-bold">Rs. ${formatMoney(subTotal)}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td colspan="3" class="text-end fw-semibold">${method === 'pickup' ? 'Store Pickup Fee:' : 'Home Delivery Fee:'}</td>
+                                                    <td class="text-end fw-bold">Rs. ${formatMoney(delFee)}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td colspan="3" class="text-end fw-bold text-dark">Grand Total:</td>
+                                                    <td class="text-end fw-bold text-success fs-6">Rs. ${formatMoney(grandTotal)}</td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            bindOrderRowActions();
+        }
+
+        function openConfirmPaymentModal(orderId) {
+            const order = activeOrders.find(o => String(o.id) === String(orderId));
+            if (!order) return;
+
+            const oid = String(order.id);
+            const ordNo = order.order_number ? `#${order.order_number}` : `#${oid}`;
+            const method = fcOrderMethod(order.purchase_method);
+            const status = normalizeOrderStatus(order.order_status, method);
+            const custName = (order.customer_name || 'Customer').trim();
+            const grandTotal = Number(order.total_amount || 0);
+
+            document.getElementById('payModalOrderId').value = oid;
+            document.getElementById('payModalOrderNo').textContent = ordNo;
+            document.getElementById('payModalCustomer').textContent = `${custName} (${order.customer_phone || 'N/A'})`;
+            document.getElementById('payModalFulfillmentBadge').innerHTML = fcStatusBadge(status, method);
+            document.getElementById('payModalAmount').textContent = `Rs. ${formatMoney(grandTotal)}`;
+
+            if (method === 'pickup') {
+                document.getElementById('payModalHeadline').textContent = 'Confirm Store Pickup Payment Received';
+                document.getElementById('payModalSubtext').textContent =
+                    'The customer has picked up this order at the counter. Please confirm that the cash payment has been collected.';
+            } else {
+                document.getElementById('payModalHeadline').textContent = 'Confirm Cash on Delivery Payment Received';
+                document.getElementById('payModalSubtext').textContent =
+                    'This order has been delivered to the customer. Please confirm that the cash payment has been collected.';
+            }
+
+            const modalEl = document.getElementById('confirmPaymentModal');
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        }
+
+        document.getElementById('confirmPaymentSubmitBtn').addEventListener('click', async () => {
+            const oid = document.getElementById('payModalOrderId').value;
+            if (!oid) return;
+            const btn = document.getElementById('confirmPaymentSubmitBtn');
+            btn.disabled = true;
+            try {
+                const res = await updateOrderStatusAdmin(oid, { status: 'paid', payment_status: 'paid' });
+                if (res && res.ok === false) throw new Error(res.message);
+                bootstrap.Modal.getInstance(document.getElementById('confirmPaymentModal'))?.hide();
+                showAlert('Payment confirmed! Order marked as PAID and moved to the Order Archive.', 'success');
+                await loadOrders(true);
+                await refreshAdminNavBadges();
+            } catch (err) {
+                showAlert(err.message || 'Could not confirm payment.', 'danger');
+            } finally {
+                btn.disabled = false;
+            }
+        });
+
+        function openOrderDetailsModal(orderId) {
+            const order = activeOrders.find(o => String(o.id) === String(orderId));
+            if (!order) return;
+
+            const oid = String(order.id);
+            const ordNo = order.order_number ? `#${order.order_number}` : `#${oid}`;
+            const method = fcOrderMethod(order.purchase_method);
+            const status = normalizeOrderStatus(order.order_status, method);
+            const payStatus = String(order.payment_status || 'unpaid').toLowerCase();
+            const dt = formatAdminDate(order.created_at);
+            const items = Array.isArray(order.items) ? order.items : [];
+            const delFee = Number(order.delivery_fee ?? order.shipping_cost ?? (method === 'cod' ? 450 : 0));
+            const subTotal = Number(order.subtotal ?? order.subtotal_amount ?? 0);
+            const grandTotal = Number(order.total_amount ?? (subTotal + delFee));
+
+            document.getElementById('detailModalTitle').innerHTML = `Order ${escapeHtml(ordNo)} ${fcMethodBadge(method)}`;
+            document.getElementById('detailModalSubtitle').textContent = `Placed on ${dt.date} ${dt.time ? 'at ' + dt.time : ''}`;
+
+            const statusOptions = method === 'pickup'
+                ? [
+                    { val: 'pending', label: '1. Order Placed' },
+                    { val: 'confirmed', label: '2. Order Confirmed' },
+                    { val: 'processing', label: '3. Processing' },
+                    { val: 'ready_for_pickup', label: '4. Ready for Pickup' },
+                    { val: 'picked_up', label: '5. Picked Up (Awaiting Payment Confirmation)' },
+                    { val: 'paid', label: '6. Paid (Completed — Move to Archive)' }
+                  ]
+                : [
+                    { val: 'pending', label: '1. Order Placed' },
+                    { val: 'confirmed', label: '2. Order Confirmed' },
+                    { val: 'processing', label: '3. Processing' },
+                    { val: 'ready_for_delivery', label: '4. Ready for Delivery' },
+                    { val: 'out_for_delivery', label: '5. Out for Delivery' },
+                    { val: 'delivered', label: '6. Delivered (Awaiting Payment Confirmation)' },
+                    { val: 'paid', label: '7. Paid (Completed — Move to Archive)' }
+                  ];
+
+            const itemsHtml = items.map(it => {
+                const imgSrc = resolveImagePath(it.image_path, '../');
+                const qFmt = formatQuantity(it.quantity, it.unit, it.category_id);
+                return `
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <img src="${escapeHtml(imgSrc)}" width="40" height="40" class="rounded border bg-white object-fit-contain p-1" onerror="this.src='../assets/images/logo/logo-freshco.png'">
+                                <div>
+                                    <div class="fw-bold text-dark">${escapeHtml(it.name || 'Item')}</div>
+                                    <div class="text-muted small">${escapeHtml(it.unit || '1 unit')}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="text-center">Rs. ${formatMoney(it.price)}</td>
+                        <td class="text-center fw-bold">${escapeHtml(qFmt)}</td>
+                        <td class="text-end fw-bold">Rs. ${formatMoney(it.subtotal)}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            document.getElementById('detailModalBody').innerHTML = `
+                <div class="p-3 rounded-3 bg-light border mb-3">
+                    <div class="small fw-bold text-muted text-uppercase mb-2">
+                        <i class="bi bi-diagram-3-fill text-success me-1"></i>Order Lifecycle Progress
+                    </div>
+                    ${fcRenderOrderStepper(status, method)}
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <div class="p-3 rounded-3 bg-light border h-100">
+                            <div class="text-uppercase small fw-bold text-muted mb-2"><i class="bi bi-person-lines-fill me-1"></i>Customer Information</div>
+                            <div class="fw-bold text-dark fs-6">${escapeHtml(order.customer_name || 'Customer')}</div>
+                            <div class="small text-muted mt-1"><i class="bi bi-telephone me-1"></i>${escapeHtml(order.customer_phone || 'N/A')}</div>
+                            ${method === 'pickup' ? `
+                                <div class="mt-2 pt-2 border-top">
+                                    <span class="pickup-code-pill"><i class="bi bi-qr-code-scan me-1"></i>${escapeHtml(order.pickup_code || 'PK-STORE')}</span>
+                                    <div class="small fw-semibold text-dark mt-1">
+                                        Date: ${escapeHtml(formatPickupDay(order.pickup_date))} &bull; Slot: ${escapeHtml(order.pickup_time_slot || 'Standard')}
+                                    </div>
+                                </div>
+                            ` : `
+                                <div class="mt-2 pt-2 border-top small text-dark">
+                                    <strong>Delivery Address:</strong><br>
+                                    ${escapeHtml(order.street_address1 || '')} ${escapeHtml(order.street_address2 || '')}<br>
+                                    <strong>${escapeHtml(order.town || '')}</strong>
+                                </div>
+                            `}
+                            ${order.delivery_notes ? `<div class="small text-muted fst-italic mt-2">Note: "${escapeHtml(order.delivery_notes)}"</div>` : ''}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 rounded-3 bg-light border h-100">
+                            <div class="text-uppercase small fw-bold text-muted mb-2"><i class="bi bi-sliders me-1"></i>Update Order Lifecycle Stage</div>
+                            <div class="mb-2">
+                                <label class="form-label small fw-semibold mb-1">Order Lifecycle Status</label>
+                                <select id="modalStatusSelect" class="form-select form-select-sm">
+                                    ${statusOptions.map(o => `<option value="${o.val}" ${o.val === status ? 'selected' : ''}>${escapeHtml(o.label)}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold mb-1">Payment Status</label>
+                                <select id="modalPaymentSelect" class="form-select form-select-sm">
+                                    <option value="unpaid" ${payStatus === 'unpaid' ? 'selected' : ''}>Unpaid (Pending Collection)</option>
+                                    <option value="paid" ${payStatus === 'paid' ? 'selected' : ''}>Paid (Cash Received)</option>
+                                </select>
+                            </div>
+                            <button type="button" id="modalSaveOrderBtn" class="btn btn-success btn-sm w-100 rounded-pill fw-bold">
+                                <i class="bi bi-check2-circle me-1"></i>Save Lifecycle Changes
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered align-middle mb-0">
+                        <thead class="table-light small">
+                            <tr>
+                                <th>Product</th>
+                                <th class="text-center">Unit Price</th>
+                                <th class="text-center">Quantity</th>
+                                <th class="text-end">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody class="small">${itemsHtml}</tbody>
+                        <tfoot class="table-light small">
+                            <tr>
+                                <td colspan="3" class="text-end fw-semibold">Items Subtotal:</td>
+                                <td class="text-end fw-bold">Rs. ${formatMoney(subTotal)}</td>
+                            </tr>
+                            <tr>
+                                <td colspan="3" class="text-end fw-semibold">Delivery / Pickup Fee:</td>
+                                <td class="text-end fw-bold">Rs. ${formatMoney(delFee)}</td>
+                            </tr>
+                            <tr>
+                                <td colspan="3" class="text-end fw-bold text-dark">Total Amount:</td>
+                                <td class="text-end fw-bold text-success fs-6">Rs. ${formatMoney(grandTotal)}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            `;
+
+            // Auto-sync payment dropdown when Admin selects "Paid" in the lifecycle dropdown
+            const stSelect = document.getElementById('modalStatusSelect');
+            const paySelect = document.getElementById('modalPaymentSelect');
+            stSelect.addEventListener('change', () => {
+                if (stSelect.value === 'paid') {
+                    paySelect.value = 'paid';
+                }
+            });
+
+            const modalEl = document.getElementById('orderDetailsModal');
+            const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            bsModal.show();
+
+            document.getElementById('detailModalPrintBtn').onclick = () => {
+                printPackingSlip(oid, ordNo);
+            };
+
+            document.getElementById('modalSaveOrderBtn').onclick = async (e) => {
+                const btn = e.currentTarget;
+                const newSt = stSelect.value;
+                const newPay = newSt === 'paid' ? 'paid' : paySelect.value;
+                btn.disabled = true;
+                try {
+                    const res = await updateOrderStatusAdmin(oid, { status: newSt, payment_status: newPay });
+                    if (res && res.ok === false) throw new Error(res.message);
+                    bsModal.hide();
+                    const msg = newSt === 'paid'
+                        ? `Order ${ordNo} marked as PAID and moved to the Order Archive!`
+                        : `Order ${ordNo} updated to "${fcStatusLabel(newSt, method)}"!`;
+                    showAlert(msg, 'success');
+                    await loadOrders(true);
+                    await refreshAdminNavBadges();
+                } catch (err) {
+                    showAlert(err.message || 'Could not update order.', 'danger');
+                } finally {
+                    btn.disabled = false;
+                }
+            };
+        }
+
+        function bindOrderRowActions() {
+            document.querySelectorAll('.next-status-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const oid = btn.dataset.id;
+                    const nextStatus = btn.dataset.next;
+                    const order = activeOrders.find(o => String(o.id) === String(oid));
+                    const method = order ? fcOrderMethod(order.purchase_method) : 'cod';
+                    const nextLabel = fcStatusLabel(nextStatus, method);
+
+                    btn.disabled = true;
+                    try {
+                        const res = await updateOrderStatusAdmin(oid, { status: nextStatus });
+                        if (res && res.ok === false) throw new Error(res.message);
+                        const extraNote = (nextStatus === 'delivered' || nextStatus === 'picked_up')
+                            ? ' — Order remains in Active Orders awaiting payment confirmation.'
+                            : '!';
+                        showAlert(`Order status updated to "${nextLabel}"${extraNote}`, 'success');
+                        await loadOrders(true);
+                        await refreshAdminNavBadges();
+                    } catch (err) {
+                        showAlert(err.message || 'Could not update order.', 'danger');
+                        btn.disabled = false;
+                    }
+                });
+            });
+
+            document.querySelectorAll('.open-confirm-payment-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    openConfirmPaymentModal(btn.dataset.id);
+                });
+            });
+
+            document.querySelectorAll('.open-detail-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    openOrderDetailsModal(btn.dataset.id);
+                });
+            });
+
+            document.querySelectorAll('.open-cancel-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.getElementById('cancelModalOrderId').value = btn.dataset.id;
+                    document.getElementById('cancelModalOrderNum').textContent = btn.dataset.num;
+                    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('cancelOrderModal'));
+                    modal.show();
+                });
+            });
+
+            document.querySelectorAll('.print-slip-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    printPackingSlip(btn.dataset.id, btn.dataset.num);
+                });
+            });
+        }
+
+        document.getElementById('confirmCancelOrderBtn').addEventListener('click', async () => {
+            const oid = document.getElementById('cancelModalOrderId').value;
+            if (!oid) return;
+            const confirmBtn = document.getElementById('confirmCancelOrderBtn');
+            confirmBtn.disabled = true;
+            try {
+                const res = await cancelOrderWithStockRestore(oid, 'Admin');
+                if (res && res.ok === false) throw new Error(res.message);
+                bootstrap.Modal.getInstance(document.getElementById('cancelOrderModal'))?.hide();
+                showAlert('Order cancelled and item quantities restored to stock!', 'success');
+                await loadOrders(true);
+                await refreshAdminNavBadges();
+            } catch (err) {
+                showAlert(err.message || 'Failed to cancel order.', 'danger');
+            } finally {
+                confirmBtn.disabled = false;
+            }
+        });
+
+        window.filterByMethod = function (method) {
+            currentMethod = method;
+            document.getElementById('tab-all').className = 'filter-tab' + (method === 'all' ? ' active-all' : '');
+            document.getElementById('tab-cod').className = 'filter-tab' + (method === 'cod' ? ' active-cod' : '');
+            document.getElementById('tab-pickup').className = 'filter-tab' + (method === 'pickup' ? ' active-pickup' : '');
+            window.applyFilters();
+        };
+
+        window.filterByStage = function (stage) {
+            currentStage = stage;
+            ['all', 'placed', 'confirmed', 'processing', 'ready', 'awaiting_payment'].forEach(s => {
+                const el = document.getElementById('stage-' + s);
+                if (el) el.className = 'stage-pill' + (s === stage ? ' active' : '');
+            });
+            window.applyFilters();
+        };
+
+        window.resetAllOrderFilters = function () {
+            document.getElementById('orderSearchInput').value = '';
+            currentMethod = 'all';
+            currentStage = 'all';
+            document.getElementById('tab-all').className = 'filter-tab active-all';
+            document.getElementById('tab-cod').className = 'filter-tab';
+            document.getElementById('tab-pickup').className = 'filter-tab';
+            ['all', 'placed', 'confirmed', 'processing', 'ready', 'awaiting_payment'].forEach(s => {
+                const el = document.getElementById('stage-' + s);
+                if (el) el.className = 'stage-pill' + (s === 'all' ? ' active' : '');
+            });
+            window.applyFilters();
+        };
+
+        window.applyFilters = function () {
+            const q = (document.getElementById('orderSearchInput').value || '').toLowerCase().trim();
+            const rows = document.querySelectorAll('#activeOrdersTable tbody tr.order-card-row');
+            let visibleCount = 0;
+
+            rows.forEach(row => {
+                const oid = row.getAttribute('data-order-id');
+                const rowMethod = row.getAttribute('data-method');
+                const rowStage = row.getAttribute('data-stage');
+                const rowSearch = row.getAttribute('data-search') || '';
+                const matchesMethod = (currentMethod === 'all' || rowMethod === currentMethod);
+                const matchesStage = (currentStage === 'all' || rowStage === currentStage);
+                const matchesSearch = (!q || rowSearch.indexOf(q) !== -1);
+                const isVisible = matchesMethod && matchesStage && matchesSearch;
+
+                row.style.display = isVisible ? '' : 'none';
+                if (isVisible) visibleCount++;
+
+                // Ensure any open collapse row for a hidden parent order is also hidden!
+                const collapseRow = document.getElementById('itemsCollapse' + oid);
+                if (collapseRow) {
+                    if (!isVisible) {
+                        collapseRow.style.display = 'none';
+                    } else {
+                        collapseRow.style.removeProperty('display');
+                    }
+                }
+            });
+
+            const existingEmpty = document.getElementById('noFilterMatchRow');
+            if (existingEmpty) existingEmpty.remove();
+
+            if (rows.length > 0 && visibleCount === 0) {
+                const tbody = document.getElementById('activeOrdersBody');
+                const tr = document.createElement('tr');
+                tr.id = 'noFilterMatchRow';
+                tr.innerHTML = `
+                    <td colspan="7" class="text-center py-5 text-muted">
+                        <i class="bi bi-funnel fs-2 d-block mb-2"></i>
+                        <div class="fw-bold text-dark">No active orders match your current filter.</div>
+                        <button type="button" class="btn btn-outline-success btn-sm rounded-pill px-3 mt-2 fw-semibold" onclick="resetAllOrderFilters()">
+                            Reset Filters
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            }
+        };
+
+        window.exportActiveOrdersCSV = function () {
+            if (!activeOrders.length) {
+                showAlert('No active orders to export.', 'warning');
+                return;
+            }
+            const headers = ['Order Number', 'Date', 'Method', 'Customer Name', 'Phone', 'Address / Pickup Slot', 'Pickup Code', 'Subtotal (Rs)', 'Delivery Fee (Rs)', 'Total (Rs)', 'Payment Status', 'Lifecycle Status'];
+            const rows = activeOrders.map(o => {
+                const method = fcOrderMethod(o.purchase_method);
+                const addrOrSlot = method === 'pickup'
+                    ? `${o.pickup_date || ''} ${o.pickup_time_slot || ''}`.trim()
+                    : `${o.street_address1 || ''} ${o.town || ''}`.trim();
+                return [
+                    o.order_number || o.id,
+                    o.created_at || '',
+                    method.toUpperCase(),
+                    o.customer_name || '',
+                    o.customer_phone || '',
+                    addrOrSlot,
+                    o.pickup_code || '',
+                    Number(o.subtotal || 0).toFixed(2),
+                    Number(o.delivery_fee ?? o.shipping_cost ?? 0).toFixed(2),
+                    Number(o.total_amount || 0).toFixed(2),
+                    o.payment_status || 'unpaid',
+                    fcStatusLabel(o.order_status, method)
+                ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+            });
+            const csv = [headers.join(','), ...rows].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `freshcomart_active_orders_${new Date().toISOString().slice(0, 10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        };
+
+        function printPackingSlip(orderId, orderLabel) {
+            const slipEl = document.getElementById('printableSlip' + orderId);
+            if (!slipEl) return;
+            const win = window.open('', '_blank', 'width=760,height=680');
+            if (!win) return;
+            win.document.write(`
+                <html><head><title>Packing Slip - ${escapeHtml(orderLabel)}</title>
+                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+                <style>body{padding:24px;font-family:'Inter',sans-serif;} .btn{display:none!important;}</style>
+                </head><body>
+                <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                    <div>
+                        <h4 class="mb-0 fw-bold text-success">FRESHCOMART SUPERMARKET — PACKING SLIP</h4>
+                        <small class="text-muted">Main Branch, Sri Jayawardenepura Mawatha, Rajagiriya</small>
+                    </div>
+                    <div class="text-end">
+                        <div class="fw-bold fs-5">${escapeHtml(orderLabel)}</div>
+                    </div>
+                </div>
+                ${slipEl.innerHTML}
+                <script>window.onload=function(){setTimeout(function(){window.print();},250);};<\/script>
+                </body></html>
+            `);
+            win.document.close();
+        }
+
+        await loadOrders();
+    </script>
+</body>
+</html>

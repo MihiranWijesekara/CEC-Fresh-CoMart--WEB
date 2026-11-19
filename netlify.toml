@@ -1,0 +1,118 @@
+[build]
+  publish = "."
+
+[[redirects]]
+  from = "/index.php"
+  to = "/index.html"
+  status = 301
+
+[[redirects]]
+  from = "/proceed.php"
+  to = "/proceed.html"
+  status = 301
+
+[[redirects]]
+  from = "/order-confirmation.php"
+  to = "/order-confirmation.html"
+  status = 301
+
+[[redirects]]
+  from = "/my-account.php"
+  to = "/my-account.html"
+  status = 301
+
+[[redirects]]
+  from = "/profile.php"
+  to = "/profile.html"
+  status = 301
+
+[[redirects]]
+  from = "/contact-us.php"
+  to = "/contact-us.html"
+  status = 301
+
+[[redirects]]
+  from = "/contact.php"
+  to = "/contact.html"
+  status = 301
+
+[[redirects]]
+  from = "/login/sign.php"
+  to = "/login/sign.html"
+  status = 301
+
+[[redirects]]
+  from = "/login/register.php"
+  to = "/login/register.html"
+  status = 301
+
+[[redirects]]
+  from = "/login/logout.php"
+  to = "/login/logout.html"
+  status = 301
+
+[[redirects]]
+  from = "/product/product.php"
+  to = "/product/product.html"
+  status = 301
+
+[[redirects]]
+  from = "/product/shopping-cart.php"
+  to = "/product/shopping-cart.html"
+  status = 301
+
+[[redirects]]
+  from = "/product/my-orders.php"
+  to = "/product/my-orders.html"
+  status = 301
+
+[[redirects]]
+  from = "/product/nav.php"
+  to = "/product/nav.html"
+  status = 301
+
+[[redirects]]
+  from = "/Admin/login.php"
+  to = "/Admin/login.html"
+  status = 301
+
+[[redirects]]
+  from = "/Admin/logout.php"
+  to = "/Admin/logout.html"
+  status = 301
+
+[[redirects]]
+  from = "/Admin/dashboard.php"
+  to = "/Admin/dashboard.html"
+  status = 301
+
+[[redirects]]
+  from = "/Admin/order.php"
+  to = "/Admin/order.html"
+  status = 301
+
+[[redirects]]
+  from = "/Admin/completOrder.php"
+  to = "/Admin/completOrder.html"
+  status = 301
+
+[[redirects]]
+  from = "/Admin/Item.php"
+  to = "/Admin/Item.html"
+  status = 301
+
+[[redirects]]
+  from = "/Admin/ItemAdd.php"
+  to = "/Admin/ItemAdd.html"
+  status = 301
+
+[[redirects]]
+  from = "/Admin/summary.php"
+  to = "/Admin/summary.html"
+  status = 301
+
+[[redirects]]
+  from = "/Admin/inquiries.php"
+  to = "/Admin/inquiries.html"
+  status = 301
+
